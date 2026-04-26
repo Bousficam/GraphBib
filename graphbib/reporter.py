@@ -150,14 +150,6 @@ tr:hover td{background:var(--surf2)}
 <script>
 const D = __REPORT_DATA__;
 
-// ---- init ----
-document.getElementById('scan-date').textContent = D.scan_date;
-renderCards();
-renderChart(D.top_keywords.slice(0, 40));
-renderTable();
-renderClusters();
-setupYaml();
-
 // ---- cards ----
 function renderCards() {
   const s = D.stats;
@@ -314,6 +306,14 @@ function syntaxHighlight(yaml) {
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ---- init (after all function definitions) ----
+document.getElementById('scan-date').textContent = D.scan_date;
+renderCards();
+renderChart(D.top_keywords.slice(0, 40));
+renderTable();
+renderClusters();
+setupYaml();
 </script>
 </body>
 </html>"""
