@@ -111,11 +111,15 @@ class KeywordExtractor:
                         if kw != seed:
                             co[kw] = co.get(kw, 0) + 1
             top_co = sorted(co.items(), key=lambda x: x[1], reverse=True)[:5]
+            doc_titles = [
+                d.title[:80] for d in documents if seed in d.keywords
+            ]
             clusters.append(
                 {
                     "seed": seed,
                     "co_keywords": [k for k, _ in top_co],
                     "doc_count": global_freq[seed],
+                    "doc_titles": doc_titles[:25],
                 }
             )
         return clusters

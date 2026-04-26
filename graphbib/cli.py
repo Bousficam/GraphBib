@@ -108,7 +108,31 @@ def scan(biblio_path: str, output: str, formats: str, max_keywords: int, top_clu
     _echo_ok(f"{json_path}")
 
     click.echo(click.style("\nProchaine étape :", bold=True))
-    click.echo("  1. Ouvrez " + click.style(str(html_path), fg="cyan") + " dans un navigateur")
-    click.echo("  2. Éditez  " + click.style(str(yaml_path), fg="yellow"))
-    click.echo("  3. Lancez  " + click.style("graphbib build --clusters " + str(yaml_path), fg="green"))
+    click.echo("  1. Ouvrez  " + click.style(str(html_path), fg="cyan") + " dans un navigateur")
+    click.echo("  2. Curate  " + click.style("graphbib curate --input " + output, fg="magenta"))
+    click.echo("  3. Build   " + click.style("graphbib build --clusters " + str(yaml_path), fg="green"))
     click.echo()
+
+
+@cli.command()
+@click.option("--input", "-i", "input_dir", default="./graphbib_output", show_default=True,
+              help="Dossier contenant scan_results.json et clusters_template.yaml.")
+def curate(input_dir: str) -> None:
+    """Lancer l'interface de curation Streamlit interactive."""
+    import subprocess
+
+    app_path = Path(__file__).parent / "app.py"
+    scan_json = Path(input_dir) / "scan_results.json"
+    clusters_yaml = Path(input_dir) / "clusters_template.yaml"
+
+    if not scan_json.exists():
+        click.echo(click.style(f"  ✗ Introuvable : {scan_json}", fg="red"))
+        click.echo("  → Lancez d'abord : graphbib scan ./ma_biblio --output " + input_dir)
+        raise SystemExit(1)
+
+    click.echo(click.style("\n══ GraphBib — Interface de Curation ══", bold=True, fg="magenta"))
+    click.echo(f"  scan_results.json      : {scan_json}")
+    click.echo(f"  clusters_template.yaml : {clusters_yaml}")
+    click.echo(click.style("\n  Ouverture Streamlit… (Ctrl+C pour quitter)\n", fg="cyan"))
+
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)])

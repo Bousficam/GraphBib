@@ -79,6 +79,12 @@ tr:hover td{background:var(--surf2)}
 .yaml-toolbar{display:flex;gap:8px;margin-bottom:10px}
 .yaml-code{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;line-height:1.7;overflow-x:auto;white-space:pre;color:#cdd9e5;max-height:520px;overflow-y:auto}
 .y-comment{color:#6e7681}.y-key{color:#79c0ff}.y-val{color:#a5d6ff}.y-str{color:#a8d7a8}.y-section{color:#d2a8ff;font-weight:700}
+/* toggle docs */
+.toggle-docs-btn{margin-top:8px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:.72rem;cursor:pointer;width:100%;text-align:left;transition:.15s}
+.toggle-docs-btn:hover{border-color:var(--acc);color:var(--acc)}
+.toggle-docs-btn.open{color:var(--acc)}
+.doc-list{display:none;margin-top:6px;padding-left:14px;list-style:disc;color:var(--muted);font-size:.72rem;line-height:1.7;max-height:200px;overflow-y:auto}
+.doc-list.open{display:block}
 /* toast */
 #toast{position:fixed;bottom:24px;right:24px;background:var(--ok);color:#fff;padding:8px 18px;border-radius:8px;font-size:.82rem;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
@@ -272,10 +278,18 @@ function renderClusters() {
       `<span class="kw-tag" onclick="toggleKwFilter('${k.replace(/'/g,"\\'")}')">
         ${escHtml(k)}</span>`
     ).join('');
+    const titles = (c.doc_titles || []);
+    const titlesHtml = titles.map(t => `<li>${escHtml(t)}</li>`).join('');
+    const moreLabel = titles.length ? `▶ ${c.doc_count} document${c.doc_count>1?'s':''}` : '';
+    const uid = 'cl_' + i;
     return `<div class="cluster-card" style="border-color:${color};background:${color}18">
       <div class="seed" style="color:${color}">${escHtml(c.seed)}</div>
-      <div class="count">${c.doc_count} document${c.doc_count>1?'s':''}</div>
       <div class="co-kws">${coHtml}</div>
+      ${titles.length ? `
+        <button class="toggle-docs-btn" onclick="toggleDocList('${uid}',this)">
+          ▶ ${c.doc_count} document${c.doc_count>1?'s':''}
+        </button>
+        <ul class="doc-list" id="${uid}">${titlesHtml}</ul>` : ''}
     </div>`;
   }).join('');
   document.getElementById('cluster-grid').innerHTML = html || '<p style="color:var(--muted)">Aucun cluster détecté (corpus trop petit)</p>';
@@ -305,6 +319,13 @@ function syntaxHighlight(yaml) {
 }
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toggleDocList(uid, btn) {
+  const list = document.getElementById(uid);
+  const open = list.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  const n = list.querySelectorAll('li').length;
+  btn.textContent = (open ? '▼ ' : '▶ ') + n + ' document' + (n>1?'s':'');
 }
 
 // ---- init (after all function definitions) ----

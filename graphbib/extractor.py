@@ -3,7 +3,10 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
+from .cleaner import KeywordCleaner
 from .models import Document
+
+_cleaner = KeywordCleaner()
 
 # pdfminer emits floods of warnings for malformed color spaces in some PDFs
 # (e.g. "Cannot set gray non-stroke color because /'P85' is an invalid float").
@@ -64,7 +67,7 @@ class TextExtractor:
                 t = page.extract_text()
                 if t:
                     pages_text.append(t)
-        full_text = _clean("\n".join(pages_text))
+        full_text = _clean(_cleaner.clean_text("\n".join(pages_text)))
         return Document(
             path=str(path),
             filename=path.name,
