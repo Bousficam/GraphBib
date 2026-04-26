@@ -358,8 +358,10 @@ class HTMLReporter:
         }
 
         html_path = self.out / "keyword_report.html"
+        # Escape </ so PDF text containing </script> can't break the inline script block.
+        json_str = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
         html_path.write_text(
-            _HTML.replace("__REPORT_DATA__", json.dumps(data, ensure_ascii=False)),
+            _HTML.replace("__REPORT_DATA__", json_str),
             encoding="utf-8",
         )
 

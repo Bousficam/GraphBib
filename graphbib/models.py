@@ -15,6 +15,8 @@ class Document:
     keywords: List[str] = field(default_factory=list)
     keyword_scores: Dict[str, float] = field(default_factory=dict)
     raw_metadata: Dict[str, Any] = field(default_factory=dict)
+    # Populated by Step 2 clustering
+    clusters: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -27,4 +29,22 @@ class Document:
             "format": self.format,
             "keywords": self.keywords,
             "keyword_scores": self.keyword_scores,
+            "clusters": self.clusters,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Document":
+        return cls(
+            path=d.get("path", ""),
+            filename=d.get("filename", ""),
+            title=d.get("title", ""),
+            authors=d.get("authors", []),
+            year=d.get("year"),
+            abstract=d.get("abstract", ""),
+            full_text="",  # not persisted (too large)
+            format=d.get("format", ""),
+            keywords=d.get("keywords", []),
+            keyword_scores=d.get("keyword_scores", {}),
+            raw_metadata={},
+            clusters=d.get("clusters", []),
+        )
