@@ -1,8 +1,14 @@
+import logging
 import re
 from pathlib import Path
 from typing import List, Optional
 
 from .models import Document
+
+# pdfminer emits floods of warnings for malformed color spaces in some PDFs
+# (e.g. "Cannot set gray non-stroke color because /'P85' is an invalid float").
+# These are rendering artefacts that don't affect text extraction.
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 
 def _clean(text: str) -> str:
