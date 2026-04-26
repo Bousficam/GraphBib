@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# GraphBib outputs
+graphbib_output/
+*.json
+!sample_biblio/**/*.json
+
+# Obsidian vault (generated)
+vault/
+.obsidian/
+
+# OS
+.DS_Store
+Thumbs.db

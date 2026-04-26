@@ -1,0 +1,45 @@
+Training Tips for Deep Neural Networks
+=======================================
+
+Optimization
+------------
+- Always use Adam or AdamW as default optimizer. SGD with momentum can outperform
+  Adam for CNNs but requires careful tuning of learning rate and weight decay.
+- Learning rate is the most critical hyperparameter. Start with 1e-3 for Adam,
+  1e-1 for SGD with momentum 0.9.
+- Cosine annealing with warm restarts (SGDR) often outperforms step decay schedules.
+- Gradient clipping (max norm 1.0) is essential for transformer training to prevent
+  exploding gradients.
+
+Regularization
+--------------
+- Dropout: 0.1-0.5 depending on model size. Less needed with batch normalization.
+- Weight decay (L2 regularization): 1e-4 to 1e-2 for most architectures.
+- Data augmentation is the most effective regularization for image tasks.
+- Early stopping: monitor validation loss with patience of 5-10 epochs.
+
+Batch size and learning rate scaling
+--------------------------------------
+- Linear scaling rule: when multiplying batch size by k, multiply learning rate by k.
+- Large batch training benefits from longer warmup periods.
+- Gradient accumulation allows effective large batch training on limited GPU memory.
+
+Normalization
+-------------
+- Batch Normalization: effective for CNNs, problematic for small batches.
+- Layer Normalization: standard for transformers and RNNs.
+- Group Normalization: alternative when batch size is small (e.g., detection).
+
+Mixed Precision Training
+------------------------
+- FP16 with loss scaling reduces memory by 2x and speeds up training on modern GPUs.
+- BF16 is more numerically stable than FP16, preferred on A100/H100.
+- Use automatic mixed precision (AMP) via PyTorch torch.cuda.amp.
+
+Debugging checklist
+-------------------
+1. Verify loss decreases on a single batch (overfitting test)
+2. Check gradient norms per layer
+3. Visualize learning rate schedule
+4. Monitor validation metrics per epoch
+5. Profile GPU utilization (should be > 80%)
