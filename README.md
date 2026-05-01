@@ -1,27 +1,38 @@
-# LLM Wiki Agent
+# LLM Wiki Agent — Academic Edition
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**A coding agent skill.** Drop source documents into `raw/` and tell the agent to ingest them — it reads them, extracts knowledge, and builds a persistent interlinked wiki. Every new source makes the wiki richer. You never write it.
+**A coding agent skill, specialized for academic research.** Drop a PDF library into `raw/` and tell the agent to ingest it — the wiki builds itself: source summaries with verbatim citations, concept pages structured as short academic chapters, methodology pages, recommendations grouped by evidence strength, open research questions, and a citation network that connects every paper to what it cites and what cites it.
 
-> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time — cross-references already built, contradictions already flagged, synthesis already done.
+> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time — cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
 
-```
-ingest raw/papers/attention-is-all-you-need.md
-```
+This fork is configured for research on **stroke motor rehabilitation via MI-BCI and TMS**, anchored in neural control theory and white-matter anatomy (DTI). The schema adapts to other academic domains by editing `CLAUDE.md`.
 
 ```
-wiki/
-├── index.md          catalog of all pages — updated on every ingest
-├── log.md            append-only record of every operation
-├── overview.md       living synthesis across all sources
-├── sources/          one summary page per source document
-├── entities/         people, companies, projects — auto-created
-├── concepts/         ideas, frameworks, methods — auto-created
-└── syntheses/        query answers filed back as wiki pages
+ingest raw/papers/cervera-2020.md
+```
+
+```
+raw/                  # Immutable source documents — never modified
+├── papers/           # Journal articles
+├── theses/           # PhD/MSc theses (with citation snowball)
+└── notes/            # Lab reports, conference talks, personal notes
+wiki/                 # Owned entirely by the agent
+├── index.md          # Catalog of all pages — updated on every ingest
+├── log.md            # Append-only chronological record
+├── overview.md       # Living synthesis across all sources
+├── sources/          # One academic summary per ingested source
+├── entities/         # Authors, labs, institutions
+├── concepts/         # Theoretical concepts, structured as book chapters
+├── methods/          # Methodologies & instruments (EEG, TMS, DTI, FuglMeyer…)
+├── recommendations/  # Clinical/research recommendations grouped by evidence
+├── questions/        # Open research questions identified across the corpus
+└── syntheses/        # Saved query answers and literature reviews
 graph/
-├── graph.json        persistent node/edge data (SHA256-cached)
-└── graph.html        interactive vis.js visualization — open in any browser
+├── graph.json        # Persistent node/edge data (SHA256-cached)
+└── graph.html        # Interactive vis.js visualization
+pdf2md/               # PDF → Markdown conversion pipeline
+tools/                # Standalone scripts (health, lint, citations…)
 ```
 
 ## Install
@@ -66,6 +77,169 @@ Plain English works too:
 **Claude Code** also provides `/wiki-ingest`, `/wiki-query`, `/wiki-lint`, `/wiki-graph` as slash commands (via `.claude/commands/`). These are Claude Code-specific — other agents use the natural language triggers above, which work identically.
 
 Works with markdown, PDF, DOCX, PPTX, XLSX, HTML, TXT, CSV, JSON, XML, RST, EPUB, and more. Non-markdown files are auto-converted via [markitdown](https://github.com/microsoft/markitdown) at ingest time — no separate step needed.
+
+For PDF-heavy academic libraries, this fork ships a dedicated pipeline (next section).
+
+## Academic Pipeline
+
+End-to-end flow for converting a PDF library into a citation-rigorous wiki.
+Each step is idempotent and can be re-run safely.
+
+```
+PDF library
+   │
+   ▼  pdf2md/pdf2md_marker.py     ← high-fidelity Marker conversion
+   │  pdf2md/pdf2md_fallback.py   ← pymupdf4llm rescue for PDFs Marker can't handle
+   │
+   ▼  Markdown files (raw/papers/)
+   │
+   ▼  pdf2md/enrich_frontmatter.py  ← Crossref → title, authors, journal, year, DOI
+   │                                  Regex → cites: [DOIs]
+   │
+   ▼  tools/parse_references.py --curate
+   │     ↳ Phase 1 — extract DOIs from References (regex)
+   │     ↳ Phase 2 — validate each DOI against Crossref agency endpoint
+   │     ↳ Phase 3 — recover broken/missing DOIs via Crossref free-text search
+   │
+   ▼  ingest in Claude Code
+   │     ↳ Background / Methods / Results / Discussion / Cites sections
+   │     ↳ Indirect Citation Rule (cite the original paper, not the transmitter)
+   │     ↳ concept, method, recommendation, question pages auto-created/refined
+   │     ↳ citation_apa + bibtex_key generated from frontmatter
+   │
+   ▼  tools/update_cited_by.py   ← Reverse citation index → ## Cited By sections
+   │  tools/suggest_readings.py  ← Snowball candidates (DOIs cited 2+ times,
+   │                               not yet in the wiki)
+   │
+   ▼  Living academic wiki
+```
+
+### Step 1 — PDF → Markdown
+
+```bash
+python pdf2md/pdf2md_marker.py "/path/to/PDFs" raw/papers
+python pdf2md/pdf2md_fallback.py "/path/to/PDFs" raw/papers
+```
+
+`pdf2md_marker.py` walks the source directory recursively, runs each PDF
+through [marker-pdf](https://github.com/VikParuchuri/marker), mirrors the
+folder structure, and writes a frontmatter header (`source_pdf`, `title`,
+`backend: marker`). Idempotent — already-converted files are skipped.
+Output: `marker.log`, `marker_report.json` summarizing OK / suspicious /
+errors.
+
+`pdf2md_fallback.py` reads `marker_report.json` and reprocesses every PDF
+that failed or produced a suspiciously short output, this time with
+[pymupdf4llm](https://github.com/pymupdf/RAG) (CPU, no ML dependency).
+Useful when Marker / Surya hits known MPS bugs on certain PDFs. The
+backend used for each `.md` is recorded in its frontmatter.
+
+### Step 2 — Enrich Bibliographic Metadata
+
+```bash
+python pdf2md/enrich_frontmatter.py raw/papers
+```
+
+For each `.md`, finds the DOI (regex over the body and the first PDF
+page) and queries Crossref for canonical `title`, `authors`, `journal`,
+`year`. Same pass also extracts a raw list of cited DOIs from the
+References section into `cites: []`.
+
+Outputs `enrich_report.json` with the breakdown: Crossref-resolved /
+DOI-only / no-DOI / errors / how many sources got `cites:` populated.
+
+### Step 3 — Validate and Curate Citations
+
+```bash
+python tools/parse_references.py --curate --all raw/papers
+```
+
+Three opt-in phases:
+1. **Extract** — regex DOI extraction (offline, fast).
+2. **Validate** — Crossref `/works/{doi}/agency` check; drops invalid
+   DOIs (typically broken at line breaks during PDF extraction).
+3. **Curate** — for entries with no valid DOI, free-text bibliographic
+   search recovers the canonical DOI, accepted only when relevance
+   score and title overlap pass thresholds.
+
+Frontmatter:
+```yaml
+cites: [doi1, doi2, ...]              # all validated DOIs (regex + curated)
+cites_curated: [doi3]                  # subset recovered via free-text (audit)
+cites_unresolved:                      # entries no DOI could be assigned to
+  - "Smith J, Brown K. ..."
+```
+
+Cache: `tools/.cache/doi_validation.json` — once a DOI is validated,
+subsequent runs skip the network call. Estimated cost on a fresh
+698-paper corpus: ~13 min; subsequent runs: ~5 min.
+
+### Step 4 — Ingest into the Wiki
+
+```bash
+claude
+```
+
+Then in the agent:
+```
+ingest raw/papers/cervera-2020.md
+ingest raw/papers/   # batch — process by length, ascending
+```
+
+Or in plain English:
+```
+"Ingest all PDFs under raw/papers/ in batches of 5, shortest first.
+ Confirm after each batch."
+```
+
+Claude reads `CLAUDE.md` and applies the academic schema:
+- **Source pages** with explicit `## Background (from cited literature)`,
+  `## Methods`, `## Results (this paper's findings)`, `## Discussion` —
+  each register cited correctly under the **Indirect Citation Rule**.
+- **Concept pages** structured as short academic chapters (Overview,
+  Historical Genesis, Definitions, Theoretical Foundations, Mechanisms,
+  Operationalization, Empirical Evidence, Clinical Relevance, Debates,
+  Seminal Papers, Related Concepts).
+- **Method pages** documenting each instrument or technique (EEG, TMS,
+  DTI, FuglMeyer, MI-BCI, KVIQ, Tractography…) with best practices and
+  pitfalls aggregated across sources.
+- **Recommendation pages** grouping clinical/research recommendations by
+  evidence strength (Strong / Moderate / Conflicting).
+- **Question pages** capturing the open research questions surfaced by
+  each paper.
+- **Entity pages** for authors and institutions.
+- `citation_apa` and `bibtex_key` auto-generated; `## How to Cite`
+  section in each source page is copy-paste ready.
+
+For theses (`raw/theses/*`), Claude additionally extracts a
+**citation snowball list** of high-value references the thesis builds on.
+
+### Step 5 — Build and Maintain the Citation Network
+
+```bash
+python tools/update_cited_by.py
+```
+
+Walks `wiki/sources/`, builds the reverse-citation index from each
+source's `cites:` frontmatter, and rewrites every source's `## Cited By`
+section with `[[wikilinks]]` pointing to the papers that cite it. Run
+after each batch of ingestions.
+
+### Step 6 — Surface Complementary Readings
+
+```bash
+python tools/suggest_readings.py MotorImagery --enrich --top 20
+```
+
+For a given concept (or `--all` for wiki-wide), lists DOIs cited by
+**2 or more wiki sources tagged with that concept** but not yet
+ingested, with Crossref metadata (title, authors, journal, year). These
+are your snowball candidates.
+
+The agent-visible equivalent:
+```
+/wiki-suggest-readings MotorImagery
+```
 
 ## What You Get
 
@@ -201,13 +375,16 @@ The schema file tells the agent how to maintain the wiki — page formats, inges
 
 ## What Makes This Different from RAG
 
-| RAG | LLM Wiki Agent |
+| RAG | LLM Wiki Agent (Academic Edition) |
 |---|---|
 | Re-derives knowledge every query | Compiles once, keeps current |
 | Raw chunks as retrieval unit | Structured wiki pages |
 | No cross-references | Cross-references pre-built |
 | Contradictions surface at query time (maybe) | Flagged at ingest time |
 | No accumulation | Every source makes the wiki richer |
+| Citations are guesses or absent | Every claim cites `[[source]] (p. N)`, APA-ready |
+| Cites the retriever's chunk | Indirect Citation Rule: cite the original paper, not the transmitter |
+| No bibliography output | `citation_apa` + `bibtex_key` per source, `## Bibliography (APA)` in literature reviews |
 
 ## Obsidian Integration
 
@@ -274,19 +451,38 @@ python tools/file_to_md.py --input_dir raw/imports/ --delete_source  # remove or
 
 | Package | Install | Used for |
 |---|---|---|
-| [markitdown](https://github.com/microsoft/markitdown) | `pip install markitdown` | Auto-conversion of non-.md files (required for multi-format ingest) |
+| [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | **Required** for `pdf2md/pdf2md_marker.py` — high-fidelity academic PDF conversion |
+| [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | **Required** for `pdf2md/pdf2md_fallback.py` — CPU rescue when Marker fails |
+| [requests](https://requests.readthedocs.io/) + [PyYAML](https://pyyaml.org/) | `pip install requests pyyaml` | **Required** for `enrich_frontmatter.py`, `parse_references.py`, `suggest_readings.py`, `update_cited_by.py` (Crossref API + frontmatter parsing) |
+| [tqdm](https://github.com/tqdm/tqdm) | `pip install tqdm` | Progress bars in the pdf2md pipeline |
+| [markitdown](https://github.com/microsoft/markitdown) | `pip install markitdown` | Auto-conversion of non-PDF formats (.docx, .pptx, .xlsx, .html, …) |
 | [arxiv2md](https://github.com/ryansingman/arxiv2md) | `pip install arxiv2markdown` | arXiv papers via structured source |
-| [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | Complex academic PDFs with multi-column layouts |
-| [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | Fast PDF extraction (no GPU needed) |
-| [tqdm](https://github.com/tqdm/tqdm) | `pip install tqdm` | Progress bar for batch directory conversion |
+
+Quick install for the academic pipeline:
+
+```bash
+pip install marker-pdf pymupdf4llm requests pyyaml tqdm
+```
 
 ## Tips
 
-- Just drop files (PDF, DOCX, etc.) into `raw/` and `ingest` them — conversion is automatic
-- For arXiv papers, `tools/pdf2md.py` gives higher-fidelity output than generic markitdown conversion
-- Query answers are shown first — the agent then asks if you want to file them as synthesis pages. Your explorations compound just like ingested sources
-- The wiki is a git repo — version history for free
-- Standalone Python scripts in `tools/` work without a coding agent (require `ANTHROPIC_API_KEY`)
+- For PDF libraries, run the dedicated `pdf2md/` pipeline before ingest
+  (Marker is much higher fidelity than markitdown for academic PDFs).
+- Run `tools/parse_references.py --curate` *after* the conversion pipeline
+  but *before* ingestion — the agent then sees a clean `cites:` list and
+  can wikilink to existing wiki sources directly.
+- Re-run `tools/update_cited_by.py` after each batch of ingestions to
+  refresh the reverse citation index.
+- For theses, the agent surfaces a **citation snowball list** of
+  high-value references at the end of the ingest summary — pick which
+  to ingest next.
+- Use `tools/suggest_readings.py <concept>` to identify what to read next
+  to deepen a concept that feels under-supported.
+- Query answers are shown first — the agent then asks if you want to
+  file them as `wiki/syntheses/<topic>-review.md` pages.
+- The wiki is a git repo — version history for free.
+- Standalone Python scripts in `tools/` work without a coding agent
+  (Crossref scripts require internet but no API key).
 
 ## Tech Stack
 
