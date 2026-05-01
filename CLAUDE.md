@@ -23,6 +23,7 @@ The agent's three jobs, in priority order:
 | `/wiki-query` | `query: what does the literature say about MI-BCI for chronic stroke?` |
 | `/wiki-review` | `review topic: corticospinal integrity and motor recovery` |
 | `/wiki-cite` | `cite: TMS-induced plasticity in M1` (returns 3-5 APA refs) |
+| `/wiki-suggest-readings` | `suggest readings for: MotorImagery` (snowball candidates) |
 | `/wiki-health` | `health` (fast, every session) |
 | `/wiki-lint` | `lint the wiki` (expensive, periodic) |
 | `/wiki-graph` | `build the knowledge graph` |
@@ -87,6 +88,27 @@ any wiki page MUST cite at least one `[[source-slug]] (p. N)`.**
   `bibtex_key` fields are stored in each source page's frontmatter and
   rendered in the `## How to Cite` section.
 
+### Indirect Citation Rule (literature vs results)
+
+A paper has two epistemic registers — claims it *inherits* from prior work
+(intro / discussion / theoretical framework) and claims it *originates*
+itself (methods / results). The agent must respect that distinction.
+
+- A claim found in the **Introduction** or **Discussion** of paper X is X
+  attributing the claim to another paper Y. Cite the original:
+  - **If Y is in the wiki**: cite `[[paper-Y]] (p. ?)` directly. X is the
+    path through which you found Y, but Y is the citable source.
+  - **If Y is not in the wiki**: cite `[[paper-X]] (p. ?, citing Y, YYYY)`
+    — explicit acknowledgement that you read X but the claim originates in
+    Y. Add Y to the snowball candidate list (X's `cites:` frontmatter).
+- A claim from the **Results** of X is X's own contribution: cite
+  `[[paper-X]] (p. ?)` directly.
+- A claim from the **Methods** of X (procedure used by X) is also X's:
+  cite `[[paper-X]] (p. ?)`.
+- Numerical results (effect sizes, p-values, sample N) MUST be quoted
+  verbatim from the originating paper's Results section, never via a
+  secondary citation.
+
 ---
 
 ## Page Format (Canonical Frontmatter)
@@ -133,26 +155,34 @@ Steps (in order):
 4. **Generate `citation_apa` and `bibtex_key`** from the frontmatter
    (`authors`, `year`, `title`, `journal` or `university`, `doi`). Use APA 7.
 5. **Write `wiki/sources/<slug>.md`** using the chosen template. Apply the
-   Citation Rule strictly.
-6. **Update entity pages** for each author and institution.
-7. **Update concept pages** for each key concept discussed; for each, link
+   Citation Rule strictly. Distinguish `## Background (from cited literature)`
+   from `## Results (this paper's findings)` — the **Indirect Citation Rule**
+   applies.
+6. **Parse references** (`tools/parse_references.py`): extract DOIs from the
+   source's `## References` / `## Bibliography` section, populate
+   `cites:` in the frontmatter, fill the `## Cites` section with wikilinks
+   for in-wiki papers and raw DOIs for snowball candidates.
+7. **Update entity pages** for each author and institution.
+8. **Update concept pages** for each key concept discussed; for each, link
    operationalizations to the relevant `[[methods/...]]` pages.
-8. **Update method pages**: for each method listed in the source's
+9. **Update method pages**: for each method listed in the source's
    `methods:` frontmatter, ensure `wiki/methods/<MethodName>.md` exists,
    and add this source under its `## Used In This Wiki` section.
-9. **Update recommendation pages**: if the source proposes recommendations,
-   route them to the relevant `wiki/recommendations/<topic>.md` (create if
-   needed) under the appropriate evidence-strength section.
-10. **Update question pages**: if the source identifies an open question or
-    explicit gap, append to `wiki/questions/<slug>.md` (create if needed).
-11. **Flag contradictions** with existing wiki content explicitly, with page
-    numbers on both sides.
-12. **Update `wiki/index.md`** — add entries under all touched sections.
-13. **Update `wiki/overview.md`** if the synthesis warrants revision.
-14. **Append to `wiki/log.md`**: `## [YYYY-MM-DD] ingest | <Title>`.
-15. **Post-ingest validation** — check broken `[[wikilinks]]`, verify all new
-    pages are in `index.md`, print a change summary including counts:
-    *N concepts updated, M methods touched, K recommendations refined*.
+10. **Update recommendation pages**: if the source proposes recommendations,
+    route them to the relevant `wiki/recommendations/<topic>.md` (create
+    if needed) under the appropriate evidence-strength section.
+11. **Update question pages**: if the source identifies an open question
+    or explicit gap, append to `wiki/questions/<slug>.md` (create if needed).
+12. **Flag contradictions** with existing wiki content explicitly, with
+    page numbers on both sides.
+13. **Update `wiki/index.md`** — add entries under all touched sections.
+14. **Update `wiki/overview.md`** if the synthesis warrants revision.
+15. **Append to `wiki/log.md`**: `## [YYYY-MM-DD] ingest | <Title>`.
+16. **Post-ingest validation** — check broken `[[wikilinks]]`, verify all
+    new pages are in `index.md`, run `tools/update_cited_by.py` to refresh
+    `## Cited By` sections wiki-wide, print a change summary including
+    counts: *N concepts updated, M methods touched, K recommendations
+    refined, J snowball candidates surfaced*.
 
 ### For theses specifically — citation snowball
 
@@ -201,6 +231,9 @@ replication_of: ""          # DOI of the replicated paper, if applicable
 # Citation (auto-generated, copyable)
 citation_apa: ""
 bibtex_key: ""              # e.g. cervera2020
+
+# Citation network (auto-populated by tools/parse_references.py)
+cites: []                   # DOIs cited by this paper
 ---
 
 ## Summary
@@ -209,6 +242,13 @@ bibtex_key: ""              # e.g. cervera2020
 ## Research Question
 Single sentence — the question the paper explicitly addresses.
 
+## Background (from cited literature)
+Claims this paper inherits from prior work (intro and theoretical framing).
+Each bullet cites the **original** source (Indirect Citation Rule):
+- Claim from prior work — [[paper-y]] (p. ?), reported via [[paper-x]] (p. ?, intro).
+- Framework adopted — [[paper-z]] (p. ?), reported via [[paper-x]] (p. ?).
+- If the original is not in the wiki: `[[paper-x]] (p. ?, citing Y, 2018)`.
+
 ## Methods
 - **Design**: <study_design>
 - **Participants**: N=<sample_size>, profile (p. ?)
@@ -216,30 +256,49 @@ Single sentence — the question the paper explicitly addresses.
 - **Measures**: variables -> instruments -> [[methods/MethodName]]
 - **Analysis**: statistical approach
 
-## Key Findings
-- Finding 1, with effect size and statistic if reported (p. ?)
+## Results (this paper's findings)
+What the paper contributes empirically. Each bullet cites THIS paper.
+- Finding 1, with effect size and statistic verbatim (p. ?)
 - Finding 2 (p. ?)
 
+## Discussion (interpretation)
+How the authors read their results in light of the literature. Mixed
+citations — results cite this paper, literature claims cite originals.
+- Authors interpret Finding 1 as supporting [[Framework]] — [[paper-z]]
+  (p. ?), reported via this paper's discussion (p. ?).
+- Authors note discrepancy with [[paper-w]] (p. ?), discussed at p. ?.
+
 ## Recommendations / Implications
-- Recommendation 1 (p. ?) — target: [clinician | researcher | policy]
-- Implication for theory of [[ConceptName]] (p. ?)
+- Recommendation 1 (p. ?) — target: [clinician | researcher | policy].
+- Implication for theory of [[ConceptName]] (p. ?).
 
 ## Limitations
-- Limitation 1 — as acknowledged by the authors (p. ?)
-- Limitation 2 (p. ?)
+- Limitation 1 — as acknowledged by the authors (p. ?).
+- Limitation 2 (p. ?).
 
 ## Verbatim Quotes
 > "Quote here verbatim" — p. N
 
+## Cites (in-wiki + snowball candidates)
+Auto-populated from the paper's References section. Wikilinks for papers
+already in the wiki, raw DOIs for snowball candidates.
+- [[paper-y]] — referenced in Background.
+- [[paper-z]] — framework citation in Discussion.
+- 10.xxxx/yyy — *not yet in wiki* (snowball candidate).
+- 10.xxxx/zzz — *not yet in wiki*.
+
+## Cited By
+*(Auto-populated by `tools/update_cited_by.py`: list of `[[paper-slug]]`
+pages whose `cites:` frontmatter contains this paper's DOI.)*
+
 ## Connections
-- [[AuthorName]] — author
-- [[ConceptName]] — central concept; how this paper uses it
-- [[methods/MethodName]] — operationalization used
-- [[OtherPaper]] — builds on / contradicts / extends
+- [[AuthorName]] — author.
+- [[ConceptName]] — central concept; how this paper uses it.
+- [[methods/MethodName]] — operationalization used.
 
 ## Contradictions / Agreements
-- Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?)
-- Confirms [[OtherPaper]] on: claim Y (this p. ?, other p. ?)
+- Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?).
+- Confirms [[OtherPaper]] on: claim Y (this p. ?, other p. ?).
 
 ## How to Cite
 **APA**: <citation_apa>
@@ -295,6 +354,9 @@ chapters: 0                 # integer
 # Citation
 citation_apa: ""
 bibtex_key: ""
+
+# Citation network (auto-populated)
+cites: []                   # DOIs cited across all chapters
 ---
 
 ## Abstract
@@ -335,6 +397,14 @@ High-value references this thesis builds on. Format:
 - ✓ [[already-ingested-slug]]
 
 After ingest, surface the ☐ items and ask the user about snowball ingestion.
+
+## Cites (in-wiki + snowball candidates)
+Auto-populated by `tools/parse_references.py` from the thesis's bibliography.
+Wikilinks for theses/papers already in the wiki, raw DOIs otherwise.
+
+## Cited By
+*(Auto-populated: theses/papers in the wiki whose `cites:` includes this
+thesis's DOI.)*
 
 ## Verbatim Quotes
 > "..." — p. N
@@ -766,6 +836,38 @@ Triggered by: *"cite: <topic>"* or `/wiki-cite`.
 Returns 3-5 APA-formatted citations from the wiki most relevant to the
 topic, with one-sentence relevance rationale per citation. No body, just
 references — useful when drafting a paragraph and needing cite-ready refs.
+
+---
+
+## Suggest-Readings Workflow
+
+Triggered by: *"suggest readings for: <concept>"* or `/wiki-suggest-readings`.
+
+Surfaces complementary readings to deepen a concept. Two modes:
+
+**Internal mode** (default — runs `tools/suggest_readings.py <concept>`):
+- Walks `wiki/sources/`, collects every source tagged with the concept.
+- Aggregates each source's `cites:` frontmatter (DOIs cited).
+- Surfaces DOIs cited by **2+ wiki sources** but not yet present in any
+  `wiki/sources/*.md` `doi:` field.
+- Sorted by citation frequency. Each candidate shows: count, DOI, the
+  wiki sources that cite it.
+
+**External mode** (with `--external` — optional):
+- Queries OpenAlex / Semantic Scholar for highly-cited papers in the
+  concept's domain not yet in the wiki.
+- Returns ~10-20 candidates with title, authors, year, journal,
+  citation-count.
+
+Output: a Markdown list of candidates with their bibliographic
+metadata (fetched via Crossref). The user picks which to ingest. The
+agent does NOT auto-ingest.
+
+Use this workflow when:
+- A concept page feels under-supported (few sources, sparse
+  `## Empirical Evidence` section).
+- Before writing a `/wiki-review` on a topic.
+- Periodically, to identify snowball debt.
 
 ---
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Enrichit le frontmatter YAML des .md avec title, authors, journal, doi, year.
+"""Enrichit le frontmatter YAML des .md avec title, authors, journal, doi, year, cites.
 
 Stratégie par fichier :
   1. parse le frontmatter existant (préserve source_pdf, backend, etc.)
   2. cherche un DOI (regex) dans le corps du MD puis dans la 1re page du PDF source
   3. si DOI trouvé : appelle l'API Crossref pour récupérer les métadonnées canoniques
   4. fallback : métadonnées PDF (PyMuPDF) + premier H1 du MD
-  5. réécrit le frontmatter (corps inchangé)
+  5. parse la section References / Bibliography → liste de DOIs cités → cites: []
+  6. réécrit le frontmatter (corps inchangé)
 
 Écrit enrich_report.json à la racine de DST.
 """
@@ -22,6 +23,15 @@ import yaml
 import fitz  # PyMuPDF, dépendance de marker / pymupdf4llm
 
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
+REF_HEADERS = (
+    "references",
+    "bibliography",
+    "cited works",
+    "works cited",
+    "literature cited",
+    "réferences",
+    "références",
+)
 
 
 def parse_fm(text: str):
@@ -40,6 +50,35 @@ def first_h1(body: str):
         if ln.lstrip().startswith("# "):
             return ln.lstrip("# ").strip()
     return None
+
+
+def extract_references_block(body: str) -> str:
+    """Return the text after the first References / Bibliography heading."""
+    lines = body.splitlines()
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if not s.startswith("#"):
+            continue
+        heading = s.lstrip("#").strip().lower().rstrip(":.")
+        if any(heading == h or heading.startswith(h + " ") for h in REF_HEADERS):
+            return "\n".join(lines[i + 1:])
+    return ""
+
+
+def extract_cited_dois(body: str, own_doi: str | None) -> list[str]:
+    refs = extract_references_block(body)
+    if not refs:
+        return []
+    seen: set[str] = set()
+    own = (own_doi or "").lower()
+    out: list[str] = []
+    for m in DOI_RE.finditer(refs):
+        d = m.group(0).rstrip(".,;)").lower()
+        if d == own or d in seen:
+            continue
+        seen.add(d)
+        out.append(d)
+    return out
 
 
 def pdf_first_page(p: Path):
@@ -109,6 +148,10 @@ def enrich(md_path: Path):
                 a.strip() for a in re.split(r"[;,]", pdf_meta["author"]) if a.strip()
             ]
 
+    cites = extract_cited_dois(body, out.get("doi"))
+    if cites:
+        out["cites"] = cites
+
     new_fm = yaml.safe_dump(out, allow_unicode=True, sort_keys=False).strip()
     md_path.write_text(f"---\n{new_fm}\n---\n\n{body.lstrip()}", encoding="utf-8")
     return out
@@ -126,7 +169,7 @@ def main():
     ]
     print(f"{len(mds)} fichiers MD à enrichir")
 
-    rep = {"crossref_ok": [], "doi_only": [], "no_doi": [], "errors": []}
+    rep = {"crossref_ok": [], "doi_only": [], "no_doi": [], "with_cites": [], "errors": []}
     for md in mds:
         rel = str(md.relative_to(dst))
         try:
@@ -137,6 +180,9 @@ def main():
                 rep["doi_only"].append({"file": rel, "doi": fm["doi"]})
             else:
                 rep["no_doi"].append(rel)
+            n_cites = len(fm.get("cites") or [])
+            if n_cites:
+                rep["with_cites"].append({"file": rel, "n": n_cites})
         except Exception as e:
             rep["errors"].append({"file": rel, "error": repr(e)})
 
@@ -145,6 +191,7 @@ def main():
         "crossref_ok": len(rep["crossref_ok"]),
         "doi_only": len(rep["doi_only"]),
         "no_doi": len(rep["no_doi"]),
+        "with_cites": len(rep["with_cites"]),
         "errors": len(rep["errors"]),
     }
     (dst / "enrich_report.json").write_text(
