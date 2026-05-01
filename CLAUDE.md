@@ -162,6 +162,24 @@ Steps (in order):
    source's `## References` / `## Bibliography` section, populate
    `cites:` in the frontmatter, fill the `## Cites` section with wikilinks
    for in-wiki papers and raw DOIs for snowball candidates.
+
+   The script has three phases (each opt-in):
+   - default — regex extraction (offline, fast).
+   - `--validate` — checks each extracted DOI against Crossref; invalid
+     DOIs (often from line-break breakage by marker) are dropped.
+   - `--curate` — for entries with no valid DOI, runs a Crossref
+     bibliographic free-text search to recover the canonical DOI;
+     accepted only when relevance score and title overlap pass thresholds.
+     Recovered DOIs are tracked separately in `cites_curated:` for audit.
+
+   Run `--curate` after the conversion pipeline, on the full corpus:
+
+   ```bash
+   python tools/parse_references.py --curate --all wiki/sources/
+   ```
+
+   A local cache (`tools/.cache/doi_validation.json`) makes re-runs nearly
+   free.
 7. **Update entity pages** for each author and institution.
 8. **Update concept pages** for each key concept discussed; for each, link
    operationalizations to the relevant `[[methods/...]]` pages.

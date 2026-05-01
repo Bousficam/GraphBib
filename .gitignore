@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 .venv/
 venv/
+.cache/
 
 # llm-wiki-agent runtime data — user content, not committed
 raw/*
