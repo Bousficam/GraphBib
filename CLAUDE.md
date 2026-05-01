@@ -74,6 +74,11 @@ any wiki page MUST cite at least one `[[source-slug]] (p. N)`.**
   verbatim with page reference.
 - If a claim is the agent's synthesis across multiple sources, list all of
   them: `(see [[paper-a]] p. 12, [[paper-b]] p. 4)`.
+- **Entity pages**: every biographical, affiliative, or institutional
+  statement cites a source with page number, exactly like factual claims
+  in source pages.
+- **Overview**: every cross-source claim under `## Key Findings (synthesized)`
+  cites the relevant sources. Pure scope/meta sentences need no citation.
 - **Bibliographic fields rule**: `title`, `authors`, `journal`, `year`, `doi`,
   `source_pdf` MUST be copied verbatim from the source frontmatter. Never
   infer, translate, normalize, or invent values. Leave fields empty if
@@ -552,6 +557,48 @@ Clinical, theoretical, or methodological stakes.
 
 ---
 
+## Entity Page Format
+
+People, labs, institutions, instrument vendors. One page per entity, in
+`wiki/entities/<EntityName>.md`. The Citation Rule applies — every
+biographical or affiliative claim cites a source.
+
+```markdown
+---
+title: "Entity Name"
+type: entity
+entity_type: author | institution | lab | tool-vendor | consortium
+domain: [stroke, MI-BCI]
+tags: []
+sources: []                 # auto-populated
+last_updated: YYYY-MM-DD
+---
+
+## Identity
+1-2 lines: who/what, with citation.
+*"Maryam Maarek is a postdoctoral researcher at INSERM U1216"*
+([[maarek-2024]] p. 1).
+
+## Affiliations
+- [[INSERM-U1216]] — postdoc, 2022–present ([[maarek-2024]] p. 1)
+- [[OtherLab]] — PhD student, 2018–2021 ([[maarek-2021]] p. iv)
+
+## Contributions to This Wiki
+- Concepts developed/refined: [[ConceptName]] (see [[paper-x]] p. ?)
+- Methods used or introduced: [[methods/MethodName]]
+- Co-authors in this wiki: [[OtherAuthor]], [[ThirdAuthor]]
+
+## Notable Papers in This Wiki
+- [[paper-a]] — first author
+- [[paper-b]] — co-author
+- [[thesis-c]] — supervisor
+
+## Used In This Wiki
+*(Auto-populated: list of [[source-slug]] pages citing this entity.)*
+```
+
+---
+
 ## Query Workflow
 
 Triggered by: *"query: <question>"* or `/wiki-query`.
@@ -758,6 +805,49 @@ Likely entries you'll create — keep names consistent:
 
 ## Syntheses
 - [Title](syntheses/<slug>.md) — what question it answers
+```
+
+## Overview Page Format
+
+`wiki/overview.md` is a living synthesis across all sources. Refreshed at
+step 13 of the ingest workflow when synthesis warrants revision. The
+Citation Rule applies under `## Key Findings (synthesized)`.
+
+```markdown
+---
+title: "Wiki Overview"
+type: synthesis
+last_updated: YYYY-MM-DD
+sources: []                 # auto-populated: all sources synthesized here
+---
+
+## Scope
+1-3 sentences: what this wiki covers (no citation needed — meta).
+
+## Key Findings (synthesized)
+Cross-source claims, **each with citations**:
+- Finding 1 (see [[paper-a]] p. ?, [[paper-b]] p. ?, [[cervera-2020]]
+  meta-analysis p. ?)
+- Finding 2 (see [[thesis-x]] ch. 4 p. ?, [[paper-c]] p. ?)
+
+## Major Concepts
+Linked, not redefined here:
+- [[MotorImagery]], [[CorticospinalTract]], [[Neuroplasticity]],
+  [[NeuralControlTheory]]
+
+## Major Methods
+- [[methods/MI-BCI]], [[methods/TMS]], [[methods/DTI]],
+  [[methods/FuglMeyer]]
+
+## Active Debates
+Linked to question pages:
+- Debate 1 → [[questions/<slug>]]
+- Debate 2 → [[questions/<slug>]]
+
+## Recent Updates
+Append-only mini-log of synthesis-affecting ingests:
+- YYYY-MM-DD : ingested [[new-paper]] — refined Finding X
+- YYYY-MM-DD : ingested [[new-thesis]] — added Debate 2
 ```
 
 ## Log Format
