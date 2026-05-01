@@ -1,0 +1,67 @@
+{
+  "_comment": "Lexicon of brain regions / pathways anchored for stroke / MI-BCI / TMS / DTI research. Each entry: canonical name + matching aliases (regex-friendly).",
+  "regions": {
+    "M1": {
+      "canonical": "Primary Motor Cortex (M1)",
+      "aliases": ["primary motor cortex", "M1", "BA4", "Brodmann area 4", "motor cortex"]
+    },
+    "S1": {
+      "canonical": "Primary Somatosensory Cortex (S1)",
+      "aliases": ["primary somatosensory", "S1", "BA1", "BA2", "BA3", "postcentral gyrus"]
+    },
+    "PremotorCortex": {
+      "canonical": "Premotor Cortex (PMC)",
+      "aliases": ["premotor cortex", "PMC", "lateral premotor", "BA6 lateral", "dorsal premotor", "PMd", "ventral premotor", "PMv"]
+    },
+    "SMA": {
+      "canonical": "Supplementary Motor Area (SMA)",
+      "aliases": ["supplementary motor area", "SMA", "pre-SMA", "BA6 medial"]
+    },
+    "PosteriorParietalCortex": {
+      "canonical": "Posterior Parietal Cortex",
+      "aliases": ["posterior parietal", "PPC", "BA5", "BA7", "intraparietal sulcus", "IPS"]
+    },
+    "Cerebellum": {
+      "canonical": "Cerebellum",
+      "aliases": ["cerebellum", "cerebellar"]
+    },
+    "BasalGanglia": {
+      "canonical": "Basal Ganglia",
+      "aliases": ["basal ganglia", "putamen", "caudate", "globus pallidus", "striatum"]
+    },
+    "Thalamus": {
+      "canonical": "Thalamus",
+      "aliases": ["thalamus", "thalamic"]
+    }
+  },
+  "tracts": {
+    "CorticospinalTract": {
+      "canonical": "Corticospinal Tract (CST)",
+      "aliases": ["corticospinal tract", "CST", "pyramidal tract"]
+    },
+    "InternalCapsule": {
+      "canonical": "Internal Capsule",
+      "aliases": ["internal capsule", "PLIC", "posterior limb of internal capsule", "ALIC"]
+    },
+    "CorpusCallosum": {
+      "canonical": "Corpus Callosum",
+      "aliases": ["corpus callosum", "callosal", "genu of corpus callosum", "splenium"]
+    },
+    "ArcuateFasciculus": {
+      "canonical": "Arcuate Fasciculus",
+      "aliases": ["arcuate fasciculus", "arcuate", "AF (arcuate)"]
+    },
+    "SuperiorLongitudinalFasciculus": {
+      "canonical": "Superior Longitudinal Fasciculus (SLF)",
+      "aliases": ["superior longitudinal fasciculus", "SLF", "SLF I", "SLF II", "SLF III"]
+    },
+    "ThalamicRadiation": {
+      "canonical": "Thalamic Radiation",
+      "aliases": ["thalamic radiation", "anterior thalamic radiation", "posterior thalamic radiation", "ATR", "PTR"]
+    },
+    "Uncinate": {
+      "canonical": "Uncinate Fasciculus",
+      "aliases": ["uncinate", "uncinate fasciculus"]
+    }
+  }
+}
