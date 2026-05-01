@@ -54,7 +54,8 @@ wiki/                 # Claude owns this layer entirely
   sources/            # One summary page per ingested source
   entities/           # People, labs, institutions, instrument vendors
   concepts/           # Theoretical concepts (e.g. MotorImagery, Neuroplasticity)
-  methods/            # Methodologies & instruments (e.g. EEG, TMS, DTI, FuglMeyer)
+  methods/            # Measurement instruments (EEG, FuglMeyer, MEP, KVIQ, DTI…)
+  interventions/      # Treatment monographs (MI-BCI, rTMS, mirror therapy…)
   recommendations/    # Synthesized clinical/research recommendations by topic
   questions/          # Open research questions identified across the literature
   syntheses/          # Saved query answers and literature reviews
@@ -118,7 +119,7 @@ Every wiki page starts with this frontmatter:
 ```yaml
 ---
 title: "Page Title"
-type: source | entity | concept | method | recommendation | question | synthesis
+type: source | entity | concept | method | intervention | recommendation | question | synthesis
 tags: []
 sources: []          # list of source slugs that inform this page
 last_updated: YYYY-MM-DD
@@ -186,6 +187,16 @@ Steps (in order):
 9. **Update method pages**: for each method listed in the source's
    `methods:` frontmatter, ensure `wiki/methods/<MethodName>.md` exists,
    and add this source under its `## Used In This Wiki` section.
+   **Reminder**: methods are *measurement instruments* (EEG, FuglMeyer,
+   MEP, KVIQ). Treatments delivered to participants belong on intervention
+   pages — see step 9b.
+9b. **Update intervention pages**: if the source describes a therapeutic
+    intervention (BCI, TMS, mirror therapy, robot training, etc.), ensure
+    `wiki/interventions/<intervention-slug>.md` exists. Tag the source's
+    frontmatter with `intervention_family: "BCI"` (or similar) so the
+    intervention page can aggregate. When ≥ 2 sources share an
+    `intervention_family`, the intervention page should reach full depth
+    (Definition → Identified Studies → Pooled Outcomes → Best Practices).
 10. **Update recommendation pages**: if the source proposes recommendations,
     route them to the relevant `wiki/recommendations/<topic>.md` (create
     if needed) under the appropriate evidence-strength section.
@@ -238,7 +249,9 @@ study_design: ""            # RCT | cohort | cross-sectional | review |
 sample_size:                # integer N (or empty)
 population: ""              # e.g. "chronic stroke patients (>6 months post-onset)"
 domain: []                  # e.g. [stroke, motor-rehab, MI-BCI]
-methods: []                 # e.g. [EEG, MI-BCI, FuglMeyer, ARAT, TMS, DTI]
+methods: []                 # measurement instruments — e.g. [EEG, FuglMeyer, ARAT, MEP, DTI]
+interventions: []           # treatments delivered — e.g. [MI-BCI, rTMS, mirror-therapy]
+intervention_family: ""     # primary therapy family — BCI | TMS | tDCS | mirror | robot | mental-practice | physio | combined | none
 
 # Quality signals
 peer_reviewed: true
@@ -669,6 +682,99 @@ Synthesized recommendations across the wiki's sources:
 
 ---
 
+## Intervention Page Format
+
+Intervention pages document **treatments** — what is delivered to a patient
+or participant. Distinct from `methods/` (which documents measurement
+instruments like EEG, KVIQ, MEP). Use this for interventions tested by
+multiple studies of the same family (BCI, TMS, mirror therapy, robot-assisted
+training, mental practice, etc.).
+
+A page is created or refreshed at ingest step 9.5 (intervention pages):
+when ≥ 2 sources in the wiki use the same `intervention_family`, the
+agent generates `wiki/interventions/<intervention-slug>.md`.
+
+```markdown
+---
+title: "Intervention: MI-BCI"
+type: intervention
+aka: ["motor imagery brain-computer interface", "EEG-based MI-BCI"]
+intervention_family: "BCI"      # BCI | TMS | tDCS | mirror | robot |
+                                # mental-practice | physio | combined
+target_outcome: ["motor recovery", "corticospinal excitability"]
+domain: [stroke, motor-rehab]
+variants: ["MI-BCI + FES", "MI-BCI + AO", "closed-loop MI-BCI"]
+sources: []                     # auto-populated: studies using this intervention
+last_updated: YYYY-MM-DD
+---
+
+## Definition
+2-3 sentences with citation:
+*"Motor-imagery BCI is a closed-loop system that translates EEG correlates
+of imagined movement into feedback ..."* ([[paper-x]] p. ?).
+
+## Mechanism of Action (proposed)
+Hypothesized active ingredients. Link to relevant [[concepts/...]] pages
+(Neuroplasticity, NeuralControlTheory, Hebbian-learning).
+- Mechanism A — supported by [[paper-a]] (p. ?), [[paper-b]] (p. ?).
+- Mechanism B — proposed but contested ([[paper-c]] p. ?).
+
+## Variants
+Sub-types found in the literature:
+- Variant A — used by [[paper-x]] (p. ?), [[paper-y]] (p. ?).
+  Distinguishing feature: e.g. "FES feedback contingent on motor imagery".
+- Variant B — used by [[paper-z]] (p. ?). Distinguishing feature: ...
+
+## Protocol Parameters (synthesized across studies)
+Aggregated from RCTs in the wiki:
+- **Sessions**: range — typical (e.g. 12-30, typical 20)
+- **Session duration**: range — typical (e.g. 30-60 min, typical 45)
+- **Total dosage**: range — typical hours of training
+- **Co-interventions**: usual concurrent therapies
+- **Patient inclusion**: chronicity, baseline severity, lesion criteria
+
+## Identified Studies
+Brief table by design.
+
+| Study | Design | N | Population | Outcome (Δ) | Effect |
+|---|---|---|---|---|---|
+| [[paper-a]] | RCT | 32 | chronic stroke, FM 25-50 | ΔFM = +6.2 (p. ?) | medium |
+| [[paper-b]] | open-label | 12 | subacute, FM 20-30 | ΔFM = +4.1 (p. ?) | small |
+
+## Pooled Outcomes (when comparable)
+- **ΔFugl-Meyer Upper Extremity** at end-of-treatment: median, range across RCTs.
+- **ΔARAT**: ...
+- **MEP amplitude change**: ...
+
+## Best Practices (consensus)
+- Practice 1 — consensus across [[a]], [[b]], [[c]] (p. ? each).
+- Practice 2 — recommended by [[d]] (p. ?), but contested by [[e]] (p. ?).
+
+## Patient Selection
+Sub-group analyses if available.
+- Who benefits more? (e.g. preserved CST integrity per DTI — [[paper-x]] p. ?)
+- Who doesn't? (e.g. severe baseline impairment, complete CST disruption)
+
+## Contraindications & Adverse Events
+- Contraindication 1 (p. ?)
+- Adverse event incidence reported in [[paper-x]] (p. ?).
+
+## Open Questions
+- → [[questions/<slug>]]: dose-response not yet established.
+- → [[questions/<slug>]]: long-term retention beyond 6 months unclear.
+
+## Related
+- Underlying concepts: [[MotorImagery]], [[Neuroplasticity]].
+- Measurement methods: [[methods/EEG]], [[methods/FuglMeyer]], [[methods/MEP]].
+- Related interventions: [[interventions/AO-BCI]], [[interventions/rTMS]].
+- Recommendations: [[recommendations/mi-bci-stroke-rehab]].
+
+## Used In This Wiki
+*(Auto-populated: [[source-slug]] entries that report using this intervention.)*
+```
+
+---
+
 ## Recommendation Page Format
 
 One page per topic, grouped by **strength of evidence**. Drop into
@@ -889,6 +995,41 @@ Use this workflow when:
 
 ---
 
+## Replication Tracking
+
+Each Academic Paper template includes a `replication_of: "<DOI>"` frontmatter
+field. When a paper explicitly attempts to replicate a prior study, the
+agent fills it in at ingest. `tools/replication_tracker.py` walks
+`wiki/sources/`, follows the `replication_of:` chains, and outputs a
+report grouped into:
+
+- **Replication chains** — original → replication(s) with consistent
+  vs inconsistent findings flagged.
+- **Single-study claims** — concept pages whose `## Empirical Evidence`
+  rests on one source (a flag for confidence).
+- **Replication candidates** — papers in the wiki that could plausibly
+  replicate an existing finding but don't claim it explicitly.
+
+Run this periodically; it complements `/wiki-lint`.
+
+---
+
+## Audit Trail (git as history)
+
+Because the wiki is a git repo, `git log` and `git blame` already provide
+a free audit trail — every ingestion appends to `wiki/log.md` with
+`## [YYYY-MM-DD] ingest | <Title>`, and each commit touches the wiki pages
+the source affected.
+
+`tools/audit_page.py <wiki-page>` (commit 3) wraps `git blame` to map
+each line of the page to the ingest commit that introduced it, surfacing
+which source contributed which paragraph. Useful for:
+- Defending a claim during a thesis review.
+- Identifying when a concept's definition shifted.
+- Untangling synthesis lines that reference multiple sources.
+
+---
+
 ## Lint Workflow
 
 Triggered by: *"lint the wiki"* or `/wiki-lint`.
@@ -976,7 +1117,9 @@ If Python/dependencies aren't set up, generate the graph data manually:
 - **Concept pages**: `TitleCase.md`
   (e.g. `MotorImagery.md`, `Neuroplasticity.md`, `CorticospinalTract.md`).
 - **Method pages**: `TitleCase.md`
-  (e.g. `EEG.md`, `TMS.md`, `DTI.md`, `FuglMeyer.md`, `MI-BCI.md`).
+  (e.g. `EEG.md`, `DTI.md`, `FuglMeyer.md`, `MEP.md`, `KVIQ.md`).
+- **Intervention pages**: `kebab-case.md` matching the family or variant
+  (e.g. `mi-bci.md`, `rtms.md`, `itbs.md`, `mirror-therapy.md`).
 - **Recommendation pages**: `kebab-case.md`
   (e.g. `mi-bci-stroke-rehab.md`).
 - **Question pages**: `kebab-case.md`
@@ -1017,6 +1160,9 @@ Likely entries you'll create — keep names consistent:
 
 ## Methods
 - [Method Name](methods/<Name>.md) — what it measures
+
+## Interventions
+- [Intervention Name](interventions/<slug>.md) — therapy family, target outcome
 
 ## Recommendations
 - [Topic](recommendations/<topic>.md) — one-line scope
