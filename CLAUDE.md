@@ -1,22 +1,39 @@
-# LLM Wiki Agent — Schema & Workflow Instructions
+# LLM Wiki Agent — Academic Edition
 
-This wiki is maintained entirely by Claude Code. No API key or Python scripts needed — just open this repo in Claude Code and talk to it.
+This wiki is an **academic knowledge base** for research on **stroke motor
+rehabilitation via MI-BCI and TMS**, grounded in neural control theory and
+white-matter anatomy (DTI). It is maintained entirely by Claude Code: open
+this repo in Claude Code and talk to it.
+
+The agent's three jobs, in priority order:
+
+1. **Synthesize concepts** across the literature with traceable links.
+2. **Map methodologies and recommendations** so the wiki answers *"how is X
+   measured/intervened on?"* and *"what does the literature recommend?"*.
+3. **Cite sources rigorously** — every factual claim points to a `[[source]]`
+   with a page number, ready for APA reuse.
+
+---
 
 ## Slash Commands (Claude Code)
 
 | Command | What to say |
 |---|---|
-| `/wiki-ingest` | `ingest raw/my-article.md` |
-| `/wiki-query` | `query: what are the main themes?` |
+| `/wiki-ingest` | `ingest raw/papers/<file>.md` |
+| `/wiki-query` | `query: what does the literature say about MI-BCI for chronic stroke?` |
+| `/wiki-review` | `review topic: corticospinal integrity and motor recovery` |
+| `/wiki-cite` | `cite: TMS-induced plasticity in M1` (returns 3-5 APA refs) |
 | `/wiki-health` | `health` (fast, every session) |
 | `/wiki-lint` | `lint the wiki` (expensive, periodic) |
 | `/wiki-graph` | `build the knowledge graph` |
 
-Or just describe what you want in plain English:
-- *"Ingest this file: raw/papers/attention-is-all-you-need.md"*
-- *"What does the wiki say about transformer models?"*
-- *"Check the wiki for orphan pages and contradictions"*
-- *"Build the graph and show me what's connected to RAG"*
+Plain English works too — describe what you want and Claude maps it to the
+right workflow:
+
+- *"Ingest this thesis: raw/theses/dupont-2023.md"*
+- *"What methods are used to assess corticospinal tract integrity?"*
+- *"Build a literature review on motor imagery training in chronic stroke"*
+- *"Show me the open questions around TMS dose-response"*
 
 Claude Code reads this file automatically and follows the workflows below.
 
@@ -25,223 +42,623 @@ Claude Code reads this file automatically and follows the workflows below.
 ## Directory Layout
 
 ```
-raw/          # Immutable source documents — never modify these
-wiki/         # Claude owns this layer entirely
-  index.md    # Catalog of all pages — update on every ingest
-  log.md      # Append-only chronological record
-  overview.md # Living synthesis across all sources
-  sources/    # One summary page per source document
-  entities/   # People, companies, projects, products
-  concepts/   # Ideas, frameworks, methods, theories
-  syntheses/  # Saved query answers
-graph/        # Auto-generated graph data
-tools/        # Standalone Python scripts
-  health.py   # Structural checks (deterministic, no LLM calls)
-  lint.py     # Content quality checks (uses LLM for semantic analysis)
-  build_graph.py  # Knowledge graph generation
+raw/                  # Immutable source documents — never modify these
+  papers/             # Journal articles (kebab-case.md, one per article)
+  theses/             # PhD/MSc theses (kebab-case.md)
+  notes/              # Personal notes, conference talks, lab reports
+wiki/                 # Claude owns this layer entirely
+  index.md            # Catalog of all pages — updated on every ingest
+  log.md              # Append-only chronological record
+  overview.md         # Living synthesis across all sources
+  sources/            # One summary page per ingested source
+  entities/           # People, labs, institutions, instrument vendors
+  concepts/           # Theoretical concepts (e.g. MotorImagery, Neuroplasticity)
+  methods/            # Methodologies & instruments (e.g. EEG, TMS, DTI, FuglMeyer)
+  recommendations/    # Synthesized clinical/research recommendations by topic
+  questions/          # Open research questions identified across the literature
+  syntheses/          # Saved query answers and literature reviews
+graph/                # Auto-generated graph data
+tools/                # Standalone Python scripts (health.py, lint.py, etc.)
+pdf2md/               # PDF -> Markdown conversion pipeline (marker + fallback + enrich)
 ```
 
 ---
 
-## Page Format
+## Citation Rule (Global)
 
-Every wiki page uses this frontmatter:
+**Every factual claim, finding, recommendation, or quantitative statement in
+any wiki page MUST cite at least one `[[source-slug]] (p. N)`.**
+
+- If the page number is unknown, write `(p. ?)` — do not omit the citation.
+- Never paraphrase numerical results, p-values, or effect sizes — quote them
+  verbatim with page reference.
+- If a claim is the agent's synthesis across multiple sources, list all of
+  them: `(see [[paper-a]] p. 12, [[paper-b]] p. 4)`.
+- **Bibliographic fields rule**: `title`, `authors`, `journal`, `year`, `doi`,
+  `source_pdf` MUST be copied verbatim from the source frontmatter. Never
+  infer, translate, normalize, or invent values. Leave fields empty if
+  missing in the source.
+- **Default citation style**: APA 7th edition. Generated `citation_apa` and
+  `bibtex_key` fields are stored in each source page's frontmatter and
+  rendered in the `## How to Cite` section.
+
+---
+
+## Page Format (Canonical Frontmatter)
+
+Every wiki page starts with this frontmatter:
 
 ```yaml
 ---
 title: "Page Title"
-type: source | entity | concept | synthesis
+type: source | entity | concept | method | recommendation | question | synthesis
 tags: []
-sources: []       # list of source slugs that inform this page
+sources: []          # list of source slugs that inform this page
 last_updated: YYYY-MM-DD
 ---
 ```
 
-Use `[[PageName]]` wikilinks to link to other wiki pages.
+Use `[[PageName]]` wikilinks to link to other wiki pages. Sub-typed pages
+(source, method, etc.) extend this base with type-specific fields, defined
+below.
 
 ---
 
 ## Ingest Workflow
 
-Triggered by: *"ingest <file>"* or `/wiki-ingest`
+Triggered by: *"ingest <file>"* or `/wiki-ingest`.
 
-**Supported formats:** Markdown (`.md`) ingested directly. Non-markdown files (`.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.txt`, `.csv`, `.json`, `.xml`, `.rst`, `.rtf`, `.epub`, `.ipynb`, `.yaml`, `.yml`, `.tsv`, `.wav`, `.mp3`) auto-converted to markdown via [markitdown](https://github.com/microsoft/markitdown) before ingestion. Use `--no-convert` to skip auto-conversion.
+**Supported formats** — Markdown (`.md`) ingested directly. Non-markdown files
+auto-converted to Markdown beforehand:
+- **PDFs (papers, theses)** -> use `pdf2md/pdf2md_marker.py` (marker-pdf,
+  with `pdf2md/pdf2md_fallback.py` for PDFs marker can't handle), then
+  `pdf2md/enrich_frontmatter.py` to populate bibliographic metadata via
+  Crossref.
+- **Other formats** (`.docx`, `.pptx`, `.xlsx`, `.html`, `.txt`, ...) -> markitdown.
 
 Steps (in order):
-1. Read the source document fully using the Read tool (auto-convert if non-markdown)
-2. Read `wiki/index.md` and `wiki/overview.md` for current wiki context
-3. Write `wiki/sources/<slug>.md` — use the source page format below
-4. Update `wiki/index.md` — add entry under Sources section
-5. Update `wiki/overview.md` — revise synthesis if warranted
-6. Update/create entity pages for key people, companies, projects mentioned
-7. Update/create concept pages for key ideas and frameworks discussed
-8. Flag any contradictions with existing wiki content
-9. Append to `wiki/log.md`: `## [YYYY-MM-DD] ingest | <Title>`
-10. **Post-ingest validation** — check for broken `[[wikilinks]]`, verify all new pages are in `index.md`, print a change summary
 
-### Source Page Format
+1. **Read the source** fully via the Read tool (auto-convert if non-markdown).
+2. **Read context**: `wiki/index.md`, `wiki/overview.md`, plus any obviously
+   related concept/method pages already in the wiki.
+3. **Choose the source template** based on path and type:
+   - `raw/papers/*` -> Academic Paper Template
+   - `raw/theses/*` -> Thesis Template
+   - `raw/notes/*`  -> Generic Source Template (or Diary/Meeting if applicable)
+4. **Generate `citation_apa` and `bibtex_key`** from the frontmatter
+   (`authors`, `year`, `title`, `journal` or `university`, `doi`). Use APA 7.
+5. **Write `wiki/sources/<slug>.md`** using the chosen template. Apply the
+   Citation Rule strictly.
+6. **Update entity pages** for each author and institution.
+7. **Update concept pages** for each key concept discussed; for each, link
+   operationalizations to the relevant `[[methods/...]]` pages.
+8. **Update method pages**: for each method listed in the source's
+   `methods:` frontmatter, ensure `wiki/methods/<MethodName>.md` exists,
+   and add this source under its `## Used In This Wiki` section.
+9. **Update recommendation pages**: if the source proposes recommendations,
+   route them to the relevant `wiki/recommendations/<topic>.md` (create if
+   needed) under the appropriate evidence-strength section.
+10. **Update question pages**: if the source identifies an open question or
+    explicit gap, append to `wiki/questions/<slug>.md` (create if needed).
+11. **Flag contradictions** with existing wiki content explicitly, with page
+    numbers on both sides.
+12. **Update `wiki/index.md`** — add entries under all touched sections.
+13. **Update `wiki/overview.md`** if the synthesis warrants revision.
+14. **Append to `wiki/log.md`**: `## [YYYY-MM-DD] ingest | <Title>`.
+15. **Post-ingest validation** — check broken `[[wikilinks]]`, verify all new
+    pages are in `index.md`, print a change summary including counts:
+    *N concepts updated, M methods touched, K recommendations refined*.
 
-```markdown
+### For theses specifically — citation snowball
+
+Theses are dense citation hubs. After ingesting a thesis:
+
+- **Surface high-value references** in the `## Notable References` section
+  of the source page (10-30 references the thesis builds on heavily).
+- **Suggest snowball ingestion**: at the end of the post-ingest summary,
+  list the references *not yet in the wiki* and ask the user whether to
+  ingest them next. Do not auto-ingest.
+
 ---
-title: "Source Title"
-type: source
-tags: []
-date: YYYY-MM-DD
-source_file: raw/...
 
-# Bibliographic metadata (copy verbatim from source frontmatter when present;
-# leave empty if missing — never invent values)
-authors: []
-journal: ""
-year:
-doi: ""
-source_pdf: ""  
----
+## Source Templates
 
-> **Bibliographic fields rule:** `authors`, `journal`, `year`, `doi`, `source_pdf`
-> MUST be copied verbatim from the source file's YAML frontmatter when present.
-> Do not infer, translate, or normalize them. If a field is missing in the
-> source, leave it empty in the wiki source page.
+### Academic Paper Template (default for `raw/papers/*`)
 
-## Summary
-2–4 sentence summary.
-
-## Key Claims
-- Claim 1
-- Claim 2
-
-## Key Quotes
-> "Quote here" — context
-
-## Connections
-- [[EntityName]] — how they relate
-- [[ConceptName]] — how it connects
-
-## Contradictions
-- Contradicts [[OtherPage]] on: ...
-```
-
-### Domain-Specific Templates
-
-If the source falls into a specific domain (e.g., personal diary, meeting notes), the agent should use a specialized template instead of the default generic one above:
-
-#### Academic Paper Template
-
-For sources with a DOI:
-
-```yaml
+````markdown
 ---
 title: "Paper Title"
 type: source
 tags: [paper]
-date: YYYY-MM-DD
+date: YYYY-MM-DD            # ingest date
 source_file: raw/papers/<slug>.md
 authors: ["First Last", "First Last"]
-journal: "Journal Name"
 year: 2024
+journal: "Journal Name"
 doi: "10.xxxx/xxxxx"
 source_pdf: "/abs/path/to/original.pdf"
+
+# Study metadata
+study_design: ""            # RCT | cohort | cross-sectional | review |
+                            # meta-analysis | case-series | case-report |
+                            # simulation | computational | theoretical
+sample_size:                # integer N (or empty)
+population: ""              # e.g. "chronic stroke patients (>6 months post-onset)"
+domain: []                  # e.g. [stroke, motor-rehab, MI-BCI]
+methods: []                 # e.g. [EEG, MI-BCI, FuglMeyer, ARAT, TMS, DTI]
+
+# Quality signals
+peer_reviewed: true
+preprint: false
+language: en
+replication_of: ""          # DOI of the replicated paper, if applicable
+
+# Citation (auto-generated, copyable)
+citation_apa: ""
+bibtex_key: ""              # e.g. cervera2020
 ---
 
 ## Summary
-2–4 sentence summary of contribution.
+2-4 sentence neutral summary. **Every claim cites a page**.
+
+## Research Question
+Single sentence — the question the paper explicitly addresses.
 
 ## Methods
-Brief description of methodology.
+- **Design**: <study_design>
+- **Participants**: N=<sample_size>, profile (p. ?)
+- **Procedure**: brief steps
+- **Measures**: variables -> instruments -> [[methods/MethodName]]
+- **Analysis**: statistical approach
 
 ## Key Findings
-- Finding 1
-- Finding 2
+- Finding 1, with effect size and statistic if reported (p. ?)
+- Finding 2 (p. ?)
 
-## Key Quotes
-> "Quote here" — section/page
+## Recommendations / Implications
+- Recommendation 1 (p. ?) — target: [clinician | researcher | policy]
+- Implication for theory of [[ConceptName]] (p. ?)
+
+## Limitations
+- Limitation 1 — as acknowledged by the authors (p. ?)
+- Limitation 2 (p. ?)
+
+## Verbatim Quotes
+> "Quote here verbatim" — p. N
 
 ## Connections
 - [[AuthorName]] — author
-- [[ConceptName]] — central idea
-- [[MethodName]] — used technique
+- [[ConceptName]] — central concept; how this paper uses it
+- [[methods/MethodName]] — operationalization used
+- [[OtherPaper]] — builds on / contradicts / extends
 
-## Contradictions
-- Contradicts [[OtherPaper]] on: ...
+## Contradictions / Agreements
+- Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?)
+- Confirms [[OtherPaper]] on: claim Y (this p. ?, other p. ?)
 
-#### Diary / Journal Template
+## How to Cite
+**APA**: <citation_apa>
+
+**BibTeX**:
+```bibtex
+@article{<bibtex_key>,
+  author  = {...},
+  title   = {...},
+  journal = {...},
+  year    = {...},
+  doi     = {...}
+}
+```
+````
+
+### Thesis Template (default for `raw/theses/*`)
+
+Theses have richer metadata, multiple chapters, and serve as citation
+snowball sources.
+
+````markdown
+---
+title: "Thesis Title"
+type: source
+tags: [thesis, paper]
+date: YYYY-MM-DD            # ingest date
+source_file: raw/theses/<slug>.md
+authors: ["First Last"]
+year: 2024
+degree: "PhD"               # PhD | MSc | MD | HDR | habilitation
+university: "University Name"
+department: ""
+advisors: ["First Last"]
+defense_date: YYYY-MM-DD
+journal: ""                 # empty for theses
+doi: ""                     # if archived (HAL, ProQuest, theses.fr)
+source_pdf: "/abs/path/to/original.pdf"
+
+# Study metadata (often multi-method across chapters)
+study_design: "thesis"
+sample_size:                # total N across studies, or empty
+population: ""
+domain: []
+methods: []                 # union of methods across chapters
+
+# Quality signals
+peer_reviewed: false        # committee-reviewed, not peer-reviewed
+preprint: false
+language: en
+chapters: 0                 # integer
+
+# Citation
+citation_apa: ""
+bibtex_key: ""
+---
+
+## Abstract
+Verbatim abstract from the thesis frontmatter.
+
+## Research Questions
+- RQ1: ... (p. ?)
+- RQ2: ... (p. ?)
+
+## Hypotheses
+- H1: ... (p. ?)
+
+## Theoretical Framework
+- Anchored in [[ConceptName]] — how the thesis builds on it (p. ?)
+- Contributes to [[FrameworkName]]
+
+## Chapters Summary
+
+### Chapter X — <title> (p. NN-NN)
+- **Design**: ...
+- **Methods**: -> [[methods/...]]
+- **Key findings**: ... (p. ?)
+
+## Cross-Chapter Synthesis
+The thesis's overall argument, integrating chapters (p. ?).
+
+## Recommendations / Implications
+- For clinical practice: ... (p. ?)
+- For future research: ... (p. ?)
+
+## Limitations
+- ... (p. ?)
+
+## Notable References (citation snowball)
+High-value references this thesis builds on. Format:
+- *Author, A. (Year).* Title. *Journal*, V(I), pp. — relevance
+- ☐ not yet in wiki
+- ✓ [[already-ingested-slug]]
+
+After ingest, surface the ☐ items and ask the user about snowball ingestion.
+
+## Verbatim Quotes
+> "..." — p. N
+
+## Connections
+- [[AdvisorName]] — advisor
+- [[ConceptName]] — central concept
+- [[methods/MethodName]] — used technique
+
+## Contradictions / Agreements
+- ...
+
+## How to Cite
+**APA**: <citation_apa>
+
+**BibTeX**:
+```bibtex
+@phdthesis{<bibtex_key>,
+  author       = {...},
+  title        = {...},
+  school       = {...},
+  year         = {...},
+  type         = {PhD thesis},
+  doi          = {...}
+}
+```
+````
+
+### Generic Source Template (for `raw/notes/*`, fallback)
+
+Use the same shape as Academic Paper, omitting fields that don't apply
+(no `study_design`, no `peer_reviewed`, no `journal`).
+
+### Diary / Meeting Templates
+
+Kept available for non-academic notes mixed into `raw/notes/`. See the
+**Domain-Specific Templates** section at the end of this file.
+
+---
+
+## Concept Page Format
+
+Concept pages are the **synthesis layer** — where the wiki builds beyond
+individual sources. Use this template for `wiki/concepts/<ConceptName>.md`.
+
 ```markdown
 ---
-title: "YYYY-MM-DD Diary"
-type: source
-tags: [diary]
-date: YYYY-MM-DD
+title: "Concept Name"
+type: concept
+aka: ["alias 1", "alias 2"]
+domain: [stroke, motor-control]
+tags: []
+sources: []                 # auto-populated: sources that mention this concept
+last_updated: YYYY-MM-DD
 ---
-## Event Summary
-...
-## Key Decisions
-...
-## Energy & Mood
-...
-## Connections
-...
-## Shifts & Contradictions
-...
+
+## Definition
+Consensual definition (1-2 sentences) with citations:
+*"Motor imagery is the mental simulation of a movement without overt
+execution"* ([[decety-1996]] p. 88, [[jeannerod-2001]] p. 110).
+
+## Variants & Definitional Disagreements
+- [[paper-a]] (p. ?) defines it as ...
+- [[paper-b]] (p. ?) restricts it to ...
+- Disagreement on: scope | mechanism | measurability
+
+## Operationalization
+How is it measured in the literature? Link to method pages:
+- **Subjective**: [[methods/KVIQ]], [[methods/MIQ-RS]]
+- **Behavioral**: [[methods/MentalChronometry]]
+- **Neurophysiological**: [[methods/EEG-ERD]], [[methods/fMRI-BOLD]]
+
+## Theoretical Frameworks
+- [[NeuralControlTheory]] — proposed by [[paper-x]] (p. ?)
+- Competing framework: [[OtherFramework]] from [[paper-y]] (p. ?)
+
+## Seminal Papers (chronological)
+- 1996 — [[decety-1996]]: first formulation in stroke context (p. ?)
+- 2014 — [[zimmermann-2014]]: extension to BCI training (p. ?)
+- 2020 — [[cervera-2020]]: meta-analysis confirming clinical effect (p. ?)
+
+## Open Debates
+- Question 1 -> see [[questions/<slug>]]
+- Question 2 -> see [[questions/<slug>]]
+
+## Related Concepts
+- [[CloseConceptA]] — overlapping (boundary discussed in [[paper-z]] p. ?)
+- [[CloseConceptB]] — distinct mechanism
+
+## Used In This Wiki
+*(Auto-populated: list of [[source-slug]] pages tagged with this concept.)*
 ```
 
-#### Meeting Notes Template
+---
+
+## Method Page Format
+
+A method page documents an instrument, scale, technique, or analysis
+pipeline. One page per method, in `wiki/methods/<MethodName>.md`.
+
 ```markdown
 ---
-title: "Meeting Title"
-type: source
-tags: [meeting]
-date: YYYY-MM-DD
+title: "EEG (Electroencephalography)"
+type: method
+aka: ["electroencephalography"]
+category: "neurophysiology"     # imaging | neurophysiology | behavioral |
+                                # subjective-scale | stimulation | analysis
+measures: ["cortical activity", "alertness", "ERD/ERS"]
+strengths: ["high temporal resolution", "non-invasive", "low cost"]
+limitations: ["low spatial resolution", "muscle/eye artifacts"]
+domain: [neurophysiology, BCI]
+tags: []
+sources: []                     # auto-populated
+last_updated: YYYY-MM-DD
 ---
-## Goal
-...
-## Key Discussions
-...
-## Decisions Made
-...
-## Action Items
-...
+
+## Definition
+1-2 sentences with citation:
+*"EEG records ..."* ([[paper-x]] p. ?).
+
+## When to Use It
+- Use case 1 — established in [[paper-a]] (p. ?), [[paper-b]] (p. ?).
+- Use case 2 — emerging, see [[paper-c]] (p. ?).
+
+## Best Practices
+Synthesized recommendations across the wiki's sources:
+- Practice 1 — consensus across [[paper-a]], [[paper-b]] (p. ? each).
+- Practice 2 — [[paper-c]] recommends ... (p. ?), but [[paper-d]] disagrees (p. ?).
+
+## Common Pitfalls
+- Pitfall 1 — flagged by [[paper-x]] (p. ?).
+
+## Variants / Sub-Methods
+- Variant A -> [[methods/EEG-ERD]]
+- Variant B -> [[methods/EEG-SSVEP]]
+
+## Used In This Wiki
+*(Auto-populated: [[source-slug]] entries that report using this method.)*
+```
+
+---
+
+## Recommendation Page Format
+
+One page per topic, grouped by **strength of evidence**. Drop into
+`wiki/recommendations/<topic-slug>.md`.
+
+```markdown
+---
+title: "Recommendations: <Topic>"
+type: recommendation
+domain: [stroke, MI-BCI]
+tags: []
+sources: []                     # auto-populated
+last_updated: YYYY-MM-DD
+---
+
+## Strong Evidence (>=3 sources, replicated, including >=1 RCT or meta-analysis)
+- Recommendation 1 — sources: [[paper-a]] (p. ?), [[paper-b]] (p. ?),
+  [[cervera-2020]] meta-analysis (p. ?).
+- ...
+
+## Moderate Evidence (1-2 RCTs or several non-randomized studies)
+- Recommendation 2 — source: [[paper-d]] (p. ?). Not yet replicated.
+- ...
+
+## Conflicting Evidence
+- Position A: [[paper-e]] (p. ?) recommends X.
+- Position B: [[paper-f]] (p. ?) recommends not-X.
+- Open question -> see [[questions/<slug>]].
+
+## Practical Notes
+Actionable details (dose, duration, timing post-stroke, contraindications).
+
+## Related Recommendations
+- [[recommendations/<other-topic>]]
+```
+
+---
+
+## Question Page Format
+
+Captures gaps and open research questions identified across the literature.
+One page per question, in `wiki/questions/<slug>.md`.
+
+```markdown
+---
+title: "Open Question: <one-line question>"
+type: question
+status: "open"                  # open | partially-answered | resolved
+raised_by: [[source-slug]]      # source(s) that explicitly raise it
+domain: [stroke, MI-BCI]
+tags: []
+last_updated: YYYY-MM-DD
+---
+
+## The Gap
+1-3 sentences stating what is unknown.
+
+## Why It Matters
+Clinical, theoretical, or methodological stakes.
+
+## What's Known
+- [[paper-a]] (p. ?) shows ...
+- [[paper-b]] (p. ?) suggests ...
+
+## What's Missing
+- Specific evidence type missing (e.g., long-term follow-up RCT).
+- Specific population missing (e.g., subacute stroke).
+
+## Suggested Studies
+- Design 1 that would close the gap.
+- Design 2.
+
+## Connections
+- Concerns [[ConceptName]].
+- Would test [[FrameworkName]].
+- Methodology candidate: [[methods/...]].
 ```
 
 ---
 
 ## Query Workflow
 
-Triggered by: *"query: <question>"* or `/wiki-query`
+Triggered by: *"query: <question>"* or `/wiki-query`.
 
 Steps:
-1. Read `wiki/index.md` to identify relevant pages
-2. Read those pages with the Read tool
-3. Synthesize an answer with inline citations as `[[PageName]]` wikilinks
-4. Ask the user if they want the answer filed as `wiki/syntheses/<slug>.md`
+1. Read `wiki/index.md` to identify candidate pages.
+2. Read those pages with the Read tool.
+3. Synthesize an answer with **inline citations as `[[source-slug]] (p. N)`** —
+   the Citation Rule applies to query answers too.
+4. End the answer with an APA bibliography (one entry per cited source,
+   pulled from each source page's `citation_apa` field).
+5. Ask the user whether to file the answer as `wiki/syntheses/<slug>.md`.
+
+---
+
+## Review Workflow
+
+Triggered by: *"review topic: <topic>"* or `/wiki-review`.
+
+This is the wiki's headline output: a structured literature review on a
+topic, citation-ready.
+
+Steps:
+1. Read `wiki/index.md` and identify all sources tagged with the topic
+   (search `tags`, `domain`, and `[[wikilinks]]`).
+2. Read those source pages, plus relevant `concepts/`, `methods/`,
+   `recommendations/`, and `questions/` pages.
+3. Produce a structured review with this layout:
+
+   ```markdown
+   # <Topic> — Literature Review (YYYY-MM-DD)
+
+   ## Background and key concepts
+   Narrative grounded in [[concepts/...]] pages, every claim cited.
+
+   ## Methods used in the literature
+   Table: method | sources | strengths | limitations.
+
+   ## Main findings
+   Grouped by sub-theme. Every factual claim cites a source page.
+
+   ## Recommendations
+   Pulled verbatim from [[recommendations/...]] pages.
+
+   ## Open questions
+   Pulled from [[questions/...]] pages.
+
+   ## Bibliography (APA)
+   Generated from the `citation_apa` field of each cited source.
+   ```
+
+4. Apply the Citation Rule — *no claim without a source*.
+5. Ask the user whether to file as `wiki/syntheses/<topic>-review.md`.
+
+---
+
+## Cite Workflow
+
+Triggered by: *"cite: <topic>"* or `/wiki-cite`.
+
+Returns 3-5 APA-formatted citations from the wiki most relevant to the
+topic, with one-sentence relevance rationale per citation. No body, just
+references — useful when drafting a paragraph and needing cite-ready refs.
 
 ---
 
 ## Lint Workflow
 
-Triggered by: *"lint the wiki"* or `/wiki-lint`
+Triggered by: *"lint the wiki"* or `/wiki-lint`.
 
 Use Grep and Read tools to check for:
-- **Orphan pages** — wiki pages with no inbound `[[links]]` from other pages
-- **Broken links** — `[[WikiLinks]]` pointing to pages that don't exist
-- **Contradictions** — claims that conflict across pages
-- **Stale summaries** — pages not updated after newer sources
-- **Missing entity pages** — entities mentioned in 3+ pages but lacking their own page
-- **Data gaps** — questions the wiki can't answer; suggest new sources
 
-Output a lint report and ask if the user wants it saved to `wiki/lint-report.md`.
+**Structural / wiki-wide**
+- **Orphan pages** — wiki pages with no inbound `[[links]]`.
+- **Broken links** — `[[wikilinks]]` pointing to pages that don't exist.
+- **Missing entity pages** — entities mentioned in 3+ pages but lacking
+  their own page.
+- **Stale summaries** — pages older than the most recent source they cite.
+
+**Academic-specific**
+- **Missing DOI** — sources without `doi` (excluding theses, where DOI
+  may legitimately be empty if not archived).
+- **Missing `citation_apa`** — sources where this field is empty.
+- **Uncited claims** — bullets in `## Key Findings`, `## Recommendations`,
+  `## Summary` that don't contain `(p. ` — likely uncited.
+- **Missing `study_design`** in source frontmatter.
+- **Conflicting concept definitions** — same concept defined incompatibly
+  across pages (use LLM semantic check).
+- **Snowball debt** — references in any thesis's `## Notable References`
+  marked ☐ for >30 days.
+- **Data gaps** — surface as candidate `[[questions/...]]` pages.
+
+Output a lint report and ask whether to save to `wiki/lint-report.md`.
 
 ---
 
 ## Health Workflow
 
-Triggered by: *"health"* or `/wiki-health`
+Triggered by: *"health"* or `/wiki-health`.
 
-Run: `python tools/health.py` (or `python tools/health.py --json` for machine-readable output)
+Run: `python tools/health.py` (or `python tools/health.py --json`).
 
-Fast structural integrity checks — **zero LLM calls**, safe to run every session:
-- **Empty / stub files** — pages with no content beyond frontmatter (rate-limit damage)
-- **Index sync** — `wiki/index.md` entries vs actual files on disk
-- **Log coverage** — source pages missing a corresponding `ingest` entry in `wiki/log.md`
+Fast structural integrity checks — **zero LLM calls**, safe every session:
+- **Empty / stub files** — pages with no content beyond frontmatter.
+- **Index sync** — `wiki/index.md` entries vs actual files on disk.
+- **Log coverage** — source pages missing a corresponding `ingest` entry
+  in `wiki/log.md`.
 
 Output a health report. Use `--save` to write to `wiki/health-report.md`.
 
@@ -249,13 +666,12 @@ Output a health report. Use `--save` to write to `wiki/health-report.md`.
 
 | Dimension | `health` | `lint` |
 |---|---|---|
-| **Scope** | Structural integrity | Content quality |
-| **LLM calls** | Zero | Yes (semantic analysis) |
+| **Scope** | Structural integrity | Content quality (incl. citation hygiene) |
+| **LLM calls** | Zero | Yes |
 | **Cost** | Free | Tokens |
-| **Frequency** | Every session, before other work | Every 10-15 ingests |
-| **Checks** | Empty files, index sync, log sync | Orphans, broken links, contradictions, gaps |
+| **Frequency** | Every session | Every 10-15 ingests |
 | **Tool** | `tools/health.py` | `tools/lint.py` |
-| **Run order** | First (pre-flight) | After health passes |
+| **Run order** | First | After health passes |
 
 > Run `health` first — linting an empty file wastes tokens.
 
@@ -263,28 +679,53 @@ Output a health report. Use `--save` to write to `wiki/health-report.md`.
 
 ## Graph Workflow
 
-Triggered by: *"build the knowledge graph"* or `/wiki-graph`
+Triggered by: *"build the knowledge graph"* or `/wiki-graph`.
 
-When the user asks to build the graph, run `tools/build_graph.py` which:
-- Pass 1: Parses all `[[wikilinks]]` → deterministic `EXTRACTED` edges
-- Pass 2: Infers implicit relationships → `INFERRED` edges with confidence scores
-- Runs Louvain community detection
-- Outputs `graph/graph.json` + `graph/graph.html`
+Run `tools/build_graph.py`:
+- Pass 1: parse all `[[wikilinks]]` -> deterministic `EXTRACTED` edges.
+- Pass 2: infer implicit relationships -> `INFERRED` edges with confidence.
+- Run Louvain community detection.
+- Output `graph/graph.json` + `graph/graph.html`.
 
-If the user doesn't have Python/dependencies set up, instead generate the graph data manually:
-1. Use Grep to find all `[[wikilinks]]` across wiki pages
-2. Build a node/edge list
-3. Write `graph/graph.json` directly
-4. Write `graph/graph.html` using the vis.js template
+If Python/dependencies aren't set up, generate the graph data manually:
+1. Use Grep to find all `[[wikilinks]]`.
+2. Build a node/edge list, write `graph/graph.json`.
+3. Write `graph/graph.html` from the vis.js template.
 
 ---
 
 ## Naming Conventions
 
-- Source slugs: `kebab-case` matching source filename
-- Entity pages: `TitleCase.md` (e.g. `OpenAI.md`, `SamAltman.md`)
-- Concept pages: `TitleCase.md` (e.g. `ReinforcementLearning.md`, `RAG.md`)
-- Source pages: `kebab-case.md`
+- **Source slugs (papers)**: `kebab-case`
+  (e.g. `cervera-2020-mi-bci-meta-analysis.md`).
+- **Thesis slugs**: `lastname-year-shorttitle`
+  (e.g. `dupont-2023-mi-bci-stroke.md`).
+- **Entity pages**: `TitleCase.md`
+  (e.g. `MaryamMaarek.md`, `INSERM-U1216.md`).
+- **Concept pages**: `TitleCase.md`
+  (e.g. `MotorImagery.md`, `Neuroplasticity.md`, `CorticospinalTract.md`).
+- **Method pages**: `TitleCase.md`
+  (e.g. `EEG.md`, `TMS.md`, `DTI.md`, `FuglMeyer.md`, `MI-BCI.md`).
+- **Recommendation pages**: `kebab-case.md`
+  (e.g. `mi-bci-stroke-rehab.md`).
+- **Question pages**: `kebab-case.md`
+  (e.g. `tms-dose-response-chronic-stroke.md`).
+- **Synthesis pages**: `kebab-case.md` (often `<topic>-review.md`).
+
+### Domain quick reference (stroke / MI-BCI / TMS / DTI)
+
+Likely entries you'll create — keep names consistent:
+
+- **Concepts**: `MotorImagery`, `MotorRecovery`, `Neuroplasticity`,
+  `CorticospinalTract`, `M1`, `PremotorCortex`, `SMA`, `NeuralControlTheory`,
+  `WhiteMatterIntegrity`, `Hemiparesis`, `StrokeChronicity`.
+- **Methods**: `EEG`, `MI-BCI`, `TMS`, `rTMS`, `DTI`, `Tractography`, `MEP`,
+  `FuglMeyer`, `ARAT`, `BoxAndBlocks`, `KVIQ`, `MIQ-RS`, `MentalChronometry`,
+  `FA-MetricExtraction`.
+- **Recommendation topics**: `mi-bci-stroke-rehab`,
+  `tms-protocols-motor-recovery`, `dti-biomarkers-prognosis`.
+
+---
 
 ## Index Format
 
@@ -294,25 +735,75 @@ If the user doesn't have Python/dependencies set up, instead generate the graph 
 ## Overview
 - [Overview](overview.md) — living synthesis
 
-## Sources
-- [Source Title](sources/slug.md) — one-line summary
+## Sources — Papers
+- [Paper Title](sources/<slug>.md) — one-line summary (Year, Journal)
 
-## Entities
-- [Entity Name](entities/EntityName.md) — one-line description
+## Sources — Theses
+- [Thesis Title](sources/<slug>.md) — one-line summary (Year, University)
 
 ## Concepts
-- [Concept Name](concepts/ConceptName.md) — one-line description
+- [Concept Name](concepts/<Name>.md) — one-line definition
+
+## Methods
+- [Method Name](methods/<Name>.md) — what it measures
+
+## Recommendations
+- [Topic](recommendations/<topic>.md) — one-line scope
+
+## Questions
+- [Question](questions/<slug>.md) — status
+
+## Entities
+- [Entity Name](entities/<Name>.md) — one-line description
 
 ## Syntheses
-- [Analysis Title](syntheses/slug.md) — what question it answers
+- [Title](syntheses/<slug>.md) — what question it answers
 ```
 
 ## Log Format
 
-Each entry starts with `## [YYYY-MM-DD] <operation> | <title>` so it's grep-parseable:
+Each entry starts with `## [YYYY-MM-DD] <operation> | <title>` so it's
+grep-parseable:
 
 ```
 grep "^## \[" wiki/log.md | tail -10
 ```
 
-Operations: `ingest`, `query`, `health`, `lint`, `graph`
+Operations: `ingest`, `query`, `review`, `cite`, `health`, `lint`, `graph`.
+
+---
+
+## Domain-Specific Templates (non-academic)
+
+Kept available for diary entries or meeting notes mixed into `raw/notes/`.
+
+### Diary / Journal Template
+
+```markdown
+---
+title: "YYYY-MM-DD Diary"
+type: source
+tags: [diary]
+date: YYYY-MM-DD
+---
+## Event Summary
+## Key Decisions
+## Energy & Mood
+## Connections
+## Shifts & Contradictions
+```
+
+### Meeting Notes Template
+
+```markdown
+---
+title: "Meeting Title"
+type: source
+tags: [meeting]
+date: YYYY-MM-DD
+---
+## Goal
+## Key Discussions
+## Decisions Made
+## Action Items
+```
