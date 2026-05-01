@@ -241,6 +241,120 @@ The agent-visible equivalent:
 /wiki-suggest-readings MotorImagery
 ```
 
+## Tooling Reference
+
+The repo ships **16 standalone scripts**. They walk frontmatter and bodies,
+write to `wiki/` or stdout, and require no LLM call (Crossref + regex only)
+unless explicitly noted.
+
+### Citation pipeline
+
+| Script | Role |
+|---|---|
+| `pdf2md/pdf2md_marker.py` | PDF → Markdown via marker-pdf, mirrored arborescence |
+| `pdf2md/pdf2md_fallback.py` | Rescue PDFs marker can't handle (pymupdf4llm) |
+| `pdf2md/enrich_frontmatter.py` | Crossref → title / authors / journal / year + raw `cites:` |
+| `tools/parse_references.py` | Validate + curate citations (3 phases: extract / validate / Crossref free-text) |
+| `tools/update_cited_by.py` | Maintain `## Cited By` sections from `cites:` index |
+| `tools/suggest_readings.py` | Surface snowball candidates per concept |
+
+### Output / publication
+
+| Script | Role |
+|---|---|
+| `tools/bibtex_export.py` | `wiki.bib` (master with section comments, `--per-concept`, `--per-intervention`, `--chapters` mapping) |
+| `tools/coverage_report.py` | Where the wiki is thin: stub concepts, untagged sources, missing usage |
+
+### Domain analyzers (zero LLM)
+
+| Script | Role |
+|---|---|
+| `tools/method_matrix.py` | Sources × design × N × methods × intervention |
+| `tools/cohort_tracker.py` | Aggregated patient profiles (chronicity, severity, lesion side/type) by intervention |
+| `tools/dti_aggregator.py` | FA / MD / AD / RD per brain tract across sources |
+| `tools/effect_size_aggregator.py` | ΔFM / ΔARAT / BBT / NHPT / MEP / Cohen's d / p-values |
+| `tools/replication_tracker.py` | Declared chains + single-study claims + replication candidates |
+| `tools/audit_page.py` | `git blame` mapped to `wiki/log.md` ingest entries |
+
+### Discovery & domain
+
+| Script | Role |
+|---|---|
+| `tools/watch_pubmed.py` | Periodic PubMed + bioRxiv check on saved queries (cached) |
+| `tools/brain_atlas_anchor.py` | Mentions of brain regions / white-matter tracts across sources |
+
+## Maintenance Workflow
+
+Run after every batch of ingestions to keep the wiki citation-rigorous and
+to surface where it's thin.
+
+### 1 — Refresh the citation network
+
+```bash
+python tools/update_cited_by.py
+python tools/parse_references.py --curate --all wiki/sources/
+```
+
+`update_cited_by.py` rebuilds the reverse-citation index from each source's
+`cites:` frontmatter. `parse_references.py --curate` validates each DOI
+against Crossref and recovers broken / missing DOIs via free-text search.
+
+### 2 — Health checks (free, fast)
+
+```bash
+python tools/health.py
+python tools/coverage_report.py --save
+```
+
+`health.py` is upstream's structural integrity check. `coverage_report.py`
+flags concepts mentioned 3+ times that are still stubs and sources missing
+either `methods:` or `intervention_family:`.
+
+### 3 — Targeted analyses (per current focus)
+
+```bash
+python tools/method_matrix.py --intervention BCI --save
+python tools/cohort_tracker.py --intervention BCI --save
+python tools/dti_aggregator.py --save
+python tools/effect_size_aggregator.py --outcome FM --save
+python tools/replication_tracker.py --save
+python tools/brain_atlas_anchor.py --save
+```
+
+Each `--save` writes to `wiki/syntheses/<slug>.md`. Without `--save`, the
+report goes to stdout — useful for quick exploration.
+
+### 4 — Discovery
+
+```bash
+python tools/watch_pubmed.py --init               # first time only
+python tools/watch_pubmed.py --save               # weekly
+python tools/suggest_readings.py MotorImagery --enrich
+```
+
+### 5 — Output (when writing)
+
+```bash
+python tools/bibtex_export.py > wiki.bib                          # master
+python tools/bibtex_export.py --per-concept --output-dir bib/      # per concept
+python tools/bibtex_export.py --per-intervention --output-dir bib/ # per intervention
+python tools/bibtex_export.py --chapters chapters.yaml --output-dir bib/  # per manuscript chapter
+```
+
+The `--chapters` mode reads a YAML mapping (chapter name → list of wiki pages)
+and emits one `.bib` per chapter, gathering only the sources actually
+wikilinked from those pages.
+
+### 6 — Audit a specific claim
+
+```bash
+python tools/audit_page.py wiki/concepts/MotorImagery.md --section "Empirical Evidence"
+```
+
+Returns a `git blame`-by-section view with each line mapped to its commit
+and to the matching `wiki/log.md` ingest entry — useful when a thesis
+reviewer asks *"where does this claim come from?"*.
+
 ## What You Get
 
 **Persistent wiki** — structured markdown pages that accumulate across sessions. Unlike chat, nothing is lost.
