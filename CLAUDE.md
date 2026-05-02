@@ -160,27 +160,77 @@ wiki. Subsequent passes won't re-read the PDF. Therefore:
 
 The default failure mode is the agent extracting the 2-3 most salient
 items from each section and skipping the rest. This produces a
-superficial wiki. Counter it:
+superficial wiki. Counter it.
 
-- **`## Key Findings`**: extract **every** numerical result reported
-  (primary, secondary, sub-group, exploratory). A typical empirical
-  paper yields 5–15 findings; if you have 2, you missed them. Quote
-  effect sizes, IC, p-values verbatim.
-- **`## Methods`**: every measure → its instrument → its `[[methods/]]`
-  page. Every protocol parameter (sessions, duration, intensity,
-  blinding, randomization). Don't shortcut.
-- **`## Background`**: every claim the paper inherits from prior work,
-  with original citation per the Indirect Citation Rule. Aim 5–10 bullets
-  for a substantial intro, more for a review.
-- **`## Recommendations / Implications`**: **every** actionable item
-  including secondary, conditional, and cautionary ones — not just the
-  headline. See "Guidelines & meta-analyses" below for the strict rule.
-- **`## Limitations`**: every limitation the authors acknowledge. Most
+For empirical papers (RCTs, cohort, cross-sectional), follow the **IMRAD**
+structure of the Academic Paper template and complete each subsection
+that the source paper provides. Detailed expectations:
+
+**Introduction (### Background / ### Theoretical Framework / ### Gap / ### Research Question / ### Hypotheses)**
+- Every claim the paper inherits from prior work → bullet in `### Background`,
+  citing the **original** source per the Indirect Citation Rule with
+  explicit `reported via [[X]]` provenance. Aim 5–15 bullets for an
+  empirical paper, 20+ for a review or thesis introduction.
+- The theoretical framework names every concept / model the paper builds
+  on, with wikilinks.
+- The gap is stated in 1–2 sentences (not paraphrased away).
+- Hypotheses, when explicit, are listed verbatim with page numbers.
+
+**Methods (### Study Design / ### Participants / ### Intervention(s) /
+### Comparator / ### Outcome Measures / ### Procedure / ### Statistical
+Analysis / ### Ethics)**
+- Trial registration ID, IRB number, conflict-of-interest disclosure
+  belong in `### Ethics`.
+- `### Participants`: enrolled vs randomized vs analyzed counts; inclusion
+  AND exclusion criteria as bullet lists; population profile detailed
+  enough that `cohort_tracker.py` can extract chronicity / severity /
+  lesion side.
+- `### Intervention(s)`: dose (sessions × duration × frequency), delivery
+  (who, where, supervision), co-interventions allowed/forbidden — for
+  every arm separately. Link to `[[interventions/<slug>]]`.
+- `### Outcome Measures`: distinguish **primary**, **secondary**,
+  **exploratory**. Each measure → `[[methods/<MethodName>]]` with the
+  timepoint(s) at which it's assessed.
+- `### Statistical Analysis`: tests, multiple-comparison correction,
+  pre-specified vs exploratory analyses, software + version.
+
+**Results (### Participant Flow / ### Baseline Characteristics /
+### Primary Outcome / ### Secondary Outcomes / ### Subgroup analyses /
+### Adverse Events / ### Compliance)**
+- `### Primary Outcome`: verbatim with effect size, 95 % CI, p-value,
+  direction (p. ?). Single bullet — this is the paper's flagship result.
+- `### Secondary Outcomes`: every one with effect size and statistic,
+  not collapsed to "improved". A typical RCT reports 3–10 secondary
+  outcomes; if you have 1, you missed them.
+- `### Subgroup / Exploratory`: each one with the explicit warning
+  "exploratory" if the paper labels it so.
+- `### Adverse Events`: all reported, with severity and attribution.
+- `### Compliance`: adherence rate and dropout reasons.
+
+**Discussion (### Summary of findings / ### Comparison with Prior Work /
+### Mechanism / ### Strengths / ### Limitations / ### Generalizability /
+### Future Research)**
+- `### Comparison with Prior Work` is where the Indirect Citation Rule
+  fires hardest. Every "aligns with"/"differs from" claim cites the
+  original Y, not the transmitter X (this paper) — use
+  `[[Y]] (p. ?), reported via this paper's discussion (p. ?)`.
+- `### Limitations`: every limitation acknowledged by the authors. Most
   honest papers list 4–6.
-- **`## Verbatim Quotes`**: minimum 3 quotes from distinct sections
-  (Background / Results / Discussion).
-- **`## Cites`**: populated from the References section (auto via
-  `parse_references.py`); review the snowball candidates before moving on.
+- `### Future Research`: each open question routed to
+  `wiki/questions/<slug>.md`.
+
+**Recommendations / Implications**
+- Every actionable item, including secondary, conditional, and
+  cautionary ones — not just the headline. Each routed to
+  `wiki/recommendations/<topic>.md`. See "Guidelines &
+  meta-analyses" below for the strict rule on guideline papers.
+
+**Verbatim Quotes** — minimum 3 quotes covering Introduction, Results,
+Discussion (one per section).
+
+**Cites** — populated from the References section automatically by
+`tools/parse_references.py`; review the snowball candidates before
+moving on.
 
 ### Guidelines, meta-analyses, consensus statements (special case)
 
@@ -609,52 +659,160 @@ cites: []                   # DOIs cited by this paper
 ## Summary
 2-4 sentence neutral summary. **Every claim cites a page**.
 
-## Research Question
+---
+
+The body follows the **IMRAD** structure (Introduction · Methods · Results
+· And Discussion). Each subsection captures a specific extractable item.
+**Omit a subsection only when the paper does not provide that content** —
+do not write "N/A". Empty subsections waste structure; missing subsections
+record reality.
+
+---
+
+## Introduction
+
+### Background (from cited literature)
+Claims this paper inherits from prior work. **This section must be
+exhaustive** — see `Knowledge construction from introductions` in the
+Citation Rule. Aim 5–15 bullets for an empirical paper, 20+ for a
+review or thesis introduction. Each bullet cites the **original** source
+per the Indirect Citation Rule with explicit `reported via [[X]]`
+provenance:
+- Claim from prior work — [[paper-y]] (p. ?), reported via this paper (p. ?, intro).
+- Framework adopted — [[paper-z]] (p. ?), reported via this paper (p. ?).
+- If the original is not in the wiki: `this paper (p. ?, citing Y, 2018)` and add Y's DOI to `cites:`.
+
+### Theoretical Framework
+- Anchored in [[ConceptName]] / [[FrameworkName]].
+- Reasoning chain leading to the present hypothesis.
+
+### Gap Identified
+1–2 sentences stating what the literature was missing prior to this paper.
+
+### Research Question
 Single sentence — the question the paper explicitly addresses.
 
-## Background (from cited literature)
-Claims this paper inherits from prior work (intro and theoretical framing).
-**This section must be exhaustive** — see `Knowledge construction from
-introductions` in the Citation Rule. Aim 5–15 bullets for an empirical
-paper, 20+ for a review or thesis introduction. Each bullet cites the
-**original** source per the Indirect Citation Rule:
-- Claim from prior work — [[paper-y]] (p. ?), reported via [[paper-x]] (p. ?, intro).
-- Framework adopted — [[paper-z]] (p. ?), reported via [[paper-x]] (p. ?).
-- If the original is not in the wiki: `[[paper-x]] (p. ?, citing Y, 2018)` and add Y's DOI to `cites:`.
+### Hypotheses (if explicit)
+- H1: ... (p. ?)
+- H2: ... (p. ?)
 
 ## Methods
-- **Design**: <study_design>
-- **Participants**: N=<sample_size>, profile (p. ?)
-- **Procedure**: brief steps
-- **Measures**: variables -> instruments -> [[methods/MethodName]]
-- **Analysis**: statistical approach
 
-## Results (this paper's findings)
-What the paper contributes empirically. Each bullet cites THIS paper.
-- Finding 1, with effect size and statistic verbatim (p. ?)
-- Finding 2 (p. ?)
+### Study Design
+- `<study_design>`: RCT | cohort | cross-sectional | review | meta-analysis | …
+- Trial registration ID (RCTs): NCT… or equivalent.
+- Pre-registration / protocol publication if any.
 
-## Discussion (interpretation)
-How the authors read their results in light of the literature. Mixed
-citations — results cite this paper, literature claims cite originals.
-- Authors interpret Finding 1 as supporting [[Framework]] — [[paper-z]]
-  (p. ?), reported via this paper's discussion (p. ?).
-- Authors note discrepancy with [[paper-w]] (p. ?), discussed at p. ?.
+### Participants
+- N enrolled / randomized / analyzed / completed.
+- Population profile: chronicity, severity (e.g. baseline FM range),
+  lesion side and type, age, sex distribution.
+- **Inclusion criteria** — bullet list.
+- **Exclusion criteria** — bullet list.
+- Recruitment setting (single-centre, multi-centre, clinic, registry).
+
+### Intervention(s)
+For each arm, document:
+- What is delivered (e.g. MI-BCI with FES feedback) → [[interventions/...]].
+- Dose: sessions count, duration per session, total hours.
+- Delivery: who, where, supervision level.
+- Co-interventions allowed / forbidden.
+
+### Comparator
+- Control / sham / standard care / waitlist. Describe the contrast.
+
+### Outcome Measures
+- **Primary**: <measure> → [[methods/<MethodName>]] (timepoint).
+- **Secondary**: ...
+- **Exploratory / mechanistic**: ...
+- For neurophysiological outcomes (EEG, MEP, DTI), specify acquisition
+  parameters as reported.
+
+### Procedure / Timeline
+- Schedule: baseline, intervention sessions, post-intervention, follow-up(s).
+
+### Statistical Analysis
+- Sample size justification / power calculation.
+- Tests used (mixed models, ANOVA, regression…).
+- Adjustment for multiple comparisons.
+- Subgroup / mediator analyses pre-specified vs exploratory.
+- Software (R, SPSS, MATLAB…) and version.
+
+### Ethics
+- IRB / ethics committee approval.
+- Informed consent procedure.
+- Funding source(s) and conflicts of interest declared.
+
+## Results
+
+### Participant Flow
+- Enrolled → screened → randomized → completed → analyzed.
+- Dropouts with reasons.
+- CONSORT-style numbers when available (RCTs).
+
+### Baseline Characteristics
+- Group equivalence at baseline; flag any imbalance the authors note.
+
+### Primary Outcome
+- Verbatim result with effect size (Cohen's d / g / η², or raw mean
+  difference), 95 % CI, p-value (p. ?).
+- Direction of effect.
+
+### Secondary Outcomes
+- Each one — verbatim with effect size and statistic (p. ?).
+
+### Subgroup / Exploratory Analyses
+- Each one — verbatim, with the warning that they're exploratory if so.
+
+### Adverse Events / Safety
+- Number of events per group, severity, attribution to the intervention.
+
+### Compliance / Adherence
+- Adherence rate; reasons for non-adherence.
+
+## Discussion
+
+### Summary of Findings (authors' framing)
+- 2–3 sentences quoting the authors' own summary of what they found.
+
+### Comparison with Prior Work
+Authors situate their findings against the literature. Apply the
+Indirect Citation Rule with `reported via this paper's discussion`:
+- Aligns with [[paper-y]] (p. ?) on … — reported via this paper's
+  discussion (p. ?).
+- Differs from [[paper-z]] (p. ?) on … — reported via this paper's
+  discussion (p. ?).
+
+### Mechanism / Theoretical Implications
+- Authors' interpretation in terms of [[ConceptName]] / [[FrameworkName]].
+
+### Strengths
+- As acknowledged by the authors (p. ?).
+
+### Limitations
+- **Every** limitation acknowledged by the authors (p. ?). Most honest
+  papers list 4–6.
+
+### Generalizability
+- Authors' statements on external validity, applicability to other
+  populations.
+
+### Future Research Directions
+- Open questions raised → routed to `wiki/questions/<slug>.md` (step 11).
 
 ## Recommendations / Implications
-- Recommendation 1 (p. ?) — target: [clinician | researcher | policy].
+- Recommendation 1 (p. ?) — target: [clinician | researcher | policy] —
+  routed to `wiki/recommendations/<topic>.md` (step 10).
 - Implication for theory of [[ConceptName]] (p. ?).
 
-## Limitations
-- Limitation 1 — as acknowledged by the authors (p. ?).
-- Limitation 2 (p. ?).
-
 ## Verbatim Quotes
-> "Quote here verbatim" — p. N
+Minimum 3 quotes from distinct sections (Introduction / Results / Discussion).
+> "Quote here verbatim" — p. N (section)
 
 ## Cites (in-wiki + snowball candidates)
-Auto-populated from the paper's References section. Wikilinks for papers
-already in the wiki, raw DOIs for snowball candidates.
+Auto-populated from the paper's References section by
+`tools/parse_references.py`. Wikilinks for papers already in the wiki,
+raw DOIs for snowball candidates.
 - [[paper-y]] — referenced in Background.
 - [[paper-z]] — framework citation in Discussion.
 - 10.xxxx/yyy — *not yet in wiki* (snowball candidate).
@@ -668,6 +826,7 @@ pages whose `cites:` frontmatter contains this paper's DOI.)*
 - [[AuthorName]] — author.
 - [[ConceptName]] — central concept; how this paper uses it.
 - [[methods/MethodName]] — operationalization used.
+- [[interventions/<slug>]] — therapy family.
 
 ## Contradictions / Agreements
 - Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?).
