@@ -29,12 +29,18 @@ def parse_fm(text):
 
 
 def load_sources(directory=None):
-    """Return list of dicts: {slug, fm, body, path} for each source page."""
+    """Return list of dicts: {slug, fm, body, path} for each source page.
+
+    Recurses into subdirectories so the new thematic layout
+    (articles/<family>/<subfamily>/, theses/<slug>/...) is supported.
+    """
     d = directory or SRC_DIR
     if not d.is_dir():
         return []
     out = []
-    for p in sorted(d.glob("*.md")):
+    for p in sorted(d.rglob("*.md")):
+        if p.name.startswith(".") or p.name in {"index.md", "log.md", "overview.md"}:
+            continue
         text = p.read_text(encoding="utf-8")
         fm, body = parse_fm(text)
         out.append({"slug": p.stem, "fm": fm, "body": body, "path": p})

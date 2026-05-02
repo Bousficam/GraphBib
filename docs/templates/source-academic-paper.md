@@ -38,7 +38,8 @@ population: ""              # e.g. "chronic stroke patients (>6 months post-onse
 domain: []                  # e.g. [stroke, motor-rehab, MI-BCI]
 methods: []                 # measurement instruments — e.g. [EEG, FuglMeyer, ARAT, MEP, DTI]
 interventions: []           # treatments delivered — e.g. [MI-BCI, rTMS, mirror-therapy]
-intervention_family: ""     # primary therapy family — BCI | TMS | tDCS | mirror | robot | mental-practice | physio | combined | none
+intervention_family: ""     # PRINCIPAL therapy family — BCI | TMS | tDCS | mirror | robot | mental-practice | physio | combined | none
+intervention_subfamily: ""  # paradigm within the family — e.g. mi-bci | ao-bci | hybrid | rtms | itbs | ctbs (drives tier-2 folder)
 
 # Quality signals
 peer_reviewed: true
