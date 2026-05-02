@@ -111,6 +111,44 @@ itself (methods / results). The agent must respect that distinction.
   verbatim from the originating paper's Results section, never via a
   secondary citation.
 
+### Provenance pattern: `reported via [[X]]`
+
+To make the citation chain auditable, every reported (indirect) citation
+must carry the path you took to find it. Three forms only:
+
+| Situation | Form |
+|---|---|
+| You read Y directly | `[[Y]] (p. 8)` |
+| You read X, X cites Y, Y is in the wiki | `[[Y]] (p. 8, reported via [[X]] intro p. 4)` |
+| You read X, X cites Y, Y is NOT in the wiki | `[[X]] (p. 4, citing Y 2018)` + add Y's DOI to `cites:` |
+
+The `reported via [[X]]` annotation is **mandatory**, not optional. It
+lets a future reader (or you, six months later) reconstruct *how* the
+claim entered the wiki. If Y is later ingested and supersedes X's
+interpretation, you can find every claim that depended on the X-routed
+version.
+
+### Knowledge construction from introductions
+
+A paper's Introduction and Discussion are essentially mini-reviews of
+prior work. They are the most efficient route to enrich concept pages
+with **inherited** claims. Treat them as primary material:
+
+1. **Extract every cited claim from `Introduction`/`Discussion` into the
+   source page's `## Background (from cited literature)`**, one bullet
+   per claim, each citing the original Y per the Indirect Citation Rule.
+   For an empirical paper expect 5–15 bullets; for a thesis introduction
+   or a review, 20+.
+2. **When extending a concept page from a paper's intro**, the new
+   bullet under `## Empirical Evidence` or `## Theoretical Foundations`
+   MUST cite the originating paper Y (with `reported via [[X]]`),
+   **never** the transmitter X alone. Otherwise the concept page becomes
+   a network of who-said-what-when rather than a knowledge map.
+3. **Do not rewrite Y's claim from your own knowledge** — quote or
+   paraphrase what X says about Y, with X's framing made explicit. If
+   X distorts Y, that distortion belongs in the wiki entry (with a
+   contradiction flag if Y is also in the wiki).
+
 ---
 
 ## Depth & Completeness Rules
@@ -310,6 +348,119 @@ the unfinished work will be redone.
 
 ---
 
+## Long Document Ingestion (Theses, ≥ 100 pages)
+
+A 100–300 page thesis cannot be ingested in a single pass without losing
+depth: the agent skims, condenses chapters into bullets, and the resulting
+source page is superficial. Solution: **split first, ingest chapter by
+chapter, aggregate at thesis level**.
+
+### Step 0 — Split
+
+After the conversion pipeline produces `raw/theses/<slug>.md`, run:
+
+```bash
+python pdf2md/split_thesis.py raw/theses/<slug>.md
+```
+
+This detects chapter headings (`# Chapter N`, `# N. Title`, named
+chapters like Introduction / Methods / Discussion / Conclusion) and
+emits one Markdown file per chapter:
+
+```
+raw/theses/<slug>.md                            ← parent (untouched)
+raw/theses/<slug>/ch01-introduction.md
+raw/theses/<slug>/ch02-literature-review.md
+raw/theses/<slug>/ch03-methods.md
+raw/theses/<slug>/ch04-mi-bci-rct.md
+…
+raw/theses/<slug>/ch08-general-discussion.md
+```
+
+Each chapter file inherits the parent's frontmatter and adds:
+- `chapter: <int>`
+- `chapter_title: "..."`
+- `parent_thesis: <slug>`
+- `tags: [..., thesis-chapter]`
+
+If chapter detection fails (no clear headings), edit the parent MD to
+add `# Chapter N: Title` markers manually before splitting.
+
+### Step 1 — Ingest the parent
+
+```
+ingest raw/theses/<slug>.md
+```
+
+The parent ingestion writes `wiki/sources/<slug>.md` using the **Thesis
+Template** but produces a **lightweight** parent page focused on
+thesis-level synthesis. Per-chapter content is intentionally deferred:
+
+- Frontmatter (full bibliographic metadata)
+- `## Abstract` (verbatim)
+- `## Research Questions`, `## Hypotheses`, `## Theoretical Framework`
+- `## Chapters Summary` — one bullet per chapter linking to the
+  per-chapter source page (e.g. `[[<slug>-ch04-mi-bci-rct]]`)
+- `## Cross-Chapter Synthesis`
+- `## Recommendations / Implications` (thesis-level)
+- `## Notable References (citation snowball)` — full bibliography
+- `## How to Cite`
+
+`## Methods`, `## Results`, `## Background` are **deliberately empty**
+on the parent and live on the chapter pages instead.
+
+### Step 2 — Ingest each chapter
+
+```
+ingest raw/theses/<slug>/ch01-introduction.md
+ingest raw/theses/<slug>/ch02-literature-review.md
+…
+```
+
+Each chapter is ingested as a regular source. The agent uses the
+**Academic Paper Template** (chapters are journal-paper-sized units),
+*not* the Thesis Template, with one extra rule:
+
+- The chapter source page's frontmatter must keep `parent_thesis: <slug>`
+  and `chapter: N`, and the page should open with a 1-line cross-link:
+  *"Chapter N of [[<slug>]]."*
+- The Indirect Citation Rule applies normally.
+- For an Introduction / Literature Review chapter, the `## Background`
+  section will be unusually large (20+ bullets). Apply Knowledge
+  Construction from Introductions strictly — every cited claim → bullet
+  → routed to the relevant concept pages.
+- For empirical chapters, the chapter is treated as one study
+  (own Methods, Results, Discussion).
+
+### Step 3 — Aggregate
+
+After all chapters are ingested:
+- `tools/update_cited_by.py` rebuilds the citation network across the
+  parent and all chapter sub-sources.
+- The parent's `## Cross-Chapter Synthesis` may need a manual update
+  to integrate findings now that all chapters are in the wiki.
+
+### Why this approach
+
+- **Depth preserved**: 20-page chapter ≈ journal paper ≈ extractable in
+  a single ingest without skimming.
+- **Granular wikilinks**: you can cite `[[<slug>-ch04-mi-bci-rct]]`
+  rather than the whole thesis when only one chapter is relevant.
+- **Snowball-friendly**: each chapter's References section is parsed
+  independently, populating `cites:` per chapter.
+- **Indirect citation works at scale**: the literature review chapter
+  is the densest source of cited claims — splitting lets the agent
+  fully extract them into concept pages.
+
+### When NOT to split
+
+- Theses < 60 pages: single-pass ingest is fine.
+- Cumulative theses (collection of pre-published papers): each paper is
+  often already in the wiki as a journal article — the thesis itself
+  becomes a thin parent linking to those existing source pages.
+
+---
+
 ## Ingest Workflow
 
 Triggered by: *"ingest <file>"* or `/wiki-ingest`.
@@ -463,10 +614,13 @@ Single sentence — the question the paper explicitly addresses.
 
 ## Background (from cited literature)
 Claims this paper inherits from prior work (intro and theoretical framing).
-Each bullet cites the **original** source (Indirect Citation Rule):
+**This section must be exhaustive** — see `Knowledge construction from
+introductions` in the Citation Rule. Aim 5–15 bullets for an empirical
+paper, 20+ for a review or thesis introduction. Each bullet cites the
+**original** source per the Indirect Citation Rule:
 - Claim from prior work — [[paper-y]] (p. ?), reported via [[paper-x]] (p. ?, intro).
 - Framework adopted — [[paper-z]] (p. ?), reported via [[paper-x]] (p. ?).
-- If the original is not in the wiki: `[[paper-x]] (p. ?, citing Y, 2018)`.
+- If the original is not in the wiki: `[[paper-x]] (p. ?, citing Y, 2018)` and add Y's DOI to `cites:`.
 
 ## Methods
 - **Design**: <study_design>
@@ -538,6 +692,18 @@ pages whose `cites:` frontmatter contains this paper's DOI.)*
 
 Theses have richer metadata, multiple chapters, and serve as citation
 snowball sources.
+
+**For long theses (≥ 100 pages or > 8 chapters)**, use the
+**Long Document Ingestion** workflow: split with
+`pdf2md/split_thesis.py` first, then ingest the parent thesis MD as a
+lightweight parent page (this template) and each chapter as its own
+source page using the **Academic Paper Template**. The parent's
+`## Methods`, `## Results`, `## Background` are then deliberately empty
+on the parent and live on the chapter pages instead.
+
+For short theses (< 60 pages), or when chapters can't be cleanly
+detected, ingest the thesis as a single source — fill the full template
+below.
 
 ````markdown
 ---
