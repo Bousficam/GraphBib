@@ -20,6 +20,7 @@ The agent's three jobs, in priority order:
 | Command | What to say |
 |---|---|
 | `/wiki-ingest` | `ingest raw/papers/<file>.md` |
+| `/wiki-convert` | `/wiki-convert "/path/to/PDF/library"` (PDF → Markdown pipeline) |
 | `/wiki-query` | `query: what does the literature say about MI-BCI for chronic stroke?` |
 | `/wiki-review` | `review topic: corticospinal integrity and motor recovery` |
 | `/wiki-cite` | `cite: TMS-induced plasticity in M1` (returns 3-5 APA refs) |
@@ -129,6 +130,60 @@ last_updated: YYYY-MM-DD
 Use `[[PageName]]` wikilinks to link to other wiki pages. Sub-typed pages
 (source, method, etc.) extend this base with type-specific fields, defined
 below.
+
+---
+
+## Conversion Workflow
+
+Triggered by: *"convert pdfs from <path>"*, *"run the conversion pipeline"*,
+or `/wiki-convert <SRC> [DST]`.
+
+This workflow turns a directory of PDFs into ingestion-ready Markdown
+sources. It is **separate from ingestion** — it produces the input that
+the Ingest Workflow consumes.
+
+### Phases
+
+1. **Marker conversion** (`pdf2md/pdf2md_marker.py SRC DST`) — high-fidelity
+   PDF → Markdown, mirrored arborescence, idempotent. Writes `marker_report.json`.
+
+2. **Fallback** (`pdf2md/pdf2md_fallback.py SRC DST`) — reprocesses entries
+   marked `errors` or `suspicious` in the marker report using pymupdf4llm.
+   Writes `fallback_report.json`.
+
+3. **Enrich frontmatter** (`pdf2md/enrich_frontmatter.py DST`) — Crossref
+   lookup populates `title`, `authors`, `journal`, `year`, `doi`. Same pass
+   extracts a raw `cites:` list from the References section by regex.
+   Writes `enrich_report.json`.
+
+4. **Validate + curate citations** (`tools/parse_references.py --curate --all DST`) —
+   each extracted DOI is checked against Crossref; broken or missing DOIs
+   are recovered via free-text bibliographic search when score and title
+   overlap thresholds pass. Writes the validation cache to
+   `tools/.cache/doi_validation.json` (gitignored).
+
+### Agent procedure
+
+When the user invokes the workflow:
+
+1. Confirm the source path exists and contains PDFs (`find SRC -name '*.pdf' | head` or equivalent).
+2. Default `DST` to `raw/papers/` unless the user specifies otherwise.
+3. Run **Phase 1**, then read `DST/marker_report.json` and surface its
+   `summary` field (ok / suspicious / errors / skipped).
+4. Run **Phase 2**, surface `DST/fallback_report.json` summary.
+5. Run **Phase 3**, surface `DST/enrich_report.json` summary.
+6. Phase 4 is network-heavy (typically 5-13 min). **Always ask the user
+   before launching it**: *"Phase 4 calls Crossref for every reference
+   (~13 min first run, ~5 min thereafter). Proceed?"*. Run only if
+   approved; otherwise stop and instruct the user to run it manually
+   later when convenient.
+7. Print a final recap: number of PDFs converted, files with metadata,
+   files with `cites:`, total citations.
+8. Suggest the next step: ingestion via `/wiki-ingest`.
+
+If any phase errors, stop and show the error before going further. The
+pipeline is idempotent — the user can re-run the same command and only
+the unfinished work will be redone.
 
 ---
 
