@@ -113,6 +113,129 @@ itself (methods / results). The agent must respect that distinction.
 
 ---
 
+## Depth & Completeness Rules
+
+A source page is the agent's **only chance** to mine that paper for the
+wiki. Subsequent passes won't re-read the PDF. Therefore:
+
+### Extraction must be exhaustive, not representative
+
+The default failure mode is the agent extracting the 2-3 most salient
+items from each section and skipping the rest. This produces a
+superficial wiki. Counter it:
+
+- **`## Key Findings`**: extract **every** numerical result reported
+  (primary, secondary, sub-group, exploratory). A typical empirical
+  paper yields 5–15 findings; if you have 2, you missed them. Quote
+  effect sizes, IC, p-values verbatim.
+- **`## Methods`**: every measure → its instrument → its `[[methods/]]`
+  page. Every protocol parameter (sessions, duration, intensity,
+  blinding, randomization). Don't shortcut.
+- **`## Background`**: every claim the paper inherits from prior work,
+  with original citation per the Indirect Citation Rule. Aim 5–10 bullets
+  for a substantial intro, more for a review.
+- **`## Recommendations / Implications`**: **every** actionable item
+  including secondary, conditional, and cautionary ones — not just the
+  headline. See "Guidelines & meta-analyses" below for the strict rule.
+- **`## Limitations`**: every limitation the authors acknowledge. Most
+  honest papers list 4–6.
+- **`## Verbatim Quotes`**: minimum 3 quotes from distinct sections
+  (Background / Results / Discussion).
+- **`## Cites`**: populated from the References section (auto via
+  `parse_references.py`); review the snowball candidates before moving on.
+
+### Guidelines, meta-analyses, consensus statements (special case)
+
+Such papers contain dense **recommendation tables** (e.g. Lefaucheur
+guidelines for TMS list dozens of recommendations across depression,
+pain, stroke, Parkinson, OCD…, each with A/B/C evidence level).
+
+Strict rule for these papers:
+
+1. **Enumerate every recommendation** in the source page's
+   `## Recommendations / Implications`. If the paper has a Table titled
+   "Recommendations" or "Levels of Evidence", **the source page must
+   reference at least the row count of that table**. Don't paraphrase
+   "the paper recommends rTMS for several conditions" — list each one.
+2. **Route each recommendation** to the appropriate
+   `wiki/recommendations/<topic-slug>.md` page (create per-topic pages
+   if needed). For Lefaucheur-type guidelines, expect 5–15 recommendation
+   pages to be touched, one per condition / protocol family.
+3. **Preserve evidence level** (A / B / C) verbatim with each item.
+4. **Quote the recommendation text verbatim** when feasible — these
+   papers are reused as authoritative references.
+
+A guideline paper that produces a 200-word source page is incomplete
+by definition. Expect 1500-3000 words for a major guideline.
+
+### Anti-patterns (do NOT)
+
+- ❌ Don't write *"the paper shows X"* without quoting the supporting result.
+- ❌ Don't paraphrase numerical results — quote verbatim.
+- ❌ Don't list a method with just `[[methods/X]]`. Describe **how this
+  specific paper used it** (parameters, sample, deviations from standard).
+- ❌ Don't summarize the abstract; extract from the body.
+- ❌ Don't compress 8 findings into 2 bullets to save space.
+- ❌ Don't drop secondary or cautionary recommendations because they're
+  less prominent.
+- ❌ Don't summarize a guideline paper's recommendation table — enumerate.
+
+### Length expectations (rough heuristic, not hard rule)
+
+| Paper type | Source page length |
+|---|---|
+| Conference abstract | 300–600 words |
+| Theoretical / opinion | 600–1200 words |
+| Empirical (RCT, cohort, cross-sectional) | 800–2000 words |
+| Review / meta-analysis | 1200–2500 words |
+| Guidelines / consensus statement | 1500–3000 words |
+| Thesis | 2000–5000 words (across chapters) |
+
+A source page below the lower bound for its type is almost certainly
+incomplete unless the paper itself is unusually short.
+
+### Method, intervention, recommendation pages — depth
+
+Same rule applies to the auxiliary pages updated at ingest:
+
+- When step 9 (method update) runs, **don't just append
+  `- [[<source-slug>]]` to `## Used In This Wiki`**. Add a 2-sentence
+  description of *how this paper used the method* — parameters, sample,
+  deviation from standard protocol. Example:
+  > Used 1 Hz rTMS over contralesional M1, 1200 pulses, 10 sessions
+  > over 2 weeks ([[lefaucheur-2014]] p. 22). Differs from
+  > [[khedr-2005]] protocol by lower intensity (90 vs 110 % RMT).
+- Same for intervention pages (step 9b): document each study's
+  protocol variant in `## Variants` and `## Identified Studies`.
+- Recommendation pages: enumerate each new item under the right
+  evidence-strength heading; never collapse multiple recs into one
+  bullet.
+
+### Self-critique gate (mandatory)
+
+**Before declaring the ingest complete, re-read the source page and
+ask, in this order:**
+
+1. Did I capture every numerical result reported in the paper? If the
+   paper has a Results table with N rows, does the source page
+   reference N findings?
+2. Did I list every measure used and link to its method page?
+3. Does `## Background` cite at least 3 prior works (Indirect Citation
+   Rule)?
+4. Are there 3+ verbatim quotes covering different sections?
+5. Are all author-acknowledged limitations listed?
+6. **For guidelines/reviews/meta-analyses**: does the source page
+   enumerate every recommendation in the original recommendation
+   table? Were they routed to per-topic recommendation pages?
+7. For each method touched, did I add a per-source description (not
+   just a wikilink)?
+
+If any answer is "no", expand the missing section by re-reading the
+relevant part of the source MD before finishing. Do not declare ingest
+complete with these gates open.
+
+---
+
 ## Page Format (Canonical Frontmatter)
 
 Every wiki page starts with this frontmatter:
@@ -255,6 +378,12 @@ Steps (in order):
 10. **Update recommendation pages**: if the source proposes recommendations,
     route them to the relevant `wiki/recommendations/<topic>.md` (create
     if needed) under the appropriate evidence-strength section.
+    **For guidelines, meta-analyses, or consensus statements**, this step
+    is critical: enumerate **every** recommendation from the paper's
+    recommendation tables (don't summarize), preserve evidence levels
+    (A / B / C) verbatim, and create one `recommendations/<topic>.md`
+    page per condition / protocol family. See **Depth & Completeness
+    Rules → Guidelines, meta-analyses, consensus statements**.
 11. **Update question pages**: if the source identifies an open question
     or explicit gap, append to `wiki/questions/<slug>.md` (create if needed).
 12. **Flag contradictions** with existing wiki content explicitly, with
@@ -262,11 +391,15 @@ Steps (in order):
 13. **Update `wiki/index.md`** — add entries under all touched sections.
 14. **Update `wiki/overview.md`** if the synthesis warrants revision.
 15. **Append to `wiki/log.md`**: `## [YYYY-MM-DD] ingest | <Title>`.
-16. **Post-ingest validation** — check broken `[[wikilinks]]`, verify all
-    new pages are in `index.md`, run `tools/update_cited_by.py` to refresh
-    `## Cited By` sections wiki-wide, print a change summary including
-    counts: *N concepts updated, M methods touched, K recommendations
-    refined, J snowball candidates surfaced*.
+16. **Post-ingest validation + Self-critique gate** — first run the
+    **Self-critique gate** defined in `Depth & Completeness Rules`
+    (re-read source page, verify exhaustive extraction; for guidelines
+    verify every recommendation enumerated). Expand any incomplete
+    section by re-reading the source. Then check broken `[[wikilinks]]`,
+    verify all new pages are in `index.md`, run `tools/update_cited_by.py`
+    to refresh `## Cited By` sections wiki-wide, and print a change
+    summary including counts: *N concepts updated, M methods touched,
+    K recommendations refined, J snowball candidates surfaced*.
 
 ### For theses specifically — citation snowball
 
