@@ -743,6 +743,12 @@ For each arm, document:
 - Informed consent procedure.
 - Funding source(s) and conflicts of interest declared.
 
+### Data and Code Availability
+- Pre-registration: link or registration ID (e.g. OSF, AsPredicted) — p. ?.
+- Data: repository link / DOI / "available on request" / "not shared".
+- Code / analysis scripts: repository link, version, license.
+- Raw materials (stimuli, questionnaires): where deposited.
+
 ## Results
 
 ### Participant Flow
@@ -769,6 +775,19 @@ For each arm, document:
 
 ### Compliance / Adherence
 - Adherence rate; reasons for non-adherence.
+
+### Tables and Figures
+For each numbered table or figure cited in the body:
+- **Table 1** (p. ?) — what it summarizes (e.g. "baseline demographics by group");
+  flag any notable rows.
+- **Figure 2** (p. ?) — what it depicts (e.g. "individual ΔFM trajectories
+  over 12 weeks by intervention arm").
+- Note any pattern visible only in the figure (outliers, dose-response
+  curves, individual variability) that the prose narrative downplays.
+
+Do not skip tables/figures. They often carry information not stated in
+the body text — particularly secondary outcome details, sub-group
+breakdowns, and individual-level variability.
 
 ## Discussion
 
@@ -805,6 +824,31 @@ Indirect Citation Rule with `reported via this paper's discussion`:
   routed to `wiki/recommendations/<topic>.md` (step 10).
 - Implication for theory of [[ConceptName]] (p. ?).
 
+## Reporting Standard Alignment
+Identify which reporting checklist applies and flag deviations the agent
+notices. Most empirical clinical / behavioural papers should align with
+one:
+
+- **RCT** → CONSORT — verify: random sequence generation, allocation
+  concealment, blinding, intention-to-treat analysis, CONSORT flow
+  diagram present.
+- **Observational (cohort, case-control, cross-sectional)** → STROBE.
+- **Systematic review / meta-analysis** → PRISMA — verify: PRISMA flow
+  diagram, search dates, included databases, risk-of-bias assessment.
+- **Diagnostic accuracy** → STARD.
+- **Quasi-experimental / non-randomized** → TREND.
+- **Case report** → CARE.
+- **Animal study** → ARRIVE.
+
+Format:
+- Standard: <CONSORT | STROBE | PRISMA | …>.
+- Deviations / missing items: <list with page references>.
+- Quality risk this introduces (e.g. unblinded outcome assessor on
+  subjective measure → high risk of detection bias).
+
+If the paper does not align with any standard or pre-dates the standard,
+state so.
+
 ## Verbatim Quotes
 Minimum 3 quotes from distinct sections (Introduction / Results / Discussion).
 > "Quote here verbatim" — p. N (section)
@@ -831,6 +875,38 @@ pages whose `cites:` frontmatter contains this paper's DOI.)*
 ## Contradictions / Agreements
 - Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?).
 - Confirms [[OtherPaper]] on: claim Y (this p. ?, other p. ?).
+
+## Extraction Checklist
+Filled by the agent at end of ingest as a self-audit. Each box must be
+checked or annotated with the reason for omission. **Do not skip a box
+just because the section was hard to find** — the absence of an item is
+itself information (e.g., no power analysis = quality flag).
+
+- [ ] **Background**: ≥ 5 cited claims with original references and `reported via` provenance.
+- [ ] **Theoretical framework** identified and wikilinked.
+- [ ] **Hypotheses** listed verbatim, or noted as not pre-stated.
+- [ ] **Inclusion AND exclusion criteria** both documented.
+- [ ] **Sample size justification / power analysis** documented or noted as missing.
+- [ ] **All outcome measures** (primary + secondary + exploratory) listed,
+      each linked to `[[methods/...]]`.
+- [ ] **Each outcome has a result** with effect size + CI + p-value verbatim.
+- [ ] **Tables and figures** all referenced with their content described.
+- [ ] **Adverse events** documented or noted as not reported.
+- [ ] **Compliance / adherence** documented.
+- [ ] **All limitations** acknowledged by authors are listed.
+- [ ] **Comparison with prior work** uses `reported via` provenance for cited claims.
+- [ ] **Reporting standard alignment** assessed (CONSORT / STROBE / PRISMA / etc.).
+- [ ] **Pre-registration / data availability** documented.
+- [ ] **Trial registration ID** present (RCTs only).
+- [ ] **≥ 3 verbatim quotes** from distinct IMRAD sections.
+- [ ] **References parsed**: `cites:` populated; snowball candidates flagged.
+- [ ] **Recommendations** routed to `wiki/recommendations/<topic>.md`.
+- [ ] **Open questions** routed to `wiki/questions/<slug>.md`.
+- [ ] **Concept / method / intervention pages** updated with per-source description (not bare wikilinks).
+
+If any box remains unchecked **without a noted reason**, the ingest is
+incomplete — re-read the source MD and fill the gap before declaring
+the source page final.
 
 ## How to Cite
 **APA**: <citation_apa>
