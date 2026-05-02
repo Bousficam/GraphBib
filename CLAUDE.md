@@ -305,17 +305,40 @@ Steps (in order):
 1. **Read the source** fully via the Read tool (auto-convert if non-markdown).
 2. **Read context**: `wiki/index.md`, `wiki/overview.md`, plus any obviously
    related concept/method pages already in the wiki.
-3. **Choose the source template** based on path and type, and **read
-   the template file** before writing:
-   - `raw/papers/*` → `docs/templates/source-academic-paper.md`
-   - `raw/theses/*` → `docs/templates/source-thesis.md`
-   - `raw/notes/*`  → reuse the Academic Paper template (or Diary/Meeting,
-     defined at the end of this file, if applicable)
-   - For depth expectations and the self-critique gate, read
-     `docs/rules/depth-completeness.md`.
-   - For the Citation Rule (Indirect Citation Rule, provenance pattern,
-     knowledge construction from introductions), read
-     `docs/rules/citation.md`.
+3. **Choose the source template** based on the paper's *study design*
+   (visible in title / abstract / methods cues), then **read the template
+   file** before writing:
+
+   | Detected type | Template |
+   |---|---|
+   | Empirical: RCT, cohort, cross-sectional, case-control, case-series | `docs/templates/source-academic-paper.md` |
+   | Systematic review (with or without meta-analysis), PRISMA-aware | `docs/templates/source-systematic-review.md` |
+   | Narrative review (no systematic search, thematic structure) | `docs/templates/source-narrative-review.md` |
+   | Scoping review, PRISMA-ScR, evidence mapping | `docs/templates/source-scoping-review.md` |
+   | Methodological paper (introduces new method / protocol / pipeline) | `docs/templates/source-methodological-paper.md` |
+   | Theoretical / conceptual / framework paper (no data) | `docs/templates/source-theoretical-paper.md` |
+   | Thesis (PhD / MSc / HDR) | `docs/templates/source-thesis.md` |
+   | Lab notes / personal notes (`raw/notes/*`) | reuse `source-academic-paper.md`, omit fields that don't apply; or use Diary / Meeting if applicable |
+
+   **Detection cues** when the type isn't explicit:
+   - Has **PRISMA flow diagram** + risk-of-bias table → systematic review.
+   - Has **PRISMA-ScR flow** + concept map / typology / no quality
+     appraisal → scoping review.
+   - **No Methods section**, thematic sub-headings, "we discuss" framing
+     → narrative review.
+   - **No Methods section**, postulates / definitions / model architecture
+     → theoretical paper.
+   - **Validation against a reference method**, software/algorithm
+     description → methodological paper.
+
+   Set the `study_design:` frontmatter field accordingly so that
+   downstream tools (`tools/method_matrix.py`, `cohort_tracker.py`, etc.)
+   can filter on type.
+
+   Always also read `docs/rules/depth-completeness.md` (depth
+   expectations, self-critique gate) and `docs/rules/citation.md`
+   (Indirect Citation Rule, `reported via [[X]]` provenance, knowledge
+   construction from introductions).
 4. **Generate `citation_apa` and `bibtex_key`** from the frontmatter
    (`authors`, `year`, `title`, `journal` or `university`, `doi`). Use APA 7.
 5. **Write `wiki/sources/<slug>.md`** using the chosen template. Apply the
