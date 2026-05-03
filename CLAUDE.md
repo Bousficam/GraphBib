@@ -585,6 +585,57 @@ Use this workflow when:
 
 ---
 
+## Data Extraction (systematic review tables)
+
+For systematic reviews, you typically need a structured table with one
+row per included study and columns for design / N / population /
+intervention / outcomes / effect sizes / risk of bias / etc.
+
+`tools/extract_data.py` populates such a table (Excel `.xlsx` or CSV)
+from `wiki/sources/`. Two modes:
+
+**Pre-fill from a SR's `cites:`** (most common workflow):
+
+```bash
+python tools/extract_data.py --from-source cervera-2020 \
+  --output cervera-extraction.xlsx
+```
+
+Walks the cites: of `cervera-2020`, writes one row per cited paper that
+exists in the wiki, pre-fills the slug column, leaves the data columns
+blank with sensible defaults (slug, first_author, year, doi, design,
+n_total, n_intervention, n_control, age_mean, sex_pct_female,
+population, chronicity, baseline_fm, intervention, primary_outcome_delta,
+p_value, effect_size, confidence_interval, adverse_events,
+trial_registration, risk_of_bias, notes).
+
+**Fill an existing template**:
+
+```bash
+python tools/extract_data.py data_extraction.xlsx
+```
+
+For each row, the script:
+1. Finds the wiki source page by `slug`.
+2. Fills cells from frontmatter (deterministic) — title, authors, year,
+   doi, study_design, sample_size, population, intervention_family,
+   methods, etc.
+3. Tries regex patterns on the body for clinical fields — n per arm,
+   age mean, baseline Fugl-Meyer, ΔFM / ΔARAT, p-value, Cohen's d,
+   95 % CI, trial registration ID, etc.
+4. **Never overwrites cells already populated** by the user.
+
+Unknown column headers are left blank. Recognized headers and patterns
+are documented at the top of `tools/extract_data.py` — extend the
+ontology there to add new fields.
+
+The agent should run this tool on user request ("extract data for the
+review on …"), report stats (complete / partial / empty / not found),
+and surface which columns remained empty so the user knows what to
+fill manually.
+
+---
+
 ## Replication Tracking
 
 Each Academic Paper template includes a `replication_of: "<DOI>"` frontmatter
