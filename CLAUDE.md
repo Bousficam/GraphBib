@@ -587,52 +587,61 @@ Use this workflow when:
 
 ## Data Extraction (systematic review tables)
 
-For systematic reviews, you typically need a structured table with one
-row per included study and columns for design / N / population /
-intervention / outcomes / effect sizes / risk of bias / etc.
+`tools/extract_data.py` populates a SR data-extraction table
+(Excel `.xlsx` or CSV) from `wiki/sources/`. Three filling layers
+applied per cell, in order:
 
-`tools/extract_data.py` populates such a table (Excel `.xlsx` or CSV)
-from `wiki/sources/`. Two modes:
+1. **Frontmatter** (always on) — known column headers map to YAML
+   fields (title, authors, year, doi, study_design, …).
+2. **Body regex** (always on) — built-in patterns for clinical fields
+   (n per arm, age mean, baseline FM, ΔFM, p-value, Cohen's d, CI,
+   trial-registration ID, …).
+3. **LLM** (`--llm`) — for cells still empty AND with a per-column
+   rule provided in an `INSTRUCTIONS` row (see below), calls Claude
+   via litellm. Cached in `tools/.cache/extract_llm.json`.
 
-**Pre-fill from a SR's `cites:`** (most common workflow):
+Cells already populated by the user are never overwritten.
 
-```bash
-python tools/extract_data.py --from-source cervera-2020 \
-  --output cervera-extraction.xlsx
+### INSTRUCTIONS row (drives the LLM fallback)
+
+The template's second row carries one natural-language extraction
+rule per column. Its slug cell reads `INSTRUCTIONS`. Example:
+
+```
+slug          | n_intervention            | primary_delta_fm
+INSTRUCTIONS  | N in the active arm       | ΔFugl-Meyer UE end-vs-baseline ± SD
+cervera-2020  |                           |
+khedr-2005    |                           |
 ```
 
-Walks the cites: of `cervera-2020`, writes one row per cited paper that
-exists in the wiki, pre-fills the slug column, leaves the data columns
-blank with sensible defaults (slug, first_author, year, doi, design,
-n_total, n_intervention, n_control, age_mean, sex_pct_female,
-population, chronicity, baseline_fm, intervention, primary_outcome_delta,
-p_value, effect_size, confidence_interval, adverse_events,
-trial_registration, risk_of_bias, notes).
+The agent reads these rules and applies them when LLM mode is on.
+Default rules are inserted for every column when you pre-fill from a
+SR's cites — edit them in Excel before running `--llm`.
 
-**Fill an existing template**:
+### Modes
 
 ```bash
-python tools/extract_data.py data_extraction.xlsx
+# Pre-fill a NEW template from a SR's cites: (writes an INSTRUCTIONS row by default)
+python tools/extract_data.py --from-source cervera-2020 -o cervera-ext.xlsx
+
+# Fill an existing template (frontmatter + regex)
+python tools/extract_data.py cervera-ext.xlsx
+
+# Same + LLM fallback for unfilled cells (uses ANTHROPIC_API_KEY)
+python tools/extract_data.py cervera-ext.xlsx --llm
+
+# Override model (default: claude-3-5-sonnet-latest)
+LLM_MODEL=claude-sonnet-4-5 python tools/extract_data.py cervera-ext.xlsx --llm
 ```
 
-For each row, the script:
-1. Finds the wiki source page by `slug`.
-2. Fills cells from frontmatter (deterministic) — title, authors, year,
-   doi, study_design, sample_size, population, intervention_family,
-   methods, etc.
-3. Tries regex patterns on the body for clinical fields — n per arm,
-   age mean, baseline Fugl-Meyer, ΔFM / ΔARAT, p-value, Cohen's d,
-   95 % CI, trial registration ID, etc.
-4. **Never overwrites cells already populated** by the user.
+Default SR column set and recognized header aliases live at the top of
+`tools/extract_data.py` (`DEFAULT_SR_COLUMNS`, `FM_MAP`, `BODY_PATTERNS`).
+Extend the ontology there for domain-specific fields.
 
-Unknown column headers are left blank. Recognized headers and patterns
-are documented at the top of `tools/extract_data.py` — extend the
-ontology there to add new fields.
-
-The agent should run this tool on user request ("extract data for the
-review on …"), report stats (complete / partial / empty / not found),
-and surface which columns remained empty so the user knows what to
-fill manually.
+The agent should run this tool on user request, summarize the per-cell
+method counts (frontmatter / regex / llm / manual / empty) and the
+per-row status (complete / partial / empty / not_found), and surface
+which columns remained empty so the user knows what to fill manually.
 
 ---
 
