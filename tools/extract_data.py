@@ -6,18 +6,27 @@ LLM-driven extraction.
 Template structure
 ==================
 
-Row 1: column headers (e.g. `slug`, `n_intervention`, `risk_of_bias`).
-Row 2: an `INSTRUCTIONS` row (slug column = "INSTRUCTIONS"). Each cell
-       holds the natural-language extraction rule for that column. This
-       row is consumed by the tool, not treated as a data row.
-Row 3+: one row per source (slug column = wiki source basename).
+Row 1:    column headers (e.g. `slug`, `n_intervention`, `risk_of_bias`).
+Row 2:    `INSTRUCTIONS` row (slug = "INSTRUCTIONS") — natural-language
+          extraction rule per column.
+Row 3:    `TYPE` row (slug = "TYPE") — quantitative | ordinal | nominal | text.
+Row 4:    `SCALE` row (slug = "SCALE") — for ordinal/nominal: allowed values
+          or coded mapping (e.g. "0=low, 1=some concerns, 2=high");
+          for quantitative: optional unit hint "(years)", "(0-100)";
+          empty for free text.
+Row 5+:   one row per source (slug = wiki source basename).
+
+The INSTRUCTIONS / TYPE / SCALE rows are consumed by the tool, validated,
+and re-emitted at the top of the output unchanged.
 
 Example:
 
-    | slug         | n_intervention                    | primary_delta_fm                                                    | risk_of_bias                                              |
-    | INSTRUCTIONS | N participants in the active arm  | Mean ΔFugl-Meyer Upper Extremity at end-of-treatment, ± SD if given | Cochrane RoB 2 overall judgment + main domain of concern  |
-    | cervera-2020 |                                   |                                                                     |                                                           |
-    | khedr-2005   |                                   |                                                                     |                                                           |
+    | slug         | year      | risk_of_bias                       | design                                          |
+    | INSTRUCTIONS | Pub year  | Cochrane RoB 2 overall judgment    | Study design                                    |
+    | TYPE         | quantitative | ordinal                         | nominal                                         |
+    | SCALE        | (YYYY)    | 0=low, 1=some concerns, 2=high     | RCT, cohort, cross-sectional, case-series       |
+    | cervera-2020 |           |                                    |                                                 |
+    | khedr-2005   |           |                                    |                                                 |
 
 Filling logic (per cell, in order)
 ==================================
@@ -76,6 +85,11 @@ CACHE_DIR = REPO_ROOT / "tools" / ".cache"
 LLM_CACHE_FILE = CACHE_DIR / "extract_llm.json"
 
 INSTRUCTIONS_MARKER = "INSTRUCTIONS"
+TYPE_MARKER = "TYPE"
+SCALE_MARKER = "SCALE"
+SPEC_MARKERS = {INSTRUCTIONS_MARKER, TYPE_MARKER, SCALE_MARKER}
+
+VALID_TYPES = {"quantitative", "ordinal", "nominal", "text"}
 DEFAULT_LLM_MODEL = "claude-3-5-sonnet-latest"
 LLM_MAX_BODY_CHARS = 60_000   # ~15k tokens
 LLM_MAX_TOKENS = 200          # extracted value should be short
@@ -268,7 +282,91 @@ def save_llm_cache(cache):
     LLM_CACHE_FILE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def llm_extract(column_name, instruction, body):
+def parse_scale(scale_str):
+    """Parse a SCALE string into a structured form.
+
+    - "0=low, 1=some concerns, 2=high"   → {"kind": "mapping", "items": [("0","low"), ("1","some concerns"), ("2","high")]}
+    - "RCT, cohort, cross-sectional"     → {"kind": "enum", "items": ["RCT", "cohort", "cross-sectional"]}
+    - "(years)" or "(0-100)" or empty    → {"kind": "hint", "items": ["(years)"]}  (free text annotation)
+    """
+    s = (scale_str or "").strip()
+    if not s:
+        return None
+    if "=" in s:
+        items = []
+        for part in re.split(r"[,;]", s):
+            part = part.strip()
+            if "=" in part:
+                k, v = part.split("=", 1)
+                items.append((k.strip(), v.strip()))
+            elif part:
+                items.append((part, part))
+        return {"kind": "mapping", "items": items}
+    if s.startswith("(") and s.endswith(")"):
+        return {"kind": "hint", "items": [s]}
+    if "," in s:
+        items = [p.strip() for p in s.split(",") if p.strip()]
+        return {"kind": "enum", "items": items}
+    return {"kind": "hint", "items": [s]}
+
+
+def render_scale_for_prompt(scale_dict):
+    if not scale_dict:
+        return ""
+    if scale_dict["kind"] == "mapping":
+        pairs = "; ".join(f"{k} = {v}" for k, v in scale_dict["items"])
+        return f"Allowed values (return the CODE, not the label): {pairs}"
+    if scale_dict["kind"] == "enum":
+        vals = ", ".join(scale_dict["items"])
+        return f"Allowed values (return one of these verbatim): {vals}"
+    if scale_dict["kind"] == "hint":
+        return f"Format hint: {scale_dict['items'][0]}"
+    return ""
+
+
+def validate_value(value, type_str, scale_dict):
+    """Return (ok, normalized_value, warning_or_None)."""
+    v = (value or "").strip()
+    if not v:
+        return True, "", None
+    if v.lower() == "not reported":
+        return True, "not reported", None
+    if v.startswith("<llm-error"):
+        return False, v, "llm-error"
+
+    t = (type_str or "").strip().lower()
+
+    if t == "quantitative":
+        if re.search(r"\d", v):
+            return True, v, None
+        return False, v, "expected a number"
+
+    if t in ("ordinal", "nominal") and scale_dict:
+        if scale_dict["kind"] == "mapping":
+            codes = [k.lower() for k, _ in scale_dict["items"]]
+            labels = [lbl.lower() for _, lbl in scale_dict["items"]]
+            v_lc = v.lower()
+            # Match a code → keep as code
+            for k, _ in scale_dict["items"]:
+                if v_lc == k.lower():
+                    return True, k, None
+            # Match a label → return its code
+            for k, lbl in scale_dict["items"]:
+                if v_lc == lbl.lower():
+                    return True, k, None
+            return False, v, f"not in scale codes={codes} or labels={labels}"
+        if scale_dict["kind"] == "enum":
+            v_lc = v.lower()
+            for opt in scale_dict["items"]:
+                if v_lc == opt.lower():
+                    return True, opt, None
+            return False, v, f"not in allowed values {scale_dict['items']}"
+
+    # text or no scale → accept as-is
+    return True, v, None
+
+
+def llm_extract(column_name, instruction, body, type_str=None, scale_dict=None):
     """Single-cell LLM extraction. Returns a string."""
     try:
         from litellm import completion
@@ -278,9 +376,16 @@ def llm_extract(column_name, instruction, body):
     body_trim = body[:LLM_MAX_BODY_CHARS]
     truncated = " [body truncated]" if len(body) > LLM_MAX_BODY_CHARS else ""
 
+    type_line = f"Type: {type_str}" if type_str else "Type: text"
+    scale_line = render_scale_for_prompt(scale_dict)
+    spec_block = type_line
+    if scale_line:
+        spec_block += "\n" + scale_line
+
     prompt = f"""You are extracting one piece of data from a scientific paper for a systematic review.
 
 Field name: {column_name}
+{spec_block}
 Extraction rule: {instruction}
 
 Paper body{truncated}:
@@ -290,8 +395,10 @@ Paper body{truncated}:
 
 Output rules:
 - Return ONLY the extracted value as plain text (no preamble, no JSON, no quotes).
-- Quote numerical values verbatim with units (e.g. "12.4 ± 3.1", "p<0.001").
-- If the paper does NOT report this, output exactly: not reported
+- For quantitative fields, quote the verbatim value with units (e.g. "12.4 ± 3.1", "p<0.001").
+- For ordinal/nominal fields with allowed values, return EXACTLY one of those values.
+  - If the scale uses codes (e.g. "0 = low, 1 = some concerns, 2 = high"), return the CODE only ("0", "1", or "2").
+- If the paper does NOT report this field, output exactly: not reported
 - Never invent values; never guess.
 - Keep the response under 150 characters.
 """
@@ -304,7 +411,6 @@ Output rules:
             max_tokens=LLM_MAX_TOKENS,
         )
         value = resp.choices[0].message.content.strip()
-        # Strip trivial wrappers
         if value.startswith('"') and value.endswith('"'):
             value = value[1:-1]
         time.sleep(LLM_SLEEP_SEC)
@@ -368,20 +474,28 @@ def write_table(path, headers, data, fmt):
 # Instructions row handling
 # ============================================================================
 
-def split_instructions(rows, slug_col):
-    """Pop and return the INSTRUCTIONS row if present.
+def split_spec_rows(rows, slug_col):
+    """Pop and return the spec rows (INSTRUCTIONS, TYPE, SCALE) if present.
 
-    Returns (instructions_dict_or_None, remaining_data_rows).
+    Returns (spec_dict, remaining_data_rows) where spec_dict has keys
+    "instructions", "types", "scales" — each a dict[col → str] (or None
+    if the row is absent).
     """
-    instructions = None
+    spec = {"instructions": None, "types": None, "scales": None}
     out = []
     for r in rows:
         slug = str(r.get(slug_col, "")).strip().upper()
         if slug == INSTRUCTIONS_MARKER:
-            instructions = {k: ("" if v is None else str(v)) for k, v in r.items()}
+            spec["instructions"] = {k: ("" if v is None else str(v)) for k, v in r.items()}
+            continue
+        if slug == TYPE_MARKER:
+            spec["types"] = {k: ("" if v is None else str(v)) for k, v in r.items()}
+            continue
+        if slug == SCALE_MARKER:
+            spec["scales"] = {k: ("" if v is None else str(v)) for k, v in r.items()}
             continue
         out.append(r)
-    return instructions, out
+    return spec, out
 
 
 # ============================================================================
@@ -412,6 +526,53 @@ DEFAULT_SR_COLUMNS = [
     "adverse_events", "trial_registration",
     "risk_of_bias", "notes",
 ]
+
+DEFAULT_SR_TYPES = {
+    "slug": "text",
+    "first_author": "text",
+    "year": "quantitative",
+    "journal": "text",
+    "doi": "text",
+    "design": "nominal",
+    "country": "text",
+    "n_total": "quantitative",
+    "n_intervention": "quantitative",
+    "n_control": "quantitative",
+    "age_mean": "quantitative",
+    "sex_pct_female": "quantitative",
+    "population": "text",
+    "chronicity": "nominal",
+    "baseline_fm": "quantitative",
+    "intervention": "nominal",
+    "intervention_subfamily": "text",
+    "n_sessions": "quantitative",
+    "session_duration_min": "quantitative",
+    "primary_outcome_delta": "quantitative",
+    "p_value": "quantitative",
+    "effect_size": "quantitative",
+    "confidence_interval": "text",
+    "adverse_events": "text",
+    "trial_registration": "text",
+    "risk_of_bias": "ordinal",
+    "notes": "text",
+}
+
+DEFAULT_SR_SCALES = {
+    "year": "(YYYY)",
+    "design": "RCT, cohort, cross-sectional, case-control, case-series, non-randomized trial, simulation",
+    "n_total": "(integer)",
+    "n_intervention": "(integer)",
+    "n_control": "(integer)",
+    "age_mean": "(years, mean ± SD if reported)",
+    "sex_pct_female": "(0-100, percentage)",
+    "chronicity": "acute, subacute, chronic",
+    "baseline_fm": "(0-66, FM-UE, mean ± SD)",
+    "intervention": "BCI, TMS, tDCS, mirror, robot, mental-practice, physio, combined",
+    "n_sessions": "(integer)",
+    "session_duration_min": "(minutes)",
+    "p_value": "(0 to 1, verbatim e.g. 'p<0.01')",
+    "risk_of_bias": "0=low, 1=some concerns, 2=high",
+}
 
 DEFAULT_SR_INSTRUCTIONS = {
     "slug": "wiki source page basename (e.g. 'cervera-2020')",
@@ -460,8 +621,8 @@ def main():
     ap.add_argument("--columns",
                     help="Comma-separated column names for --from-source "
                          "(default: a sensible SR set).")
-    ap.add_argument("--no-instructions", action="store_true",
-                    help="With --from-source: skip the INSTRUCTIONS row.")
+    ap.add_argument("--no-spec", action="store_true",
+                    help="With --from-source: skip the INSTRUCTIONS/TYPE/SCALE rows.")
     ap.add_argument("--slug-column", default="slug",
                     help="Name of the column listing source slugs (default: 'slug').")
     ap.add_argument("--llm", action="store_true",
@@ -486,10 +647,14 @@ def main():
             cols = [args.slug_column] + cols
 
         rows = []
-        if not args.no_instructions:
+        if not args.no_spec:
             instr_row = {c: DEFAULT_SR_INSTRUCTIONS.get(c, "<add your extraction rule here>") for c in cols}
             instr_row[args.slug_column] = INSTRUCTIONS_MARKER
-            rows.append(instr_row)
+            type_row = {c: DEFAULT_SR_TYPES.get(c, "text") for c in cols}
+            type_row[args.slug_column] = TYPE_MARKER
+            scale_row = {c: DEFAULT_SR_SCALES.get(c, "") for c in cols}
+            scale_row[args.slug_column] = SCALE_MARKER
+            rows.extend([instr_row, type_row, scale_row])
         for slug in slugs:
             row = {c: "" for c in cols}
             row[args.slug_column] = slug
@@ -497,7 +662,7 @@ def main():
 
         fmt = detect_format(args.output)
         write_table(args.output, cols, rows, fmt)
-        suffix = " (with INSTRUCTIONS row)" if not args.no_instructions else ""
+        suffix = " (with INSTRUCTIONS / TYPE / SCALE rows)" if not args.no_spec else ""
         print(f"  ✓ {args.output} pre-filled with {len(slugs)} slugs from "
               f"{args.from_source}'s cites{suffix}")
         return
@@ -511,19 +676,31 @@ def main():
         sys.exit(f"Template must contain a '{args.slug_column}' column. "
                  f"Got: {headers}")
 
-    instructions, data = split_instructions(rows, args.slug_column)
+    spec, data = split_spec_rows(rows, args.slug_column)
+    instructions = spec["instructions"]
+    types = spec["types"] or {}
+    scales = spec["scales"] or {}
+
+    parsed_scales = {col: parse_scale(scales.get(col, "")) for col in headers}
+
+    detected = []
     if instructions:
-        print(f"  · INSTRUCTIONS row detected ({sum(1 for v in instructions.values() if v.strip())} columns annotated)",
-              file=sys.stderr)
-    elif args.llm:
+        detected.append(f"INSTRUCTIONS ({sum(1 for v in instructions.values() if v.strip())})")
+    if spec["types"]:
+        detected.append(f"TYPE ({sum(1 for v in types.values() if v.strip())})")
+    if spec["scales"]:
+        detected.append(f"SCALE ({sum(1 for v in scales.values() if v.strip())})")
+    if detected:
+        print(f"  · spec rows detected: {', '.join(detected)}", file=sys.stderr)
+    if args.llm and not instructions:
         print("  ! --llm requested but no INSTRUCTIONS row found. "
-              "LLM mode needs per-column rules. Add a row with slug=INSTRUCTIONS.",
+              "Add a row with slug=INSTRUCTIONS to drive LLM extraction.",
               file=sys.stderr)
 
     llm_cache = load_llm_cache() if args.llm else {}
 
     payload_cols = [h for h in headers if h != args.slug_column]
-    method_count = {"frontmatter": 0, "regex": 0, "llm": 0, "manual": 0, "empty": 0}
+    method_count = {"frontmatter": 0, "regex": 0, "llm": 0, "manual": 0, "empty": 0, "invalid": 0}
     row_status = {"complete": 0, "partial": 0, "empty": 0, "not_found": 0}
 
     for row in data:
@@ -542,33 +719,52 @@ def main():
                 continue
 
             col_norm = normalize_col(col)
+            col_type = (types.get(col) or "").strip().lower() if types else ""
+            col_scale = parsed_scales.get(col)
 
             # 1. Frontmatter
             v = apply_fm_map(col_norm, src)
             if v not in (None, ""):
-                row[col] = v
-                method_count["frontmatter"] += 1
+                ok, normalized, warn = validate_value(str(v), col_type, col_scale)
+                row[col] = normalized
+                if ok:
+                    method_count["frontmatter"] += 1
+                else:
+                    method_count["invalid"] += 1
+                    print(f"  ! [{slug}/{col}] frontmatter value didn't validate: {warn}",
+                          file=sys.stderr)
                 continue
 
             # 2. Body regex
             v = extract_from_body(col_norm, src["body"])
             if v not in (None, ""):
-                row[col] = v
-                method_count["regex"] += 1
+                ok, normalized, warn = validate_value(str(v), col_type, col_scale)
+                row[col] = normalized
+                if ok:
+                    method_count["regex"] += 1
+                else:
+                    method_count["invalid"] += 1
+                    print(f"  ! [{slug}/{col}] regex match didn't validate: {warn}",
+                          file=sys.stderr)
                 continue
 
             # 3. LLM (if instruction provided)
             if args.llm and instructions:
                 instr = (instructions.get(col) or "").strip()
                 if instr and instr != "<add your extraction rule here>":
-                    cache_key = f"{slug}::{col_norm}::{hash(instr)}"
+                    cache_key = f"{slug}::{col_norm}::{hash((instr, col_type, str(col_scale)))}"
                     if cache_key in llm_cache:
-                        row[col] = llm_cache[cache_key]
+                        value = llm_cache[cache_key]
                     else:
-                        value = llm_extract(col, instr, src["body"])
+                        value = llm_extract(col, instr, src["body"], col_type, col_scale)
                         llm_cache[cache_key] = value
-                        row[col] = value
-                    if str(row[col] or "").strip().lower() == "not reported":
+                    ok, normalized, warn = validate_value(value, col_type, col_scale)
+                    row[col] = normalized
+                    if not ok:
+                        method_count["invalid"] += 1
+                        print(f"  ! [{slug}/{col}] LLM output didn't validate: {warn} (raw: {value!r})",
+                              file=sys.stderr)
+                    elif normalized.lower() == "not reported":
                         method_count["empty"] += 1
                     else:
                         method_count["llm"] += 1
@@ -589,10 +785,14 @@ def main():
         save_llm_cache(llm_cache)
 
     out = args.output or args.template
-    # Re-include the INSTRUCTIONS row at the top of the output
+    # Re-include the spec rows at the top of the output (preserve user's edits)
     final_rows = []
     if instructions:
         final_rows.append(instructions)
+    if spec["types"]:
+        final_rows.append(spec["types"])
+    if spec["scales"]:
+        final_rows.append(spec["scales"])
     final_rows.extend(data)
     write_table(out, headers, final_rows, fmt)
 

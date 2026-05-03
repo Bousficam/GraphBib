@@ -602,21 +602,31 @@ applied per cell, in order:
 
 Cells already populated by the user are never overwritten.
 
-### INSTRUCTIONS row (drives the LLM fallback)
+### Spec rows (INSTRUCTIONS / TYPE / SCALE)
 
-The template's second row carries one natural-language extraction
-rule per column. Its slug cell reads `INSTRUCTIONS`. Example:
+Three rows above the data describe each column. The slug cell of each
+spec row contains the marker (`INSTRUCTIONS`, `TYPE`, `SCALE`):
 
 ```
-slug          | n_intervention            | primary_delta_fm
-INSTRUCTIONS  | N in the active arm       | ΔFugl-Meyer UE end-vs-baseline ± SD
-cervera-2020  |                           |
-khedr-2005    |                           |
+slug          | year         | risk_of_bias                     | design
+INSTRUCTIONS  | Pub year     | Cochrane RoB 2 overall           | Study design
+TYPE          | quantitative | ordinal                          | nominal
+SCALE         | (YYYY)       | 0=low, 1=some concerns, 2=high   | RCT, cohort, cross-sectional
+cervera-2020  |              |                                  |
 ```
 
-The agent reads these rules and applies them when LLM mode is on.
-Default rules are inserted for every column when you pre-fill from a
-SR's cites — edit them in Excel before running `--llm`.
+- **INSTRUCTIONS** — natural-language extraction rule per column.
+- **TYPE** — `quantitative` | `ordinal` | `nominal` | `text`.
+- **SCALE** — quantitative: unit hint `(years)`; ordinal/nominal coded
+  `0=low, 1=high` (LLM returns the code); enum `RCT, cohort` (LLM
+  returns one verbatim); text: leave empty.
+
+The tool validates extracted values against TYPE/SCALE; mismatches are
+flagged in stderr and counted as `invalid` in the run summary.
+
+`--from-source` inserts the three rows pre-filled with sensible defaults
+for the SR column set; edit them in Excel before running `--llm`.
+Skip with `--no-spec`.
 
 ### Modes
 
