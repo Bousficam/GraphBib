@@ -43,7 +43,7 @@ Claude Code reads this file automatically and follows the workflows below.
 
 ## Sub-agents (delegation)
 
-Nine specialized sub-agents live in `.claude/agents/`. Delegate via the
+Ten specialized sub-agents live in `.claude/agents/`. Delegate via the
 `Agent` tool with `subagent_type=<name>` when the task fits — each
 sub-agent has a focused system prompt, its own context window, and a
 tier-appropriate model so the cost stays in line with the work.
@@ -56,6 +56,7 @@ tier-appropriate model so the cost stays in line with the work.
 | `extractor` | haiku | Filling one cell of a SR data-extraction table. Type/scale validated. |
 | `query-synthesizer` | sonnet | Answering a focused research question with cited evidence (`/wiki-query`). |
 | `reviewer` | sonnet | Generating a `/wiki-review`-style structured literature review. APA bibliography. |
+| `suggest-reading` | sonnet | Finding what to read next from outside the wiki (internal snowball + OpenAlex forward). Prioritized list with rationale, no auto-ingest. |
 | `lint` | sonnet | Auditing the wiki — deterministic + cached semantic checks. Outputs severity-grouped report, no fixes. |
 | `librarian` | sonnet | Acting on lint findings — runs auto-fixes, delegates fix-up work to specialists, asks for confirmation on risky operations. |
 | `source-remover` | sonnet | Cleanly removing a source and every cross-reference (mistaken ingest, retraction). Always dry-run first. |
