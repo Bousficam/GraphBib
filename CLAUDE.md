@@ -43,23 +43,26 @@ Claude Code reads this file automatically and follows the workflows below.
 
 ## Sub-agents (delegation)
 
-Six specialized sub-agents live in `.claude/agents/`. Delegate via the
+Nine specialized sub-agents live in `.claude/agents/`. Delegate via the
 `Agent` tool with `subagent_type=<name>` when the task fits — each
 sub-agent has a focused system prompt, its own context window, and a
 tier-appropriate model so the cost stays in line with the work.
 
 | Sub-agent | Model | Use when… |
 |---|---|---|
-| `ingester` | sonnet | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation and concept extension. |
-| `source-extender` | sonnet | Deepening an already-ingested source page that came out shallow (gaps in Background, missing outcomes, summary instead of enumerated recommendations). |
+| `ingester` | sonnet | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation. |
+| `source-extender` | sonnet | Deepening an already-ingested source page that came out shallow. |
 | `concept-builder` | sonnet | Extending one concept page from N sources to 1500–3500 word chapter depth. |
-| `extractor` | haiku | Filling one cell of a SR data-extraction table. Type/scale validated. Grunt work — Haiku is sufficient. |
+| `extractor` | haiku | Filling one cell of a SR data-extraction table. Type/scale validated. |
 | `query-synthesizer` | sonnet | Answering a focused research question with cited evidence (`/wiki-query`). |
-| `reviewer` | sonnet | Generating a `/wiki-review`-style structured literature review on a topic. Markdown with APA bibliography. |
+| `reviewer` | sonnet | Generating a `/wiki-review`-style structured literature review. APA bibliography. |
+| `lint` | sonnet | Auditing the wiki — deterministic + cached semantic checks. Outputs severity-grouped report, no fixes. |
+| `librarian` | sonnet | Acting on lint findings — runs auto-fixes, delegates fix-up work to specialists, asks for confirmation on risky operations. |
+| `source-remover` | sonnet | Cleanly removing a source and every cross-reference (mistaken ingest, retraction). Always dry-run first. |
 
-For batch ingestion, use `/wiki-batch-ingest <DIR> [batch-size]` —
-loops over `*.md` files in `DIR`, delegates each to the `ingester`
-sub-agent, confirms with the user between batches.
+For batch ingestion: `/wiki-batch-ingest <DIR> [batch-size]`.
+For maintenance pass: invoke `librarian` directly.
+For audit: invoke `lint` directly.
 
 The parent agent stays orchestrator; sub-agents do the focused work.
 
