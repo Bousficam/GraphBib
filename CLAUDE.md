@@ -561,21 +561,30 @@ Surfaces complementary readings to deepen a concept. Two modes:
 - Sorted by citation frequency. Each candidate shows: count, DOI, the
   wiki sources that cite it.
 
-**External mode** (with `--external` — optional):
-- Queries OpenAlex / Semantic Scholar for highly-cited papers in the
-  concept's domain not yet in the wiki.
-- Returns ~10-20 candidates with title, authors, year, journal,
-  citation-count.
+**Forward mode** (`--forward`, OpenAlex):
+- For each wiki source with a DOI, lists top-50 papers citing it.
+- Aggregates co-citations across the wiki, ranks candidates by:
+  `score = co_citation × 100 + velocity + log10(venue_h)`
+- Filter: `co_citation ≥ 2 OR (velocity ≥ 2.5 AND venue_h ≥ 30)`.
+  Velocity = `cited_by_count / max(1, age_years)` normalises the bias
+  for recent papers. Cached in `tools/.cache/openalex_forward.json`.
 
 Output: a Markdown list of candidates with their bibliographic
-metadata (fetched via Crossref). The user picks which to ingest. The
-agent does NOT auto-ingest.
+metadata. The user picks which to ingest.
 
-Use this workflow when:
-- A concept page feels under-supported (few sources, sparse
-  `## Empirical Evidence` section).
-- Before writing a `/wiki-review` on a topic.
-- Periodically, to identify snowball debt.
+To **auto-fetch the open-access PDFs** of selected candidates, pipe to
+`tools/fetch_oa.py` (uses Unpaywall):
+
+```bash
+python tools/suggest_readings.py --forward --top 30 \
+  | python tools/fetch_oa.py --from-stdin
+```
+
+`fetch_oa.py` queries Unpaywall for each DOI, downloads the OA PDF
+when available to `raw/papers/<author-year>.pdf`, skips paywalled /
+non-OA / already-downloaded entries. Status per DOI in
+`raw/papers/fetch_oa_report.json`. Set `UNPAYWALL_EMAIL=you@example.org`
+once (Unpaywall ToS).
 
 ---
 
