@@ -561,11 +561,13 @@ Surfaces complementary readings to deepen a concept. Two modes:
 - Sorted by citation frequency. Each candidate shows: count, DOI, the
   wiki sources that cite it.
 
-**External mode** (with `--external` — optional):
-- Queries OpenAlex / Semantic Scholar for highly-cited papers in the
-  concept's domain not yet in the wiki.
-- Returns ~10-20 candidates with title, authors, year, journal,
-  citation-count.
+**Forward mode** (`--forward`, OpenAlex):
+- For each wiki source with a DOI, lists top-50 papers citing it.
+- Aggregates co-citations across the wiki, ranks candidates by:
+  `score = co_citation × 100 + velocity + log10(venue_h)`
+- Filter: `co_citation ≥ 2 OR (velocity ≥ 2.5 AND venue_h ≥ 30)`.
+  Velocity = `cited_by_count / max(1, age_years)` normalises the bias
+  for recent papers. Cached in `tools/.cache/openalex_forward.json`.
 
 Output: a Markdown list of candidates with their bibliographic
 metadata (fetched via Crossref). The user picks which to ingest. The
