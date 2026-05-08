@@ -43,24 +43,25 @@ Claude Code reads this file automatically and follows the workflows below.
 
 ## Sub-agents (delegation)
 
-Five specialized sub-agents live in `.claude/agents/`. Delegate via the
+Six specialized sub-agents live in `.claude/agents/`. Delegate via the
 `Agent` tool with `subagent_type=<name>` when the task fits — each
-sub-agent has a focused system prompt and won't shortcut the steps the
-parent agent tends to skip in batch mode.
+sub-agent has a focused system prompt, its own context window, and a
+tier-appropriate model so the cost stays in line with the work.
 
-| Sub-agent | Use when… |
-|---|---|
-| `ingester` | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation and concept extension. |
-| `concept-builder` | Extending one concept page from N sources (consolidation, manual refresh). Targets 1500–3500 word chapter depth. |
-| `extractor` | Filling one cell of a SR data-extraction table. Type/scale validated. |
-| `query-synthesizer` | Answering a focused research question with cited evidence (`/wiki-query`). Pointed answer, not a full review. |
-| `reviewer` | Generating a `/wiki-review`-style structured literature review on a topic. Markdown with APA bibliography. |
+| Sub-agent | Model | Use when… |
+|---|---|---|
+| `ingester` | sonnet | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation and concept extension. |
+| `source-extender` | sonnet | Deepening an already-ingested source page that came out shallow (gaps in Background, missing outcomes, summary instead of enumerated recommendations). |
+| `concept-builder` | sonnet | Extending one concept page from N sources to 1500–3500 word chapter depth. |
+| `extractor` | haiku | Filling one cell of a SR data-extraction table. Type/scale validated. Grunt work — Haiku is sufficient. |
+| `query-synthesizer` | sonnet | Answering a focused research question with cited evidence (`/wiki-query`). |
+| `reviewer` | sonnet | Generating a `/wiki-review`-style structured literature review on a topic. Markdown with APA bibliography. |
 
-Single-paper ingest, single-concept refresh, single-cell extraction,
-focused question, full review: delegate. Multi-paper batch: parent
-agent loops, each iteration delegates to the specialist. The parent
-stays orchestrator; sub-agents do the focused work with their own
-context window.
+For batch ingestion, use `/wiki-batch-ingest <DIR> [batch-size]` —
+loops over `*.md` files in `DIR`, delegates each to the `ingester`
+sub-agent, confirms with the user between batches.
+
+The parent agent stays orchestrator; sub-agents do the focused work.
 
 ---
 

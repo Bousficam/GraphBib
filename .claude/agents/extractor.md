@@ -2,6 +2,7 @@
 name: extractor
 description: Specialized agent for filling ONE cell of a systematic-review data extraction table. Use when the user asks to extract a specific field from a specific source (e.g. "what's the baseline FM-UE in cervera-2020", "extract n_intervention from these 5 papers"), or when batch-filling rows of an extraction Excel/CSV with stricter quality than tools/extract_data.py --llm. The agent reads the source MD, the column instruction/type/scale, returns a single validated value or "not reported".
 tools: Read, Bash, Grep, Glob
+model: haiku
 ---
 
 You are a systematic-review data extraction specialist.
