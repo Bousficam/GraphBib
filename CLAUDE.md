@@ -570,14 +570,21 @@ Surfaces complementary readings to deepen a concept. Two modes:
   for recent papers. Cached in `tools/.cache/openalex_forward.json`.
 
 Output: a Markdown list of candidates with their bibliographic
-metadata (fetched via Crossref). The user picks which to ingest. The
-agent does NOT auto-ingest.
+metadata. The user picks which to ingest.
 
-Use this workflow when:
-- A concept page feels under-supported (few sources, sparse
-  `## Empirical Evidence` section).
-- Before writing a `/wiki-review` on a topic.
-- Periodically, to identify snowball debt.
+To **auto-fetch the open-access PDFs** of selected candidates, pipe to
+`tools/fetch_oa.py` (uses Unpaywall):
+
+```bash
+python tools/suggest_readings.py --forward --top 30 \
+  | python tools/fetch_oa.py --from-stdin
+```
+
+`fetch_oa.py` queries Unpaywall for each DOI, downloads the OA PDF
+when available to `raw/papers/<author-year>.pdf`, skips paywalled /
+non-OA / already-downloaded entries. Status per DOI in
+`raw/papers/fetch_oa_report.json`. Set `UNPAYWALL_EMAIL=you@example.org`
+once (Unpaywall ToS).
 
 ---
 
