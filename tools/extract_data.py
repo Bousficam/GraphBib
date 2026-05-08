@@ -246,6 +246,131 @@ def resolve_pattern(col_norm):
     return val
 
 
+# ============================================================================
+# Section windowing — slice the relevant IMRAD section before LLM call
+# ============================================================================
+
+# Map (normalized column → section keyword likely to contain the answer).
+# Used by find_relevant_section() to slice the body before sending to LLM.
+COLUMN_TO_SECTION = {
+    # Methods → Participants
+    "n_intervention": "methods",
+    "n_int": "methods",
+    "n_active": "methods",
+    "n_experimental": "methods",
+    "n_control": "methods",
+    "n_ctrl": "methods",
+    "n_sham": "methods",
+    "n_placebo": "methods",
+    "n_total": "methods",
+    "age_mean": "methods",
+    "age_sd": "methods",
+    "sex_pct_female": "methods",
+    "population": "methods",
+    "chronicity": "methods",
+    "baseline_fm": "methods",
+    "intervention": "methods",
+    "intervention_subfamily": "methods",
+    "intervention_family": "methods",
+    "comparator": "methods",
+    "n_sessions": "methods",
+    "session_duration_min": "methods",
+    "trial_registration": "methods",
+    "trial_id": "methods",
+    "country": "methods",
+
+    # Results
+    "primary_outcome_delta": "results",
+    "primary_delta_fm": "results",
+    "delta_fm": "results",
+    "delta_arat": "results",
+    "p_value": "results",
+    "p": "results",
+    "pvalue": "results",
+    "effect_size": "results",
+    "cohen_d": "results",
+    "hedges_g": "results",
+    "confidence_interval": "results",
+    "ci_95": "results",
+    "adverse_events": "results",
+    "ae": "results",
+
+    # Discussion
+    "limitations": "discussion",
+    "comparison_with_prior": "discussion",
+    "future_research": "discussion",
+
+    # Background / Introduction
+    "background": "introduction",
+    "rationale": "introduction",
+}
+
+SECTION_HEADINGS = {
+    "introduction": [
+        r"^##\s+Introduction\b", r"^##\s+Background\b",
+        r"^##\s+\d+\.?\s*Introduction\b",
+    ],
+    "methods": [
+        r"^##\s+Methods?\b", r"^##\s+Methodology\b", r"^##\s+Materials?\s+and\s+Methods?\b",
+        r"^##\s+Study\s+Design\b", r"^##\s+\d+\.?\s*Methods?\b",
+    ],
+    "results": [
+        r"^##\s+Results?\b", r"^##\s+Findings?\b",
+        r"^##\s+\d+\.?\s*Results?\b",
+    ],
+    "discussion": [
+        r"^##\s+Discussion\b", r"^##\s+General\s+Discussion\b",
+        r"^##\s+\d+\.?\s*Discussion\b",
+    ],
+    "conclusion": [
+        r"^##\s+Conclusions?\b", r"^##\s+Summary\b",
+    ],
+    "references": [
+        r"^##\s+References\b", r"^##\s+Bibliography\b",
+    ],
+}
+
+
+def find_relevant_section(body, section_name, fallback_chars=20_000):
+    """Return the slice of `body` corresponding to `section_name`.
+
+    Looks for the section's `## …` heading and slices until the next
+    same-level heading (or EOF). If the section isn't found, returns
+    the first `fallback_chars` characters of the body so the LLM has
+    something to work with.
+
+    Always falls back to the full body if the slice would be too short
+    (< 500 chars) — better to send more than to send a stub.
+    """
+    pats = SECTION_HEADINGS.get(section_name, [])
+    if not pats:
+        return body[:fallback_chars]
+    for pat in pats:
+        m = re.search(pat, body, re.MULTILINE | re.IGNORECASE)
+        if not m:
+            continue
+        start = m.start()
+        nxt = re.search(r"^##\s+", body[m.end():], re.MULTILINE)
+        end = m.end() + nxt.start() if nxt else len(body)
+        slice_ = body[start:end]
+        if len(slice_) >= 500:
+            return slice_
+    return body[:fallback_chars]
+
+
+def window_body(body, col_norm):
+    """Return either the relevant IMRAD section for the column, or the full body."""
+    section = COLUMN_TO_SECTION.get(col_norm)
+    if not section:
+        return body, "full"
+    sliced = find_relevant_section(body, section)
+    if len(sliced) < len(body) * 0.6:
+        # Real saving — use the slice
+        return sliced, section
+    # The slice covers most of the body anyway, send everything
+    return body, "full"
+
+
 def apply_fm_map(col_norm, source):
     spec = FM_MAP.get(col_norm)
     if spec is None:
@@ -789,7 +914,12 @@ def main():
                     if cache_key in llm_cache:
                         value = llm_cache[cache_key]
                     else:
-                        value = llm_extract(col, instr, src["body"], col_type, col_scale)
+                        # Section windowing: send only the relevant IMRAD
+                        # section (Methods / Results / Discussion / Intro)
+                        # instead of the full body. Cuts ~50% of input
+                        # tokens for clinical fields.
+                        windowed_body, section_used = window_body(src["body"], col_norm)
+                        value = llm_extract(col, instr, windowed_body, col_type, col_scale)
                         llm_cache[cache_key] = value
                     ok, normalized, warn = validate_value(value, col_type, col_scale)
                     row[col] = normalized
