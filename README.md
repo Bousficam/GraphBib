@@ -55,30 +55,40 @@ gemini      # reads GEMINI.md
 
 ## Usage
 
-All agents understand natural language and shorthand triggers:
+The agent understands natural language and shorthand triggers:
 
 ```
-ingest raw/papers/my-paper.md              # ingest a markdown source
-ingest report.pdf                          # auto-converts to .md, then ingests
-ingest slides.pptx notes.docx              # batch, mixed formats
-query: what are the main themes?           # synthesize answer from wiki pages
-lint                                       # find orphans, contradictions, gaps
-build graph                                # build graph.html from all wikilinks
+ingest raw/papers/cervera-2020.md          # ingest a markdown source
+ingest raw/papers/                         # batch ingest a directory
+review topic: MI-BCI in chronic stroke     # generate a literature review
+query: what does the wiki say about
+       corticospinal integrity?            # synthesize an answer with citations
+suggest readings for: MotorImagery         # surface snowball candidates
+cite: TMS-induced plasticity in M1         # 3-5 APA refs from the wiki
+lint                                       # citation hygiene, orphans, gaps
+build graph                                # build graph.html
 ```
 
 Plain English works too:
+
 ```
-"Ingest this paper: raw/papers/llama2.md"
-"What does the wiki say about attention mechanisms?"
-"Check for contradictions across sources"
-"Build the knowledge graph and tell me the most connected nodes"
+"Ingest the Lefaucheur 2014 guidelines and route every recommendation
+ to the right wiki/recommendations/<topic>.md page."
+
+"Build a literature review on cTBS over contralesional M1 in subacute
+ stroke. Save as a synthesis page."
+
+"Extract data for the Cervera 2020 meta-analysis using the LLM mode."
 ```
 
-**Claude Code** also provides `/wiki-ingest`, `/wiki-query`, `/wiki-lint`, `/wiki-graph` as slash commands (via `.claude/commands/`). These are Claude Code-specific — other agents use the natural language triggers above, which work identically.
+**Claude Code** provides `/wiki-ingest`, `/wiki-convert`, `/wiki-query`,
+`/wiki-review`, `/wiki-cite`, `/wiki-suggest-readings`, `/wiki-lint`,
+`/wiki-graph` as slash commands. Other agents use the natural language
+triggers above, which work identically.
 
-Works with markdown, PDF, DOCX, PPTX, XLSX, HTML, TXT, CSV, JSON, XML, RST, EPUB, and more. Non-markdown files are auto-converted via [markitdown](https://github.com/microsoft/markitdown) at ingest time — no separate step needed.
-
-For PDF-heavy academic libraries, this fork ships a dedicated pipeline (next section).
+Markdown is the native ingestion format. For PDF-heavy academic
+libraries, the next section describes the dedicated pipeline (Marker +
+pymupdf4llm fallback + Crossref enrichment + curation).
 
 ## Academic Pipeline
 
@@ -357,116 +367,184 @@ reviewer asks *"where does this claim come from?"*.
 
 ## What You Get
 
-**Persistent wiki** — structured markdown pages that accumulate across sessions. Unlike chat, nothing is lost.
+**Persistent wiki** — structured markdown pages that accumulate across
+sessions. Unlike chat, nothing is lost.
 
-**Entity pages** — auto-created for every person, company, or project mentioned across sources. Updated each time a new source references them.
+**Source pages — IMRAD by default** — every empirical paper ingested
+produces a structured source page (Introduction · Methods · Results ·
+Discussion · Reporting Standard Alignment · Extraction Checklist).
+Specialized templates for systematic reviews (PRISMA-aware), narrative
+reviews (thematic), scoping reviews (PRISMA-ScR), methodological
+papers, and theoretical / framework papers.
 
-**Concept pages** — auto-created for every key idea or framework. Cross-referenced to every source that discusses them.
+**Concept pages — short academic chapters** — Overview · Historical
+Genesis · Definitions · Theoretical Foundations · Mechanisms ·
+Operationalization · Empirical Evidence · Clinical Relevance ·
+Controversies · Seminal References (1500–3500 word target). Built
+incrementally as new sources touch them.
 
-**Living overview** — `wiki/overview.md` is revised on every ingest to reflect the current synthesis across everything you've read.
+**Method, intervention, recommendation, question pages** — measurement
+instruments, treatment monographs, evidence-graded recommendations, and
+open research questions, all auto-created and cross-referenced.
 
-**Contradiction flags** — when a new source contradicts an existing claim, it's flagged at ingest time, not buried until query time.
+**Entity pages** — authors, labs, institutions, instrument vendors,
+auto-created from each ingest's frontmatter.
 
-**Knowledge graph** — `graph.html` shows every wiki page as a node, every `[[wikilink]]` as an edge, and Claude-inferred implicit relationships as dotted edges. Community detection clusters related topics.
+**Citation network** — `cites:` extracted from each paper's References
+section (regex + Crossref validation + free-text curation). `## Cited By`
+maintained automatically. Snowball candidates surfaced per concept.
 
-**Lint reports** — orphan pages, broken links, missing entity pages, data gaps with suggested sources to fill them.
+**Indirect Citation Rule** — claims a paper inherits from prior work
+cite the **original** source, with explicit `reported via [[X]]`
+provenance. Concept pages aggregate cited claims, not transmitter
+citations.
+
+**APA-ready output** — `citation_apa` and `bibtex_key` per source page.
+`tools/bibtex_export.py` produces a master `wiki.bib` or per-chapter
+files for a manuscript outline.
+
+**Living overview** — `wiki/overview.md` is revised when synthesis
+warrants. `tools/coverage_report.py` flags concepts mentioned ≥ 3 times
+that are still stubs (priority expansions).
+
+**Contradiction flags** — when a new source contradicts an existing
+claim, it's flagged at ingest time with page references on both sides.
+
+**Knowledge graph** — `graph.html` shows every wiki page as a node,
+every `[[wikilink]]` as an edge, and inferred relationships as dotted
+edges. Louvain community detection clusters related topics.
+
+**Lint and audit** — orphan pages, broken links, uncited claims,
+sources without DOI, snowball debt, replication chains, single-study
+claims. `tools/audit_page.py` traces each line back to the ingest
+that introduced it.
 
 ## Use Cases
 
-### Research
+### Building a thesis bibliography
 
-Going deep on a topic over weeks — reading papers, articles, reports.
+Convert your PDF library, ingest paper by paper, get auto-organized
+concept / method / intervention pages, and a per-chapter BibTeX export
+when you start writing.
 
 ```
-/wiki-ingest raw/papers/attention-is-all-you-need.md
-/wiki-ingest raw/papers/llama2.md
-/wiki-ingest raw/papers/rag-survey.md
+# Conversion + metadata + citations (one-shot, idempotent)
+python pdf2md/pdf2md_marker.py "~/PDFs" raw/papers
+python pdf2md/pdf2md_fallback.py "~/PDFs" raw/papers
+python pdf2md/enrich_frontmatter.py raw/papers
+python tools/parse_references.py --curate --all raw/papers
 
-# Wiki builds entity pages (Meta AI, Google Brain) and
-# concept pages (Attention, RLHF, Context Window) automatically.
+# Ingest in Claude Code (batch)
+"Ingest all .md under raw/papers/ in batches of 5, shortest first."
 
-/wiki-query "What are the main approaches to reducing hallucination?"
-/wiki-query "How has context window size evolved across models?"
+# Periodic maintenance
+python tools/update_cited_by.py
+python tools/coverage_report.py --save
 
-/wiki-lint
-# → "No sources on mixture-of-experts — consider the Mixtral paper"
+# When writing — BibTeX organized by manuscript chapter
+python tools/bibtex_export.py --chapters chapters.yaml --output-dir bib/
 ```
 
-By the end you have a structured, interlinked reference — not a folder of PDFs you'll never reopen.
+By the end of your PhD you have a citation-rigorous wiki with every
+paper summarized in IMRAD, every concept extended toward chapter depth,
+and a BibTeX file ready for LaTeX or Word.
 
 ---
 
-### Reading a Book
+### Writing a literature review
 
-File each chapter as you go. Build out pages for characters, themes, arguments.
+Ingest the relevant sources, then ask the agent for a structured review:
 
 ```
-/wiki-ingest raw/book/chapter-01.md
-/wiki-ingest raw/book/chapter-02.md
-
-# Wiki creates entity and theme pages automatically.
-
-/wiki-query "How has the protagonist's motivation evolved?"
-/wiki-query "What contradictions exist in the author's argument so far?"
-
-/wiki-graph   # → graph.html shows every character/theme and how they connect
+review topic: corticospinal integrity as biomarker for motor recovery
 ```
 
-Think fan wikis like Tolkien Gateway — built as you read, with the agent doing all the cross-referencing.
+The agent reads `wiki/index.md`, gathers all sources tagged with the
+topic + the relevant `concepts/`, `methods/`, `recommendations/`,
+`questions/` pages, and produces:
+
+- Background and key concepts (cited)
+- Methods used in the literature (table)
+- Main findings (grouped by sub-theme, every claim cited)
+- Recommendations (pulled from `recommendations/` pages)
+- Open questions (pulled from `questions/` pages)
+- Bibliography (APA, generated from each source's `citation_apa`)
+
+You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ---
 
-### Personal Knowledge Base
+### Systematic review data extraction
 
-Track goals, health, habits, self-improvement — file journal entries, articles, podcast notes.
+After ingesting your included studies, generate a typed extraction
+table from the SR's `cites:`:
 
-```
-/wiki-ingest raw/journal/2026-01-week1.md
-/wiki-ingest raw/articles/huberman-sleep-protocol.md
-/wiki-ingest raw/articles/atomic-habits-summary.md
-
-/wiki-query "What patterns show up in my journal entries about energy?"
-/wiki-query "What habits have I tried and what was the outcome?"
+```bash
+python tools/extract_data.py --from-source cervera-2020 \
+  --output cervera-extraction.xlsx
 ```
 
-The wiki builds a structured picture over time. Concepts like "Sleep", "Exercise", "Deep Work" accumulate evidence from every source filed.
+The Excel ships with three spec rows (INSTRUCTIONS / TYPE / SCALE) for
+27 default columns (design, n per arm, demographics, intervention
+parameters, outcomes, effect sizes, RoB, …). Edit the spec rows in
+Excel, then fill:
+
+```bash
+python tools/extract_data.py cervera-extraction.xlsx --llm
+```
+
+Three layers per cell: frontmatter (deterministic) → body regex
+(heuristic) → LLM with type/scale validation. Cached in
+`tools/.cache/extract_llm.json`. Reports per-cell method
+(frontmatter / regex / llm / manual / empty / invalid).
 
 ---
 
-### Business / Team Intelligence
+### Snowball ingestion
 
-Feed in meeting transcripts, project docs, customer calls.
+After ingesting key papers, surface DOIs that are cited 2+ times across
+your wiki sources but not yet ingested:
 
-```
-/wiki-ingest raw/meetings/q1-planning-transcript.md
-/wiki-ingest raw/docs/product-roadmap-2026.md
-/wiki-ingest raw/calls/customer-interview-acme.md
-
-/wiki-query "What feature requests have come up most across customer calls?"
-/wiki-query "What decisions were made in Q1 and what was the rationale?"
-
-/wiki-lint
-# → "Project X mentioned in 5 pages but no dedicated page"
-# → "Roadmap contradicts customer interview on priority of feature Y"
+```bash
+python tools/suggest_readings.py MotorImagery --enrich --top 20
 ```
 
-The wiki stays current because the agent does the maintenance no one wants to do.
+You get the candidates with title, authors, journal, year (Crossref
+metadata) ranked by frequency. Pick which to download and ingest next.
+
+For theses, the parent thesis page surfaces the snowball list directly
+in its `## Notable References` section (☐ for not-yet-in-wiki).
 
 ---
 
-### Competitive Analysis
+### Comparing methodologies across the corpus
 
-Track a company, market, or technology over time.
+The repo ships six analyzers that walk `wiki/sources/` and emit
+Markdown reports — zero LLM calls.
 
+```bash
+# Sources × design × N × methods × intervention
+python tools/method_matrix.py --intervention BCI --save
+
+# Aggregated patient profiles by intervention family
+python tools/cohort_tracker.py --intervention TMS --save
+
+# FA / MD / AD / RD per brain tract
+python tools/dti_aggregator.py --save
+
+# ΔFM / ΔARAT / Cohen's d / p-values
+python tools/effect_size_aggregator.py --outcome FM --save
+
+# Replication chains + single-study claims
+python tools/replication_tracker.py --save
+
+# Mentions of brain regions / tracts (M1, CST, callosum, …)
+python tools/brain_atlas_anchor.py --save
 ```
-/wiki-ingest raw/competitors/openai-announcements.md
-/wiki-ingest raw/market/ai-funding-report-q1.md
 
-/wiki-query "How do OpenAI and Anthropic differ on safety approach?"
-/wiki-query "Which companies announced multimodal models in the last 6 months?"
-/wiki-query "Competitive landscape summary as of today"
-# → agent shows the answer, then asks if you want to save it as a synthesis page
-```
+Each report is filed in `wiki/syntheses/<name>.md` and feeds the
+**Discussion** section of your manuscript with citation-grounded
+synthesis.
 
 ## The Graph
 
@@ -521,37 +599,28 @@ If you want to keep the LLM Wiki Agent repository separate from your main person
 
 ## Multi-Format Ingest
 
-Drop any supported file directly into `ingest` — no separate conversion step needed:
+For PDF papers and theses, use the dedicated **Academic Pipeline**
+(above) — Marker + pymupdf4llm fallback gives higher fidelity than
+generic conversion, and the Crossref enrichment step populates
+bibliographic metadata automatically.
 
-```bash
-# These all work — auto-converted at ingest time
-ingest report.pdf
-ingest meeting-notes.docx
-ingest slides.pptx
-ingest data.xlsx
-ingest page.html
-ingest raw/mixed-folder/          # recursively finds all supported files
+For occasional non-PDF sources (lab notes, conference transcripts,
+slides), markitdown handles `.docx`, `.pptx`, `.xlsx`, `.html`, `.txt`,
+`.csv`, `.json`, `.xml`, `.rst`, `.rtf`, `.epub`, `.ipynb`. Drop the file
+in `raw/notes/` and ingest directly:
+
+```
+ingest raw/notes/conference-talk-2024.docx
 ```
 
-**Supported formats:**
-`.md` `.pdf` `.docx` `.pptx` `.xlsx` `.xls` `.html` `.htm` `.txt` `.csv` `.json` `.xml` `.rst` `.rtf` `.epub` `.ipynb` `.yaml` `.yml` `.tsv` `.wav` `.mp3`
-
-Non-markdown files are auto-converted via [markitdown](https://github.com/microsoft/markitdown). Use `--no-convert` to skip auto-conversion and process only `.md` files.
-
-### arXiv Papers (Advanced)
-
-For arXiv papers, use `tools/pdf2md.py` for higher-fidelity conversion:
+### arXiv preprints
 
 ```bash
-python tools/pdf2md.py 2401.12345                      # by arXiv ID
+python tools/pdf2md.py 2401.12345                       # by arXiv ID
 python tools/pdf2md.py https://arxiv.org/abs/2401.12345 # by URL
-python tools/pdf2md.py paper.pdf --backend marker       # complex multi-column PDFs
 ```
 
-Then ingest the resulting `.md`:
-```
-ingest raw/papers/my-paper.md
-```
+Then ingest the resulting `.md` like any other source.
 
 ### Batch Directory Conversion (Advanced)
 
