@@ -90,7 +90,12 @@ SCALE_MARKER = "SCALE"
 SPEC_MARKERS = {INSTRUCTIONS_MARKER, TYPE_MARKER, SCALE_MARKER}
 
 VALID_TYPES = {"quantitative", "ordinal", "nominal", "text"}
-DEFAULT_LLM_MODEL = "claude-3-5-sonnet-latest"
+
+# Per-cell LLM extraction is a "grunt-work" task: extract one number /
+# one label / one verbatim quote from a known section. Haiku handles
+# this well at ~10% the price of Sonnet. Override with LLM_MODEL or
+# LLM_MODEL_FAST env vars.
+DEFAULT_LLM_MODEL = "claude-haiku-4-5"
 LLM_MAX_BODY_CHARS = 60_000   # ~15k tokens
 LLM_MAX_TOKENS = 200          # extracted value should be short
 LLM_SLEEP_SEC = 0.05          # politeness
@@ -429,7 +434,9 @@ def llm_extract(column_name, instruction, body, type_str=None, scale_dict=None):
         }
     ]
 
-    model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    # LLM_MODEL_FAST takes precedence (intended for grunt-work tools);
+    # LLM_MODEL is the global override; default is Haiku.
+    model = os.getenv("LLM_MODEL_FAST") or os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
     try:
         resp = completion(
             model=model,
