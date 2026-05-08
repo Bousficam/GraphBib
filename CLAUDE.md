@@ -43,23 +43,41 @@ Claude Code reads this file automatically and follows the workflows below.
 
 ## Sub-agents (delegation)
 
-Ten specialized sub-agents live in `.claude/agents/`. Delegate via the
-`Agent` tool with `subagent_type=<name>` when the task fits — each
-sub-agent has a focused system prompt, its own context window, and a
+Eleven specialized sub-agents live in `.claude/agents/`. Delegate via
+the `Agent` tool with `subagent_type=<name>` when the task fits — each
+has a focused system prompt, its own context window, and a
 tier-appropriate model so the cost stays in line with the work.
 
-| Sub-agent | Model | Use when… |
+**Discovery pipeline** (find → fetch → ingest):
+
+| Sub-agent | Model | Role |
 |---|---|---|
-| `ingester` | sonnet | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation. |
-| `source-extender` | sonnet | Deepening an already-ingested source page that came out shallow. |
-| `concept-builder` | sonnet | Extending one concept page from N sources to 1500–3500 word chapter depth. |
-| `extractor` | haiku | Filling one cell of a SR data-extraction table. Type/scale validated. |
-| `query-synthesizer` | sonnet | Answering a focused research question with cited evidence (`/wiki-query`). |
-| `reviewer` | sonnet | Generating a `/wiki-review`-style structured literature review. APA bibliography. |
-| `suggest-reading` | sonnet | Finding what to read next from outside the wiki (internal snowball + OpenAlex forward). Prioritized list with rationale, no auto-ingest. |
-| `lint` | sonnet | Auditing the wiki — deterministic + cached semantic checks. Outputs severity-grouped report, no fixes. |
-| `librarian` | sonnet | Acting on lint findings — runs auto-fixes, delegates fix-up work to specialists, asks for confirmation on risky operations. |
-| `source-remover` | sonnet | Cleanly removing a source and every cross-reference (mistaken ingest, retraction). Always dry-run first. |
+| `suggest-reading` | sonnet | Find what to read next (internal snowball + OpenAlex forward). Tiered list with rationale. |
+| `fetch-reading` | haiku | Download OA PDFs for a DOI list (via Unpaywall). Surfaces paywalled separately for manual fetch. |
+| `ingester` | sonnet | Ingest one source. Forces all 16 ingest steps including entity creation. |
+
+**Content building**:
+
+| Sub-agent | Model | Role |
+|---|---|---|
+| `source-extender` | sonnet | Deepen an already-ingested source page that came out shallow. |
+| `concept-builder` | sonnet | Extend one concept page from N sources to 1500–3500 word chapter depth. |
+
+**Output**:
+
+| Sub-agent | Model | Role |
+|---|---|---|
+| `extractor` | haiku | Fill one cell of a SR data-extraction table. Type/scale validated. |
+| `query-synthesizer` | sonnet | Answer a focused research question (`/wiki-query`). |
+| `reviewer` | sonnet | Generate a `/wiki-review`-style structured literature review. APA bibliography. |
+
+**Maintenance**:
+
+| Sub-agent | Model | Role |
+|---|---|---|
+| `lint` | sonnet | Audit the wiki (deterministic + cached semantic checks). Diagnostic only. |
+| `librarian` | sonnet | Act on lint findings — auto-fixes, delegates, asks for confirmation. |
+| `source-remover` | sonnet | Cleanly remove a source and every cross-reference. Always dry-run first. |
 
 For batch ingestion: `/wiki-batch-ingest <DIR> [batch-size]`.
 For maintenance pass: invoke `librarian` directly.
