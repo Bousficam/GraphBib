@@ -367,7 +367,15 @@ def validate_value(value, type_str, scale_dict):
 
 
 def llm_extract(column_name, instruction, body, type_str=None, scale_dict=None):
-    """Single-cell LLM extraction. Returns a string."""
+    """Single-cell LLM extraction with prompt caching on the body.
+
+    The static system prompt and the paper body are sent as separate
+    content blocks with cache_control: ephemeral. When multiple cells
+    of the SAME paper are processed in sequence, calls 2..N hit the
+    cache (~10% of input price) instead of re-paying for the body.
+    Anthropic's ephemeral cache lasts ~5 min — enough for a per-paper
+    extraction batch. The variable per-cell instruction stays uncached.
+    """
     try:
         from litellm import completion
     except ImportError:
@@ -382,32 +390,50 @@ def llm_extract(column_name, instruction, body, type_str=None, scale_dict=None):
     if scale_line:
         spec_block += "\n" + scale_line
 
-    prompt = f"""You are extracting one piece of data from a scientific paper for a systematic review.
+    system_block = (
+        "You are extracting one piece of data from a scientific paper for a "
+        "systematic review.\n\n"
+        "Output rules:\n"
+        "- Return ONLY the extracted value as plain text (no preamble, no JSON, no quotes).\n"
+        '- For quantitative fields, quote the verbatim value with units (e.g. "12.4 ± 3.1", "p<0.001").\n'
+        "- For ordinal/nominal fields with allowed values, return EXACTLY one of those values.\n"
+        '  - If the scale uses codes (e.g. "0 = low, 1 = some concerns, 2 = high"), return the CODE only.\n'
+        "- If the paper does NOT report this field, output exactly: not reported\n"
+        "- Never invent values; never guess.\n"
+        "- Keep the response under 150 characters."
+    )
+    body_block_text = f"Paper body{truncated}:\n---\n{body_trim}\n---"
+    cell_block_text = (
+        f"Field name: {column_name}\n"
+        f"{spec_block}\n"
+        f"Extraction rule: {instruction}\n\n"
+        "Return only the extracted value."
+    )
 
-Field name: {column_name}
-{spec_block}
-Extraction rule: {instruction}
-
-Paper body{truncated}:
----
-{body_trim}
----
-
-Output rules:
-- Return ONLY the extracted value as plain text (no preamble, no JSON, no quotes).
-- For quantitative fields, quote the verbatim value with units (e.g. "12.4 ± 3.1", "p<0.001").
-- For ordinal/nominal fields with allowed values, return EXACTLY one of those values.
-  - If the scale uses codes (e.g. "0 = low, 1 = some concerns, 2 = high"), return the CODE only ("0", "1", or "2").
-- If the paper does NOT report this field, output exactly: not reported
-- Never invent values; never guess.
-- Keep the response under 150 characters.
-"""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": system_block,
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {
+                    "type": "text",
+                    "text": body_block_text,
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {"type": "text", "text": cell_block_text},
+            ],
+        }
+    ]
 
     model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
     try:
         resp = completion(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             max_tokens=LLM_MAX_TOKENS,
         )
         value = resp.choices[0].message.content.strip()
