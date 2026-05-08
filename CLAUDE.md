@@ -41,6 +41,29 @@ Claude Code reads this file automatically and follows the workflows below.
 
 ---
 
+## Sub-agents (delegation)
+
+Five specialized sub-agents live in `.claude/agents/`. Delegate via the
+`Agent` tool with `subagent_type=<name>` when the task fits — each
+sub-agent has a focused system prompt and won't shortcut the steps the
+parent agent tends to skip in batch mode.
+
+| Sub-agent | Use when… |
+|---|---|
+| `ingester` | Ingesting one paper / chapter / note. Forces all 16 ingest steps including entity creation and concept extension. |
+| `concept-builder` | Extending one concept page from N sources (consolidation, manual refresh). Targets 1500–3500 word chapter depth. |
+| `extractor` | Filling one cell of a SR data-extraction table. Type/scale validated. |
+| `query-synthesizer` | Answering a focused research question with cited evidence (`/wiki-query`). Pointed answer, not a full review. |
+| `reviewer` | Generating a `/wiki-review`-style structured literature review on a topic. Markdown with APA bibliography. |
+
+Single-paper ingest, single-concept refresh, single-cell extraction,
+focused question, full review: delegate. Multi-paper batch: parent
+agent loops, each iteration delegates to the specialist. The parent
+stays orchestrator; sub-agents do the focused work with their own
+context window.
+
+---
+
 ## Directory Layout
 
 ```
@@ -174,110 +197,16 @@ the unfinished work will be redone.
 
 ---
 
-## Long Document Ingestion (Theses, ≥ 100 pages)
+## Long Document Ingestion (Theses ≥ 100 pages)
 
-A 100–300 page thesis cannot be ingested in a single pass without losing
-depth: the agent skims, condenses chapters into bullets, and the resulting
-source page is superficial. Solution: **split first, ingest chapter by
-chapter, aggregate at thesis level**.
+For long theses, ingesting in one pass produces shallow source pages.
+Workflow: **split with `pdf2md/split_thesis.py`**, then ingest the
+parent (lightweight thesis-level synthesis) and each chapter
+separately (Academic Paper template, with `parent_thesis: <slug>`).
 
-### Step 0 — Split
-
-After the conversion pipeline produces `raw/theses/<slug>.md`, run:
-
-```bash
-python pdf2md/split_thesis.py raw/theses/<slug>.md
-```
-
-This detects chapter headings (`# Chapter N`, `# N. Title`, named
-chapters like Introduction / Methods / Discussion / Conclusion) and
-emits one Markdown file per chapter:
-
-```
-raw/theses/<slug>.md                            ← parent (untouched)
-raw/theses/<slug>/ch01-introduction.md
-raw/theses/<slug>/ch02-literature-review.md
-raw/theses/<slug>/ch03-methods.md
-raw/theses/<slug>/ch04-mi-bci-rct.md
-…
-raw/theses/<slug>/ch08-general-discussion.md
-```
-
-Each chapter file inherits the parent's frontmatter and adds:
-- `chapter: <int>`
-- `chapter_title: "..."`
-- `parent_thesis: <slug>`
-- `tags: [..., thesis-chapter]`
-
-If chapter detection fails (no clear headings), edit the parent MD to
-add `# Chapter N: Title` markers manually before splitting.
-
-### Step 1 — Ingest the parent
-
-```
-ingest raw/theses/<slug>.md
-```
-
-The parent ingestion writes `wiki/sources/<slug>.md` using the **Thesis
-Template** but produces a **lightweight** parent page focused on
-thesis-level synthesis. Per-chapter content is intentionally deferred:
-
-- Frontmatter (full bibliographic metadata)
-- `## Abstract` (verbatim)
-- `## Research Questions`, `## Hypotheses`, `## Theoretical Framework`
-- `## Chapters Summary` — one bullet per chapter linking to the
-  per-chapter source page (e.g. `[[<slug>-ch04-mi-bci-rct]]`)
-- `## Cross-Chapter Synthesis`
-- `## Recommendations / Implications` (thesis-level)
-- `## Notable References (citation snowball)` — full bibliography
-- `## How to Cite`
-
-`## Methods`, `## Results`, `## Background` are **deliberately empty**
-on the parent and live on the chapter pages instead.
-
-### Step 2 — Ingest each chapter
-
-```
-ingest raw/theses/<slug>/ch01-introduction.md
-ingest raw/theses/<slug>/ch02-literature-review.md
-…
-```
-
-Each chapter is ingested as a regular source. The agent uses the
-**Academic Paper Template** (chapters are journal-paper-sized units),
-*not* the Thesis Template, with one extra rule:
-
-- The chapter source page's frontmatter must keep `parent_thesis: <slug>`
-  and `chapter: N`, and the page should open with a 1-line cross-link:
-  *"Chapter N of [[<slug>]]."*
-- The Indirect Citation Rule applies normally.
-- For an Introduction / Literature Review chapter, the `## Background`
-  section will be unusually large (20+ bullets). Apply Knowledge
-  Construction from Introductions strictly — every cited claim → bullet
-  → routed to the relevant concept pages.
-- For empirical chapters, the chapter is treated as one study
-  (own Methods, Results, Discussion).
-
-### Step 3 — Aggregate
-
-After all chapters are ingested:
-- `tools/update_cited_by.py` rebuilds the citation network across the
-  parent and all chapter sub-sources.
-- The parent's `## Cross-Chapter Synthesis` may need a manual update
-  to integrate findings now that all chapters are in the wiki.
-
-### Why this approach
-
-Benefits: depth preserved (chapter ≈ journal paper), granular wikilinks
-(`[[<slug>-ch04-mi-bci-rct]]`), per-chapter `cites:`, the literature
-review chapter is fully extracted into concept pages.
-
-### When NOT to split
-
-- Theses < 60 pages: single-pass ingest is fine.
-- Cumulative theses (collection of pre-published papers): each paper is
-  often already in the wiki as a journal article — the thesis itself
-  becomes a thin parent linking to those existing source pages.
+Full workflow at `docs/workflows/long-document-ingestion.md` (Step 0
+split, Step 1 parent, Step 2 chapters, Step 3 aggregate, when NOT to
+split).
 
 ---
 
@@ -374,15 +303,23 @@ Steps (in order):
 
    A local cache (`tools/.cache/doi_validation.json`) makes re-runs nearly
    free.
-7. **Update entity pages** for each author and institution.
-8. **Update concept pages** for each key concept discussed; for each, link
-   operationalizations to the relevant `[[methods/...]]` pages.
-9. **Update method pages**: for each method listed in the source's
-   `methods:` frontmatter, ensure `wiki/methods/<MethodName>.md` exists,
-   and add this source under its `## Used In This Wiki` section.
+7. **Update entity pages — MANDATORY**. Every paper has at least one
+   author. Create or update `wiki/entities/<FirstAuthor>.md` and the
+   page for the corresponding institution when identifiable. **A wiki
+   with zero entities after multiple ingests means this step is being
+   silently skipped — do not let that happen.**
+8. **Update concept pages** — for each key concept discussed, **read
+   the existing page and ADD to it** (sub-claim under
+   `## Empirical Evidence`, variant under `## Definitions`, framework
+   under `## Theoretical Foundations`, etc.). Verifying the page
+   exists is NOT enough; it must be extended with this source's
+   contribution.
+9. **Update method pages** — for each method in the source's `methods:`
+   frontmatter, the `## Used In This Wiki` entry MUST include a
+   2-sentence description of HOW THIS PAPER USED IT (parameters,
+   sample, deviations from standard) — not a bare wikilink.
    **Reminder**: methods are *measurement instruments* (EEG, FuglMeyer,
-   MEP, KVIQ). Treatments delivered to participants belong on intervention
-   pages — see step 9b.
+   MEP, KVIQ). Treatments belong on intervention pages — see 9b.
 9b. **Update intervention pages**: if the source describes a therapeutic
     intervention (BCI, TMS, mirror therapy, robot training, etc.), ensure
     `wiki/interventions/<intervention-slug>.md` exists. Tag the source's
