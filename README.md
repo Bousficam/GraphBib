@@ -4,6 +4,8 @@
 
 **A coding agent skill, specialized for academic research.** Drop a PDF library into `raw/` and tell the agent to ingest it — the wiki builds itself: source summaries with verbatim citations, concept pages structured as short academic chapters, methodology pages, recommendations grouped by evidence strength, open research questions, and a citation network that connects every paper to what it cites and what cites it.
 
+This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) specialized for academic research workflows. The upstream supplies the core "agent maintains a wiki from source documents" pattern; this fork adds the IMRAD source templates, the Indirect Citation Rule, the PDF→Markdown pipeline (Marker + pymupdf4llm + Crossref), and the systematic-review tooling. Spiritually inspired by Andrej Karpathy's vision of LLMs as a new computing layer ("[Software 3.0](https://www.youtube.com/watch?v=LCEmiRjPEtQ)") — the agent doesn't just retrieve, it reads, structures, and writes back into a persistent knowledge graph.
+
 > Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time — cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
 
 This fork is configured for research on **stroke motor rehabilitation via MI-BCI and TMS**, anchored in neural control theory and white-matter anatomy (DTI). The schema adapts to other academic domains by editing `CLAUDE.md`.
@@ -671,10 +673,13 @@ pip install marker-pdf pymupdf4llm requests pyyaml tqdm
 
 NetworkX + Louvain + Claude + vis.js. No server, no database, runs entirely locally. Everything is plain markdown files.
 
-## Related
+## Related & inspiration
 
-- [graphify](https://github.com/safishamsi/graphify) — graph-based knowledge extraction skill (inspiration for the graph layer)
-- [Vannevar Bush's Memex (1945)](https://en.wikipedia.org/wiki/Memex) — the original vision this resembles
+- [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) — the upstream this fork specializes for academic research. The "agent maintains a self-organizing wiki from source documents" pattern is theirs; the IMRAD templates, Indirect Citation Rule, PDF pipeline, and SR tooling are this fork's additions.
+- [Andrej Karpathy — Software 3.0 (Sequoia AI Ascent, 2025)](https://www.youtube.com/watch?v=LCEmiRjPEtQ) — the framing of LLMs as a new programming layer that reads, synthesizes, and writes natural-language artefacts. This project applies that lens to academic literature: instead of retrieving chunks for one query, an agent compiles a persistent, citation-rigorous knowledge base.
+- [Andrej Karpathy — Intro to LLMs](https://www.youtube.com/watch?v=zjkBMFhNj_g) — accessible primer on what LLMs are good at and where they fail, useful background for understanding why this project trusts the agent for synthesis but not for inventing citations.
+- [graphify](https://github.com/safishamsi/graphify) — graph-based knowledge extraction skill (inspiration for the graph layer in upstream).
+- [Vannevar Bush's Memex (1945)](https://en.wikipedia.org/wiki/Memex) — the original vision this resembles.
 
 ## License
 
