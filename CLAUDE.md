@@ -637,18 +637,14 @@ python tools/extract_data.py --from-source cervera-2020 -o cervera-ext.xlsx
 # Fill an existing template (frontmatter + regex)
 python tools/extract_data.py cervera-ext.xlsx
 
-# Same + LLM fallback for unfilled cells (uses ANTHROPIC_API_KEY)
-# Default model: claude-haiku-4-5 (grunt-work tier, ~10% of Sonnet price).
-# Override with LLM_MODEL or LLM_MODEL_FAST.
+# Same + LLM fallback for unfilled cells (default Haiku, ANTHROPIC_API_KEY)
 python tools/extract_data.py cervera-ext.xlsx --llm
 
-# Force Sonnet for higher-quality extraction (e.g. complex effect sizes)
+# Force Sonnet for trickier extraction:
 LLM_MODEL=claude-sonnet-4-6 python tools/extract_data.py cervera-ext.xlsx --llm
 ```
 
-**Model tiers**: `LLM_MODEL_FAST` (default Haiku) for grunt work
-(`extract_data --llm`); `LLM_MODEL` (default Sonnet) for synthesis
-(`tools/ingest.py`, `tools/lint.py`, `/wiki-review`). Set via env vars.
+**Model tiers**: `LLM_MODEL_FAST` (Haiku) vs `LLM_MODEL` (Sonnet).
 
 Default SR column set and recognized header aliases live at the top of
 `tools/extract_data.py` (`DEFAULT_SR_COLUMNS`, `FM_MAP`, `BODY_PATTERNS`).
