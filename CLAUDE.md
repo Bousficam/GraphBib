@@ -657,6 +657,22 @@ which columns remained empty so the user knows what to fill manually.
 
 ---
 
+## Concept Consolidation (batched)
+
+`tools/consolidate_concepts.py` batches concept-page extension (one LLM
+call per concept, prompt-cached, integrates all pending sources). ~70 %
+cheaper than per-ingest on homogeneous corpora.
+
+```bash
+python tools/consolidate_concepts.py --report   # pending counts
+python tools/consolidate_concepts.py <Concept>  # one
+python tools/consolidate_concepts.py --since 7d
+```
+
+When run periodically, ingest step 8 may defer concept extension.
+
+---
+
 ## Replication Tracking
 
 Each Academic Paper template includes a `replication_of: "<DOI>"` frontmatter
