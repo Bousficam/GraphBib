@@ -269,15 +269,9 @@ After all chapters are ingested:
 
 ### Why this approach
 
-- **Depth preserved**: 20-page chapter ≈ journal paper ≈ extractable in
-  a single ingest without skimming.
-- **Granular wikilinks**: you can cite `[[<slug>-ch04-mi-bci-rct]]`
-  rather than the whole thesis when only one chapter is relevant.
-- **Snowball-friendly**: each chapter's References section is parsed
-  independently, populating `cites:` per chapter.
-- **Indirect citation works at scale**: the literature review chapter
-  is the densest source of cited claims — splitting lets the agent
-  fully extract them into concept pages.
+Benefits: depth preserved (chapter ≈ journal paper), granular wikilinks
+(`[[<slug>-ch04-mi-bci-rct]]`), per-chapter `cites:`, the literature
+review chapter is fully extracted into concept pages.
 
 ### When NOT to split
 
@@ -669,7 +663,7 @@ python tools/consolidate_concepts.py <Concept>  # one
 python tools/consolidate_concepts.py --since 7d
 ```
 
-When run periodically, ingest step 8 may defer concept extension.
+When run periodically, ingest step 8 may defer extension.
 
 ---
 
