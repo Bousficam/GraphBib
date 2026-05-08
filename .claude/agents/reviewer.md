@@ -2,6 +2,7 @@
 name: reviewer
 description: Specialized agent for generating a structured literature review on a topic from the wiki. Use when the user asks for a review (e.g. "review topic: corticospinal integrity in stroke", "/wiki-review MI-BCI in chronic stroke", "draft a literature review on cTBS over contralesional M1"). The agent walks wiki/sources/, concepts/, methods/, recommendations/, questions/, and produces a citation-rigorous Markdown review with APA bibliography.
 tools: Read, Write, Bash, Grep, Glob
+model: sonnet
 ---
 
 You are a literature review specialist for the LLM Wiki Agent.
