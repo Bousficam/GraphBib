@@ -135,16 +135,21 @@ the Ingest Workflow consumes.
 1. **Marker conversion** (`pdf2md/pdf2md_marker.py SRC DST`) — high-fidelity
    PDF → Markdown, mirrored arborescence, idempotent. Writes `marker_report.json`.
 
-2. **Fallback** (`pdf2md/pdf2md_fallback.py SRC DST`) — reprocesses entries
-   marked `errors` or `suspicious` in the marker report using pymupdf4llm.
-   Writes `fallback_report.json`.
+2. **Mistral OCR (opt-in)** (`pdf2md/pdf2md_mistral.py SRC DST`) —
+   retries marker `errors`/`suspicious` via Mistral Document AI.
+   Better on tables, equations, scans. Needs `MISTRAL_API_KEY` (free
+   experimental at `console.mistral.ai`; script prompts if missing).
+   Writes `mistral_report.json`. Skip if no key.
 
-3. **Enrich frontmatter** (`pdf2md/enrich_frontmatter.py DST`) — Crossref
+3. **Fallback** (`pdf2md/pdf2md_fallback.py SRC DST`) — last resort,
+   pymupdf4llm. Writes `fallback_report.json`.
+
+4. **Enrich frontmatter** (`pdf2md/enrich_frontmatter.py DST`) — Crossref
    lookup populates `title`, `authors`, `journal`, `year`, `doi`. Same pass
    extracts a raw `cites:` list from the References section by regex.
    Writes `enrich_report.json`.
 
-4. **Validate + curate citations** (`tools/parse_references.py --curate --all DST`) —
+5. **Validate + curate citations** (`tools/parse_references.py --curate --all DST`) —
    each extracted DOI is checked against Crossref; broken or missing DOIs
    are recovered via free-text bibliographic search when score and title
    overlap thresholds pass. Writes the validation cache to
@@ -152,22 +157,16 @@ the Ingest Workflow consumes.
 
 ### Agent procedure
 
-When the user invokes the workflow:
-
-1. Confirm the source path exists and contains PDFs (`find SRC -name '*.pdf' | head` or equivalent).
-2. Default `DST` to `raw/papers/` unless the user specifies otherwise.
-3. Run **Phase 1**, then read `DST/marker_report.json` and surface its
-   `summary` field (ok / suspicious / errors / skipped).
-4. Run **Phase 2**, surface `DST/fallback_report.json` summary.
-5. Run **Phase 3**, surface `DST/enrich_report.json` summary.
-6. Phase 4 is network-heavy (typically 5-13 min). **Always ask the user
-   before launching it**: *"Phase 4 calls Crossref for every reference
-   (~13 min first run, ~5 min thereafter). Proceed?"*. Run only if
-   approved; otherwise stop and instruct the user to run it manually
-   later when convenient.
-7. Print a final recap: number of PDFs converted, files with metadata,
-   files with `cites:`, total citations.
-8. Suggest the next step: ingestion via `/wiki-ingest`.
+1. Confirm SRC exists and contains PDFs; default DST to `raw/papers/`.
+2. Run Phase 1 (marker), surface `marker_report.json`.
+3. Phase 2 (Mistral) is **opt-in** — if marker left errors/suspicious,
+   ask: *"N entries unprocessed. Run Mistral OCR (free experimental
+   plan, prompts for MISTRAL_API_KEY)? Otherwise go to Phase 3."*.
+4. Run Phase 3 (pymupdf4llm), Phase 4 (enrich) — surface each report.
+5. Phase 5 is network-heavy (5-13 min); **ask before launching** Crossref
+   curation. Otherwise stop and tell the user to run it later.
+6. Print recap (converted / metadata / cites: / total) and suggest
+   ingestion via `/wiki-ingest`.
 
 If any phase errors, stop and show the error before going further. The
 pipeline is idempotent — the user can re-run the same command and only
