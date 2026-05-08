@@ -9,4 +9,5 @@ venv/
 # llm-wiki-agent runtime data — user content, not committed
 raw/*
 wiki/*
+pdf2md/Split/*
 .claude/settings.local.json

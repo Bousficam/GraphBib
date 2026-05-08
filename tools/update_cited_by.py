@@ -36,7 +36,7 @@ def parse_fm(text: str):
 
 def load_sources():
     out = []
-    for p in sorted(SRC_DIR.glob("*.md")):
+    for p in sorted(SRC_DIR.rglob("*.md")):
         text = p.read_text(encoding="utf-8")
         fm, body = parse_fm(text)
         out.append({"path": p, "fm": fm, "body": body, "slug": p.stem, "raw": text})
