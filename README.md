@@ -83,14 +83,46 @@ Plain English works too:
 "Extract data for the Cervera 2020 meta-analysis using the LLM mode."
 ```
 
-**Claude Code** provides `/wiki-ingest`, `/wiki-convert`, `/wiki-query`,
-`/wiki-review`, `/wiki-cite`, `/wiki-suggest-readings`, `/wiki-lint`,
-`/wiki-graph` as slash commands. Other agents use the natural language
-triggers above, which work identically.
+**Claude Code** ships 17 slash commands wrapping the agent ecosystem:
+
+| Discovery | Conversion | Ingestion | Output | Maintenance |
+|---|---|---|---|---|
+| `/wiki-suggest-readings` | `/wiki-convert` | `/wiki-ingest` | `/wiki-query` | `/wiki-status` |
+| `/wiki-snowball` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-health` |
+| `/wiki-discover` | | `/wiki-deepen` | `/wiki-cite` | `/wiki-lint` |
+| | | `/wiki-init` | `/wiki-extract-table` | `/wiki-maintain` |
+| | | | `/wiki-graph` | `/wiki-remove` |
+
+`/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
+`/wiki-maintain` runs lint then delegates fixes to the librarian
+sub-agent. Other agents use the natural language triggers above, which
+work identically.
 
 Markdown is the native ingestion format. For PDF-heavy academic
 libraries, the next section describes the dedicated pipeline (Marker +
 pymupdf4llm fallback + Crossref enrichment + curation).
+
+### Specialist sub-agents
+
+Eleven focused sub-agents live in `.claude/agents/`. Each has its own
+context window and a tier-appropriate model — the parent agent stays
+orchestrator while specialists do the focused work. Slash commands
+above delegate automatically; you can also invoke them directly via
+the `Agent` tool.
+
+| Sub-agent | Model | Role |
+|---|---|---|
+| `suggest-reading` | sonnet | Find what to read next (snowball + OpenAlex forward) |
+| `fetch-reading` | haiku | Download OA PDFs for a DOI list (Unpaywall) |
+| `ingester` | sonnet | Ingest one source — forces all 16 ingest steps |
+| `source-extender` | sonnet | Deepen an already-ingested shallow source |
+| `concept-builder` | sonnet | Extend one concept page to chapter depth |
+| `extractor` | haiku | Fill one cell of a SR data-extraction table |
+| `query-synthesizer` | sonnet | Answer a focused research question |
+| `reviewer` | sonnet | Generate a structured literature review |
+| `lint` | sonnet | Audit (deterministic + cached semantic) |
+| `librarian` | sonnet | Act on lint findings — auto-fix / delegate / confirm |
+| `source-remover` | sonnet | Cleanly remove a source and every cross-reference |
 
 ## Academic Pipeline
 
@@ -559,11 +591,54 @@ Louvain community detection clusters nodes by topic. SHA256 cache means only cha
 
 ## CLAUDE.md / AGENTS.md
 
-The schema file tells the agent how to maintain the wiki — page formats, ingest/query/lint/graph workflows, naming conventions. This is the key config file. Edit it to customize behavior for your domain.
+The schema file tells the agent how to maintain the wiki — the two
+non-negotiable rules (Citation, Depth), the sub-agent roster, and a
+pointer index to the detailed procedure. It's a compact (~3.5 kB)
+orchestrator file: heavy procedural detail (16-step ingest, source
+organization, PDF pipeline, SR data extraction, output workflows,
+standalone tools, frontmatter spec) lives in `docs/` and is loaded on
+demand by the relevant sub-agent. Slash commands live in
+`.claude/commands/`.
+
+```
+CLAUDE.md                          # Orchestrator: rules, roster, pointers
+docs/
+├── rules/
+│   ├── citation.md                # Indirect Citation Rule, provenance
+│   └── depth-completeness.md      # IMRAD expectations, self-critique gate
+├── workflows/
+│   ├── ingest.md                  # 16-step ingest procedure
+│   ├── conversion.md              # PDF → Markdown pipeline
+│   ├── source-organization.md     # Thematic folder routing
+│   ├── data-extraction.md         # SR table extraction
+│   ├── suggest-readings.md        # Snowball + OpenAlex forward
+│   ├── long-document-ingestion.md # Theses ≥ 100 pages
+│   └── output-workflows.md        # Query / Review / Lint / Health / Graph
+├── templates/
+│   ├── source-academic-paper.md
+│   ├── source-systematic-review.md
+│   ├── source-narrative-review.md
+│   ├── source-scoping-review.md
+│   ├── source-methodological-paper.md
+│   ├── source-theoretical-paper.md
+│   ├── source-thesis.md
+│   ├── concept.md  method.md  intervention.md
+│   ├── recommendation.md  question.md  entity.md  overview.md
+│   └── diary.md  meeting.md
+├── conventions/
+│   ├── naming.md                  # Slug + domain quick-ref
+│   ├── frontmatter.md             # Canonical YAML shape per page type
+│   └── index-log.md               # wiki/index.md, wiki/log.md, overview format
+└── tools.md                        # Concept consolidation, replication, audit
+```
+
+This separation keeps `CLAUDE.md` lean enough to fit comfortably in
+context every session while specialist sub-agents pull only the
+detailed procedure they need.
 
 | Agent | Schema file |
 |---|---|
-| Claude Code | `CLAUDE.md` |
+| Claude Code | `CLAUDE.md` + `.claude/{agents,commands}/` |
 | Codex / OpenCode | `AGENTS.md` |
 | Gemini CLI | `GEMINI.md` |
 
