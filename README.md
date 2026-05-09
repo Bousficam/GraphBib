@@ -83,20 +83,19 @@ Plain English works too:
 "Extract data for the Cervera 2020 meta-analysis using the LLM mode."
 ```
 
-**Claude Code** ships 17 slash commands wrapping the agent ecosystem:
+**Claude Code** ships 12 slash commands wrapping the agent ecosystem:
 
 | Discovery | Conversion | Ingestion | Output | Maintenance |
 |---|---|---|---|---|
-| `/wiki-suggest-readings` | `/wiki-convert` | `/wiki-ingest` | `/wiki-query` | `/wiki-status` |
-| `/wiki-snowball` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-health` |
-| `/wiki-discover` | | `/wiki-deepen` | `/wiki-cite` | `/wiki-lint` |
-| | | `/wiki-init` | `/wiki-extract-table` | `/wiki-maintain` |
-| | | | `/wiki-graph` | `/wiki-remove` |
+| `/wiki-snowball` | `/wiki-convert` | `/wiki-init` | `/wiki-query` | `/wiki-status` |
+| `/wiki-discover` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-maintain` |
+| | | `/wiki-deepen` | `/wiki-extract-table` | `/wiki-remove` |
 
 `/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
 `/wiki-maintain` runs lint then delegates fixes to the librarian
-sub-agent. Other agents use the natural language triggers above, which
-work identically.
+sub-agent. Other agents (Codex, Gemini, etc.) use the natural language
+triggers above, which work identically — every slash command has a
+plain-English equivalent.
 
 Markdown is the native ingestion format. For PDF-heavy academic
 libraries, the next section describes the dedicated pipeline (Marker +
