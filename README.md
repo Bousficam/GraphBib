@@ -131,8 +131,9 @@ Each step is idempotent and can be re-run safely.
 ```
 PDF library
    │
-   ▼  pdf2md/pdf2md_marker.py     ← high-fidelity Marker conversion
-   │  pdf2md/pdf2md_fallback.py   ← pymupdf4llm rescue for PDFs Marker can't handle
+   ▼  pdf2md/pdf2md_marker.py     ← high-fidelity Marker conversion (free, primary)
+   │  pdf2md/pdf2md_mistral.py    ← Document AI / OCR for hard PDFs (opt-in, paid)
+   │  pdf2md/pdf2md_fallback.py   ← pymupdf4llm rescue (free, last resort)
    │
    ▼  Markdown files (raw/papers/)
    │
@@ -176,6 +177,32 @@ that failed or produced a suspiciously short output, this time with
 [pymupdf4llm](https://github.com/pymupdf/RAG) (CPU, no ML dependency).
 Useful when Marker / Surya hits known MPS bugs on certain PDFs. The
 backend used for each `.md` is recorded in its frontmatter.
+
+#### Optional — Document AI tier for hard PDFs
+
+For scanned papers, complex tables, equations, or two-column layouts
+that defeat both Marker and pymupdf4llm, the pipeline supports a
+middle tier backed by a hosted Document AI / OCR API. The reference
+implementation uses **Mistral Document AI**:
+
+```bash
+export MISTRAL_API_KEY=...                  # console.mistral.ai
+python pdf2md/pdf2md_mistral.py "/path/to/PDFs" raw/papers
+```
+
+Reads `marker_report.json` and only sends the entries Marker errored
+on or flagged as suspicious — typically 10–20 % of a corpus. Paces
+itself at ~2 req/s; the experimental plan is free with rate limits.
+Output is mirrored to `raw/papers/` with `backend: mistral` in the
+frontmatter so the source of each markdown is auditable.
+
+The script is a thin adapter (PDF → API → markdown + frontmatter), so
+**other Document AI providers plug into the same slot**: Google Cloud
+Document AI, AWS Textract, Azure AI Document Intelligence, Adobe PDF
+Extract, or Reducto. Copy `pdf2md_mistral.py`, swap the API call, keep
+the same input/output contract (`marker_report.json` driver, mirrored
+output path, `backend: <provider>` frontmatter), and the rest of the
+pipeline is provider-agnostic.
 
 ### Step 2 — Enrich Bibliographic Metadata
 
@@ -295,6 +322,7 @@ unless explicitly noted.
 | Script | Role |
 |---|---|
 | `pdf2md/pdf2md_marker.py` | PDF → Markdown via marker-pdf, mirrored arborescence |
+| `pdf2md/pdf2md_mistral.py` | Optional Document AI / OCR tier (Mistral; swap for Google / AWS / Azure) |
 | `pdf2md/pdf2md_fallback.py` | Rescue PDFs marker can't handle (pymupdf4llm) |
 | `pdf2md/enrich_frontmatter.py` | Crossref → title / authors / journal / year + raw `cites:` |
 | `tools/parse_references.py` | Validate + curate citations (3 phases: extract / validate / Crossref free-text) |
@@ -712,6 +740,7 @@ python tools/file_to_md.py --input_dir raw/imports/ --delete_source  # remove or
 |---|---|---|
 | [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | **Required** for `pdf2md/pdf2md_marker.py` — high-fidelity academic PDF conversion |
 | [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | **Required** for `pdf2md/pdf2md_fallback.py` — CPU rescue when Marker fails |
+| [Mistral SDK](https://docs.mistral.ai/) | `pip install mistralai` + `MISTRAL_API_KEY` | **Optional** Document AI / OCR tier (`pdf2md/pdf2md_mistral.py`) for scanned PDFs, complex tables, equations. Swappable for Google Cloud Document AI, AWS Textract, Azure AI Document Intelligence — same input/output contract |
 | [requests](https://requests.readthedocs.io/) + [PyYAML](https://pyyaml.org/) | `pip install requests pyyaml` | **Required** for `enrich_frontmatter.py`, `parse_references.py`, `suggest_readings.py`, `update_cited_by.py` (Crossref API + frontmatter parsing) |
 | [tqdm](https://github.com/tqdm/tqdm) | `pip install tqdm` | Progress bars in the pdf2md pipeline |
 | [markitdown](https://github.com/microsoft/markitdown) | `pip install markitdown` | Auto-conversion of non-PDF formats (.docx, .pptx, .xlsx, .html, …) |
