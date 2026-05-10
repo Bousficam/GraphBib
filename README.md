@@ -129,12 +129,14 @@ End-to-end flow for converting a PDF library into a citation-rigorous wiki.
 Each step is idempotent and can be re-run safely.
 
 ```
-PDF library
-   │
-   ▼  pdf2md/pdf2md_marker.py     ← high-fidelity Marker conversion
-   │  pdf2md/pdf2md_fallback.py   ← pymupdf4llm rescue for PDFs Marker can't handle
-   │
-   ▼  Markdown files (raw/papers/)
+PDF library                      EPUB library (academic books)
+   │                                │
+   ▼  pdf2md/pdf2md_marker.py       ▼  pdf2md/epub2md.py
+   │  pdf2md/pdf2md_fallback.py     │     ← pandoc (primary) or markitdown (fallback)
+   │     ← pymupdf4llm rescue       │     ← OPF metadata → title, authors, editors,
+   │                                │       ISBN, publisher, year, language
+   │                                │
+   ▼  Markdown files (raw/papers/)  ▼  Markdown files (raw/books/)
    │
    ▼  pdf2md/enrich_frontmatter.py  ← Crossref → title, authors, journal, year, DOI
    │                                  Regex → cites: [DOIs]
@@ -176,6 +178,37 @@ that failed or produced a suspiciously short output, this time with
 [pymupdf4llm](https://github.com/pymupdf/RAG) (CPU, no ML dependency).
 Useful when Marker / Surya hits known MPS bugs on certain PDFs. The
 backend used for each `.md` is recorded in its frontmatter.
+
+### Step 1b — EPUB → Markdown (academic books)
+
+```bash
+python pdf2md/epub2md.py "/path/to/EPUBs"              # default DST: raw/books/
+python pdf2md/epub2md.py "/path/to/EPUBs" raw/books    # explicit DST
+python pdf2md/epub2md.py "/path/to/EPUBs" raw/books --engine markitdown
+```
+
+`epub2md.py` walks the source directory recursively for `*.epub`,
+mirrors arborescence to `raw/books/`, and converts each book to
+Markdown via **pandoc** (primary, install with `apt install pandoc`
+or `brew install pandoc`) or **markitdown** (fallback, `pip install
+markitdown`). Bibliographic metadata is extracted from the EPUB's
+OPF manifest — `title`, `authors`, `editors`, `year`, `publisher`,
+`isbn`, `language` — and written to frontmatter alongside `backend:
+pandoc-epub` (or `markitdown-epub`). Idempotent. Output:
+`epub.log`, `epub_report.json`.
+
+EPUB carries chapter structure natively, so pandoc's output preserves
+`# Chapter` headings cleanly — `pdf2md/split_thesis.py` (which is
+type-agnostic, despite the name) can then split a long book or
+edited handbook into per-chapter pages that ingest separately:
+
+```bash
+python pdf2md/split_thesis.py raw/books/<slug>.md
+```
+
+The chapters become `raw/books/<slug>/chXX-<title>.md`, ingest via
+`source-academic-paper.md` with the `parent_book` / `book_editors`
+frontmatter fields documented in `docs/templates/source-book.md`.
 
 ### Step 2 — Enrich Bibliographic Metadata
 
@@ -296,6 +329,7 @@ unless explicitly noted.
 |---|---|
 | `pdf2md/pdf2md_marker.py` | PDF → Markdown via marker-pdf, mirrored arborescence |
 | `pdf2md/pdf2md_fallback.py` | Rescue PDFs marker can't handle (pymupdf4llm) |
+| `pdf2md/epub2md.py` | EPUB → Markdown via pandoc (primary) or markitdown (fallback); extracts OPF metadata (title, authors, editors, ISBN, publisher, year) into frontmatter |
 | `pdf2md/enrich_frontmatter.py` | Crossref → title / authors / journal / year + raw `cites:` |
 | `tools/parse_references.py` | Validate + curate citations (3 phases: extract / validate / Crossref free-text) |
 | `tools/update_cited_by.py` | Maintain `## Cited By` sections from `cites:` index |
@@ -712,6 +746,7 @@ python tools/file_to_md.py --input_dir raw/imports/ --delete_source  # remove or
 |---|---|---|
 | [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | **Required** for `pdf2md/pdf2md_marker.py` — high-fidelity academic PDF conversion |
 | [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | **Required** for `pdf2md/pdf2md_fallback.py` — CPU rescue when Marker fails |
+| [Pandoc](https://pandoc.org/) | `apt install pandoc` / `brew install pandoc` | **Recommended** for `pdf2md/epub2md.py` — preserves chapter headings, footnotes, equations from academic EPUBs; falls back to `markitdown` if absent |
 | [requests](https://requests.readthedocs.io/) + [PyYAML](https://pyyaml.org/) | `pip install requests pyyaml` | **Required** for `enrich_frontmatter.py`, `parse_references.py`, `suggest_readings.py`, `update_cited_by.py` (Crossref API + frontmatter parsing) |
 | [tqdm](https://github.com/tqdm/tqdm) | `pip install tqdm` | Progress bars in the pdf2md pipeline |
 | [markitdown](https://github.com/microsoft/markitdown) | `pip install markitdown` | Auto-conversion of non-PDF formats (.docx, .pptx, .xlsx, .html, …) |

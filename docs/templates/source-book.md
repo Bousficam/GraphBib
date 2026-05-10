@@ -50,7 +50,9 @@ series_volume: ""            # if part of a numbered series
 isbn: ""                     # ISBN-13 preferred, ISBN-10 acceptable
 doi: ""                      # increasingly common for scholarly books (e.g. Springer, Routledge)
 oclc: ""                     # WorldCat OCLC number, optional
-source_pdf: "/abs/path/to/original.pdf"
+source_pdf: ""               # set if the book originated as a PDF (scanned / publisher PDF)
+source_epub: ""              # set if the book originated as an EPUB (preferred — preserves
+                             # chapter structure, OPF metadata; converted by pdf2md/epub2md.py)
 
 # Study metadata (often multi-method across chapters)
 study_design: "book"         # or "edited-volume", "textbook", "handbook"
