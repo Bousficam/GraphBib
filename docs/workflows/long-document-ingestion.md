@@ -1,9 +1,17 @@
-# Long Document Ingestion (Theses ≥ 100 pages)
+# Long Document Ingestion (Theses ≥ 100 pages, Books, Edited Volumes)
 
-A 100–300 page thesis cannot be ingested in a single pass without
-losing depth: the agent skims, condenses chapters into bullets, and
-the source page is superficial. **Solution: split first, ingest
-chapter by chapter, aggregate at thesis level.**
+A 100–300 page thesis or a 400-page edited handbook cannot be
+ingested in a single pass without losing depth: the agent skims,
+condenses chapters into bullets, and the source page is superficial.
+**Solution: split first, ingest chapter by chapter, aggregate at
+parent level.**
+
+This workflow applies identically to theses (`raw/theses/*`) and to
+academic books, edited volumes, and handbooks (`raw/books/*`). For
+books, the parent uses `docs/templates/source-book.md` and the
+chapters use `docs/templates/source-academic-paper.md` with the
+`parent_book` / `book_editors` / `pages_in_book` extra fields
+documented in `source-book.md`.
 
 ## Step 0 — Split
 

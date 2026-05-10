@@ -21,7 +21,7 @@ in the corresponding template under `docs/templates/`:
 
 | `type` | Template | Notable extra fields |
 |---|---|---|
-| `source` | `source-academic-paper.md`, `source-systematic-review.md`, `source-narrative-review.md`, `source-scoping-review.md`, `source-methodological-paper.md`, `source-theoretical-paper.md`, `source-thesis.md` | `authors`, `journal`, `year`, `doi`, `study_design`, `n`, `population`, `cites`, `replication_of` |
+| `source` | `source-academic-paper.md`, `source-systematic-review.md`, `source-narrative-review.md`, `source-scoping-review.md`, `source-methodological-paper.md`, `source-theoretical-paper.md`, `source-thesis.md`, `source-book.md` | `authors`, `editors`, `journal` *or* `publisher`, `year`, `doi` *or* `isbn`, `study_design`, `n`, `population`, `cites`, `replication_of` |
 | `concept` | `concept.md` | `aliases`, `parent_concept`, `domain` |
 | `method` | `method.md` | `measures`, `apparatus`, `software` |
 | `intervention` | `intervention.md` | `target_outcome`, `dosage`, `population` |
