@@ -1,4 +1,25 @@
-# litellm 1.82.7–1.82.8 were compromised in a supply chain attack (Mar 2026).
-# Pin to a verified safe version. See: https://github.com/SamurAIGPT/llm-wiki-agent/issues/41
-litellm~=1.83.10
-networkx~=3.6.1
+# GraphBib runtime dependencies — minimal core
+# ─────────────────────────────────────────────
+# This file pins ONLY the core deps required to run the wiki maintenance
+# tooling (frontmatter parse, citation indexing, lint pre-filter, dedupe
+# pre-filter, snowball suggester). For the PDF/EPUB conversion pipeline,
+# LLM-assisted tools, or graph build, use the optional extras declared
+# in pyproject.toml.
+#
+# Install options:
+#   pip install -r requirements.txt              # core only (this file)
+#   pip install -e ".[conversion]"               # + PDF/EPUB conversion
+#   pip install -e ".[llm]"                      # + standalone LLM tools
+#   pip install -e ".[graph]"                    # + graph build
+#   pip install -e ".[all]"                      # everything (recommended)
+#
+# Poetry users:
+#   poetry install -E all                        # equivalent to .[all]
+#
+# Security note: litellm 1.82.7–1.82.8 were compromised in a supply-chain
+# attack (Mar 2026). The `[llm]` extra pins ≥1.83.10 as safe.
+# See: https://github.com/SamurAIGPT/llm-wiki-agent/issues/41
+
+PyYAML>=6.0,<7.0
+requests>=2.31,<3.0
+tqdm>=4.67,<5.0
