@@ -11,13 +11,10 @@ This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-
 This fork is configured for research on **stroke motor rehabilitation via MI-BCI and TMS**, anchored in neural control theory and white-matter anatomy (DTI). The schema adapts to other academic domains by editing `CLAUDE.md`.
 
 ```
-ingest raw/papers/cervera-2020.md
-```
-
-```
 raw/                  # Immutable source documents — never modified
 ├── papers/           # Journal articles
 ├── theses/           # PhD/MSc theses (with citation snowball)
+├── books/            # Academic books, edited volumes, handbooks (EPUB-friendly)
 └── notes/            # Lab reports, conference talks, personal notes
 wiki/                 # Owned entirely by the agent
 ├── index.md          # Catalog of all pages — updated on every ingest
@@ -54,6 +51,56 @@ codex       # reads AGENTS.md
 opencode    # reads AGENTS.md
 gemini      # reads GEMINI.md
 ```
+
+## Quick start (60 seconds)
+
+Three steps inside the agent — **init the layout, add a source, ingest**.
+
+### 1. Init — bootstrap the folder structure
+
+```
+/wiki-init
+```
+
+Creates `raw/{papers,theses,books,notes}/` for inputs and
+`wiki/{sources,concepts,methods,interventions,recommendations,
+questions,entities,syntheses}/` for outputs, plus seeds empty
+`index.md` / `log.md` / `overview.md`. Idempotent — safe to re-run.
+
+### 2. Add a source — drop a file into the right `raw/` folder
+
+Markdown sources are ready immediately. PDF and EPUB sources need a
+one-shot conversion:
+
+```
+/wiki-convert ~/path/to/your/PDFs         # PDFs  → raw/papers/*.md
+/wiki-convert ~/path/to/your/EPUBs        # EPUBs → raw/books/*.md
+```
+
+The conversion pipeline (Marker → pymupdf4llm fallback → Crossref
+enrichment → DOI curation for PDFs; pandoc + OPF metadata for EPUBs)
+runs idempotently — already-converted files are skipped.
+
+### 3. Ingest — the agent builds the wiki
+
+```
+ingest raw/papers/cervera-2020.md
+```
+
+In a single pass the agent produces:
+
+- `wiki/sources/cervera-2020.md` — IMRAD-structured summary with verbatim quotes + page numbers
+- `wiki/concepts/*.md` — every concept the paper touches (created or extended chapter-style)
+- `wiki/methods/*.md` — every method described (FuglMeyer, MEP, EEG, DTI…)
+- `wiki/recommendations/*.md` — any clinical / research recommendations, grouped by evidence
+- `wiki/questions/*.md` — open research questions surfaced from the discussion
+- `wiki/entities/*.md` — authors, labs, institutions
+- `index.md` / `log.md` / `overview.md` — all updated
+- frontmatter `cites: [DOIs]` populated, ready for `/wiki-snowball` and reverse-citation index
+
+For batch work: `/wiki-batch-ingest raw/papers/` (or `raw/books/`) processes a whole directory with confirmation between batches.
+
+That's it — the wiki compounds from there. Everything below is depth.
 
 ## Usage
 
