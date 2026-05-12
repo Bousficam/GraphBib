@@ -24,8 +24,8 @@ Proceed? [Y/n]"*. Wait.
 ## Step 2 — Create directory structure
 
 ```bash
-mkdir -p raw/papers raw/theses raw/notes
-mkdir -p wiki/sources/articles wiki/sources/theses
+mkdir -p raw/papers raw/theses raw/books raw/notes
+mkdir -p wiki/sources/articles wiki/sources/theses wiki/sources/books
 mkdir -p wiki/entities wiki/concepts wiki/methods
 mkdir -p wiki/interventions wiki/recommendations wiki/questions
 mkdir -p wiki/syntheses
@@ -45,6 +45,9 @@ Create `wiki/index.md`:
 *(empty — populated on ingest)*
 
 ## Sources — Theses
+*(empty)*
+
+## Sources — Books
 *(empty)*
 
 ## Concepts
