@@ -60,7 +60,7 @@ harness surfaces them).
 
 ## Sub-agents
 
-Eleven specialists in `.claude/agents/`. Delegate via `Agent` with
+Twelve specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
 - `suggest-reading` — find what to read next (snowball + OpenAlex).
@@ -74,6 +74,7 @@ Eleven specialists in `.claude/agents/`. Delegate via `Agent` with
 - `lint` — audit (deterministic + cached semantic).
 - `librarian` — act on lint findings, auto-fix or delegate.
 - `source-remover` — clean removal + every cross-reference.
+- `deduplicator` — judge redundant concept/method pages, merge or extract.
 
 Parent stays orchestrator; sub-agents do the focused work.
 
