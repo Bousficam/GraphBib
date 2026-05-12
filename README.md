@@ -83,13 +83,14 @@ Plain English works too:
 "Extract data for the Cervera 2020 meta-analysis using the LLM mode."
 ```
 
-**Claude Code** ships 12 slash commands wrapping the agent ecosystem:
+**Claude Code** ships 13 slash commands wrapping the agent ecosystem:
 
 | Discovery | Conversion | Ingestion | Output | Maintenance |
 |---|---|---|---|---|
 | `/wiki-snowball` | `/wiki-convert` | `/wiki-init` | `/wiki-query` | `/wiki-status` |
 | `/wiki-discover` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-maintain` |
 | | | `/wiki-deepen` | `/wiki-extract-table` | `/wiki-remove` |
+| | | | | `/wiki-dedupe` |
 
 `/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
 `/wiki-maintain` runs lint then delegates fixes to the librarian
@@ -103,7 +104,7 @@ pymupdf4llm fallback + Crossref enrichment + curation).
 
 ### Specialist sub-agents
 
-Eleven focused sub-agents live in `.claude/agents/`. Each has its own
+Twelve focused sub-agents live in `.claude/agents/`. Each has its own
 context window and a tier-appropriate model — the parent agent stays
 orchestrator while specialists do the focused work. Slash commands
 above delegate automatically; you can also invoke them directly via
@@ -122,6 +123,7 @@ the `Agent` tool.
 | `lint` | sonnet | Audit (deterministic + cached semantic) |
 | `librarian` | sonnet | Act on lint findings — auto-fix / delegate / confirm |
 | `source-remover` | sonnet | Cleanly remove a source and every cross-reference |
+| `deduplicator` | sonnet | Judge redundant concept/method pages, merge or extract via deterministic pre-filter |
 
 ## Academic Pipeline
 
