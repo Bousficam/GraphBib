@@ -1,15 +1,57 @@
 [project]
-name = "llm-wiki"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "Your Name",email = "you@example.com"}
-]
+name = "graphbib"
+version = "0.2.0"
+description = "Academic-research wiki agent — ingest PDFs, EPUBs, and notes into a citation-rigorous knowledge graph (concepts, methods, recommendations, questions)."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10,<3.14"
+authors = [{ name = "Bousficam" }]
+keywords = [
+    "academic-research", "knowledge-graph", "citation-network",
+    "stroke-rehabilitation", "MI-BCI", "TMS", "llm-agent",
+    "claude-code", "systematic-review", "PRISMA",
+]
+
+# Core — minimum to run the wiki maintenance tooling (frontmatter parse,
+# citation index, reverse-citation graph, lint pre-filter, deduplication
+# pre-filter, snowball reading suggester). No ML / no heavy I/O deps here.
 dependencies = [
-    "markitdown[all] (>=0.1.5,<0.2.0)",
-    "tqdm (>=4.67.3,<5.0.0)"
+    "PyYAML>=6.0,<7.0",        # frontmatter parsing (every tools/*.py)
+    "requests>=2.31,<3.0",     # Crossref / Unpaywall / OpenAlex HTTP
+    "tqdm>=4.67,<5.0",         # progress bars in pdf2md/* and batch tools
+]
+
+[project.optional-dependencies]
+# PDF + EPUB → Markdown conversion pipeline (pdf2md/*).
+# Heavy: marker-pdf pulls in PyTorch via Surya. Skip on agent-only setups
+# where Claude Code does the conversion through its own toolchain.
+conversion = [
+    "marker-pdf>=1.0,<3.0",         # primary PDF → MD (high fidelity)
+    "pymupdf4llm>=0.0.17",          # CPU rescue when marker fails
+    "PyMuPDF>=1.24,<2.0",           # fitz — first-page extraction in enrich_frontmatter.py
+    "markitdown[all]>=0.1.5,<0.2.0", # .docx/.pptx/.xlsx/.html auto-convert + EPUB fallback engine
+]
+
+# Standalone LLM-assisted tooling that calls Claude directly (bypassing
+# Claude Code). Used by tools/heal, tools/query, tools/consolidate_concepts,
+# tools/extract_data --llm, tools/lint, tools/ingest. Most users running
+# the agent through Claude Code don't need this group.
+#
+# litellm 1.82.7–1.82.8 were compromised in a supply-chain attack (Mar 2026).
+# Pin to ≥1.83.10. See https://github.com/SamurAIGPT/llm-wiki-agent/issues/41.
+llm = [
+    "litellm>=1.83.10",            # unified LLM client (Claude / OpenAI / Gemini)
+    "openpyxl>=3.1,<4.0",          # systematic-review data extraction (Excel I/O)
+]
+
+# Citation-network graph build + visualization scaffolding.
+graph = [
+    "networkx>=3.0,<4.0",          # tools/build_graph.py — node/edge graph + community detection
+]
+
+# Convenience: install everything optional in one go.
+all = [
+    "graphbib[conversion,llm,graph]",
 ]
 
 [tool.poetry]
