@@ -21,13 +21,21 @@ when batching.
 
 Before touching any file, read these in order:
 
-1. `CLAUDE.md` — full schema reference (sections: Citation Rule,
+1. `context.md` (repo root) — **domain orientation**: expected
+   concepts / methods / interventions vocabulary, outcome scales,
+   anatomical anchors, recommendation topics, style notes. This
+   tells you which constructs should land on existing pages vs spawn
+   new ones, what `intervention_family` / `intervention_subfamily`
+   values are valid, and which scales to recognize in tables. If
+   `context.md` is absent, you run in neutral mode (grow vocabulary
+   from the source itself) — flag this in your report.
+2. `CLAUDE.md` — full schema reference (sections: Citation Rule,
    Page Format, Ingest Workflow, Source Organization, Naming).
-2. `docs/rules/citation.md` — Indirect Citation Rule, `reported via [[X]]`
+3. `docs/rules/citation.md` — Indirect Citation Rule, `reported via [[X]]`
    provenance pattern, knowledge construction from introductions.
-3. `docs/rules/depth-completeness.md` — IMRAD-specific completeness
+4. `docs/rules/depth-completeness.md` — IMRAD-specific completeness
    expectations + the mandatory self-critique gate.
-4. The **right** source template, based on the paper's apparent
+5. The **right** source template, based on the paper's apparent
    study_design (cues in title/abstract/methods):
    - RCT, cohort, cross-sectional, case-control, case-series →
      `docs/templates/source-academic-paper.md`
@@ -38,7 +46,7 @@ Before touching any file, read these in order:
    - Methodological paper → `docs/templates/source-methodological-paper.md`
    - Theoretical / framework paper → `docs/templates/source-theoretical-paper.md`
    - Thesis (parent or chapter) → `docs/templates/source-thesis.md`
-5. The source itself (the markdown file path passed by the parent).
+6. The source itself (the markdown file path passed by the parent).
 
 # Non-negotiables (the mistakes you must NOT make)
 

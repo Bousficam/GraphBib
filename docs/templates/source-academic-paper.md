@@ -34,12 +34,14 @@ study_design: ""            # RCT | cohort | cross-sectional | review |
                             # meta-analysis | case-series | case-report |
                             # simulation | computational | theoretical
 sample_size:                # integer N (or empty)
-population: ""              # e.g. "chronic stroke patients (>6 months post-onset)"
-domain: []                  # e.g. [stroke, motor-rehab, MI-BCI]
-methods: []                 # measurement instruments — e.g. [EEG, FuglMeyer, ARAT, MEP, DTI]
-interventions: []           # treatments delivered — e.g. [MI-BCI, rTMS, mirror-therapy]
-intervention_family: ""     # PRINCIPAL therapy family — BCI | TMS | tDCS | mirror | robot | mental-practice | physio | combined | none
-intervention_subfamily: ""  # paradigm within the family — e.g. mi-bci | ao-bci | hybrid | rtms | itbs | ctbs (drives tier-2 folder)
+population: ""              # specific cohort description (e.g. "chronic stroke patients > 6 mo")
+domain: []                  # field tags — values from context.md vocabulary
+methods: []                 # measurement instruments — values from context.md Methods vocabulary
+interventions: []           # treatments delivered — values from context.md Interventions taxonomy
+intervention_family: ""     # PRINCIPAL therapy family — one of the family keys declared in context.md
+                            # (left empty for non-interventional studies)
+intervention_subfamily: ""  # paradigm within the family — subfamily value from context.md
+                            # (drives tier-2 folder in tools/organize_sources.py)
 
 # Quality signals
 peer_reviewed: true

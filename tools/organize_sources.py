@@ -55,6 +55,15 @@ ARTICLES_DIR = SRC_DIR / "articles"
 THESES_DIR = SRC_DIR / "theses"
 
 # Slug-form intervention_family → folder name
+#
+# DOMAIN-SPECIFIC: this dict mirrors the interventions taxonomy declared
+# in context.md. The default values below configure GraphBib for the
+# stroke / MI-BCI / TMS de-facto specialization. To retarget GraphBib
+# for another field, edit BOTH context.md (declarative) AND this dict
+# (the Python source of truth used by source routing).
+#
+# Any intervention_family value not in this dict routes the source to
+# articles/general/ by default — safe fallback for partial adaptations.
 FAMILY_FOLDER = {
     "bci": "bci",
     "tms": "tms",
