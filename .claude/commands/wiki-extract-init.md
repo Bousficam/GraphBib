@@ -1,5 +1,5 @@
 ---
-description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, population, outcomes, style notes — with dynamic follow-ups for ambiguous answers), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
+description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, outcomes, style notes — with dynamic follow-ups for ambiguous answers, e.g. asking about population frame only when the review is clinical), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
 argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
 ---
 
@@ -145,17 +145,14 @@ Different from the research question. Examples:
 agent to prioritize when a paper reports many candidates for the
 "primary" outcome.)
 
-## Population frame
-
-(Brief — used only for sanity checks during numerical extraction:
-"baseline age of 8 in a chronic stroke study would be wrong",
-"MEP amplitude of 200 mV would be wrong". One or two sentences.)
-
 ## Primary outcomes of interest
 
 (Which scales / which subscales the review hinges on. Anchors
 extraction when the paper reports many variants — e.g.
-*Fugl-Meyer Upper Extremity total* vs *FM-UE motor subscale only*.)
+*Fugl-Meyer Upper Extremity total* vs *FM-UE motor subscale only*.
+
+Skip if the review is methodological / mapping / theoretical and
+doesn't compare outcomes across papers.)
 
 ## Notes for the extraction agent
 
@@ -261,13 +258,13 @@ If the user **confirms**, run Steps 7–8 in order.
 
 ## Step 7 — Build contexte.md (interactive)
 
-Ask 6 structured questions ONE AT A TIME, waiting for each answer
+Ask 5 structured questions ONE AT A TIME, waiting for each answer
 before asking the next. Every question is **directly useful to the
 extraction agent** — pre-extraction methodology (inclusion/exclusion,
 search dates, language filters) is OUT OF SCOPE here, it belongs to
 your SR protocol, not to contexte.md.
 
-After the 6 structured questions, **ask 0–5 targeted follow-ups**
+After the 5 structured questions, **ask 0–5 targeted follow-ups**
 based on what's ambiguous or under-specified in the answers (Step 7b).
 
 ### Structured questions (always asked, in order)
@@ -320,25 +317,16 @@ Q3 — Research question?
 Wait. Then:
 
 ```
-Q4 — Population frame?
-    (Brief — only for sanity checks during numerical extraction.
-     E.g. so the agent flags a baseline age of 8 in a chronic stroke
-     study, or an MEP amplitude of 200 mV.
-
-     Examples:
-      "Adults > 18, chronic stroke (≥ 6 mo post-onset),
-       moderate-to-severe upper-limb hemiparesis (FM-UE 10–50)."
-      "Healthy adults, no neurological history.")
-```
-
-Wait. Then:
-
-```
-Q5 — Primary outcomes of interest?
+Q4 — Primary outcomes of interest?
     (Which scales / subscales the review hinges on. Anchors
      extraction when the paper reports many variants.
 
-     Examples:
+     If your review is methodological / mapping / theoretical and
+     does NOT compare outcomes across papers, just say "n/a — this
+     review doesn't extract outcomes" and the agent will skip
+     outcome-related follow-ups.
+
+     Examples (when applicable):
       "Fugl-Meyer UE total score (0-66), not the motor or sensation
        subscales separately."
       "MEP amplitude peak-to-peak in mV; latency in ms — both from
@@ -348,7 +336,7 @@ Q5 — Primary outcomes of interest?
 Wait. Then:
 
 ```
-Q6 — Domain priors / style notes for the extraction agent?
+Q5 — Domain priors / style notes for the extraction agent?
     (Unit conventions, ITT vs PP preference, terminology
      disambiguation, effect-size conventions (meta-analyses),
      anything else the agent should know to do consistent extraction.
@@ -366,33 +354,34 @@ Q6 — Domain priors / style notes for the extraction agent?
 
 ### Step 7b — Targeted follow-up questions (dynamic)
 
-After Q1–Q6 are answered, **review the answers together** and ask
+After Q1–Q5 are answered, **review the answers together** and ask
 0–5 follow-ups for whatever is still ambiguous or under-specified.
 DO NOT ask follow-ups gratuitously — only when an answer leaves a
 real extraction decision unclear.
 
 Examples of when to ask follow-ups (with the actual phrasing):
 
-- **Q1 = meta-analysis but no effect-size metric mentioned in Q6**
+- **Q1 = meta-analysis but no effect-size metric mentioned in Q5**
   → *"You said meta-analysis. Which effect size do you want extracted
   — Cohen's d, Hedges' g, log-OR, RR, or raw mean difference? Each
   needs different ancillary variables in the template."*
 
-- **Q5 primary outcome is a multi-component scale, no subscale specified**
+- **Q4 primary outcome is a multi-component scale, no subscale specified**
   → *"FM-UE — total score (0–66), motor subscale only (0–60), or
   motor + sensation? Papers report all three; pick now to avoid
   per-cell ambiguity."*
 
-- **Q4 population says "adults" but Q3 asks about chronic stroke**
-  → *"Q4 says 'adults' and Q3 says chronic stroke — confirm: chronic
-  stroke adults only (≥ 6 mo post-onset), or any adult with
-  cerebrovascular disease (incl. acute / subacute)?"*
+- **Q3 implies a clinical population but no sanity-check anchor given**
+  → *"For numerical sanity checks: who's the population? E.g. age
+  range, condition severity. Helps the agent flag impossible values
+  (a baseline age of 8 in a chronic-stroke study, an MEP of 200 mV).
+  Skip if non-clinical."*
 
-- **Q1 = scoping but Q6 mentions ITT preference**
+- **Q1 = scoping but Q5 mentions ITT preference**
   → *"Scoping reviews usually don't extract analysis-arm details.
   Skip ITT/PP for this review, or keep it as an optional column?"*
 
-- **Q6 has nothing about timepoint / follow-up**
+- **Q5 has nothing about timepoint / follow-up**
   → *"Many papers report outcomes at multiple timepoints (end of
   treatment, 1 mo follow-up, 6 mo). Which timepoint anchors your
   primary outcome — extract latest, end-of-treatment, or specific
