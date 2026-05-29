@@ -172,14 +172,14 @@ Plain English works too:
 "Extract data for the Cervera 2020 meta-analysis using the LLM mode."
 ```
 
-**Claude Code** ships 13 slash commands wrapping the agent ecosystem:
+**Claude Code** ships 14 slash commands wrapping the agent ecosystem:
 
 | Discovery | Conversion | Ingestion | Output | Maintenance |
 |---|---|---|---|---|
 | `/wiki-snowball` | `/wiki-convert` | `/wiki-init` | `/wiki-query` | `/wiki-status` |
 | `/wiki-discover` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-maintain` |
-| | | `/wiki-deepen` | `/wiki-extract-table` | `/wiki-remove` |
-| | | | | `/wiki-dedupe` |
+| | | `/wiki-deepen` | `/wiki-extract-init` | `/wiki-remove` |
+| | | | `/wiki-extract-table` | `/wiki-dedupe` |
 
 `/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
 `/wiki-maintain` runs lint then delegates fixes to the librarian
