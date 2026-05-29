@@ -794,6 +794,130 @@ def slugs_from_cites(source_slug, sources):
     return sorted(out)
 
 
+# ============================================================================
+# Coded transformation (--coded output mode)
+# ============================================================================
+
+_NUMERIC_RE = re.compile(r"-?\d+(?:[\.,]\d+)?")
+_SENTINEL_VALUES = {"", "not reported", "instruction_missing", "n/a", "na", "none"}
+
+
+def code_value(value, column_info):
+    """Reduce a verbatim value to the strict form per the column's instruction.
+
+    The "detailed" output keeps the LLM's verbatim answer (with units, quotes,
+    qualifiers like "± SD"). The "coded" output strips this to the strict
+    publication-ready / analysis-ready form per the column's classification:
+
+      - categorical (no codes)   → canonical allowed-value label (case-fixed)
+      - categorical (coded)      → the integer code only ("0", "1", …)
+      - quantitative type_hint   → numeric portion only (units stripped)
+      - nl / type_hint / unknown → verbatim (no transformation)
+
+    Sentinels ("", "not reported", "INSTRUCTION_MISSING") pass through unchanged.
+    """
+    if value is None:
+        return ""
+    v = str(value).strip()
+    if not v or v.lower() in _SENTINEL_VALUES:
+        return v
+
+    kind = column_info.get("kind", "nl")
+    allowed = column_info.get("allowed_values") or []
+
+    if kind == "categorical" and allowed:
+        coded_map = {}
+        for item in allowed:
+            m = re.match(r"\s*(\d+)\s*=\s*(.+)$", str(item))
+            if m:
+                coded_map[m.group(2).strip().lower()] = m.group(1).strip()
+
+        if coded_map:
+            for code in coded_map.values():
+                if v == code:
+                    return code
+            v_lower = v.lower()
+            for label, code in coded_map.items():
+                if v_lower == label or v_lower.startswith(label):
+                    return code
+            return ""
+
+        v_lower = v.lower()
+        for item in allowed:
+            if v_lower == str(item).lower():
+                return str(item)
+        for item in allowed:
+            if str(item).lower() in v_lower:
+                return str(item)
+        return ""
+
+    if kind == "type_hint":
+        m = _NUMERIC_RE.search(v)
+        if m:
+            return m.group(0).replace(",", ".")
+        return ""
+
+    return v
+
+
+def derive_coded_output_path(detailed_path):
+    p = Path(detailed_path)
+    stem = p.stem
+    if stem.endswith("-filled"):
+        stem = stem[: -len("-filled")] + "-coded"
+    elif stem.endswith("-detailed"):
+        stem = stem[: -len("-detailed")] + "-coded"
+    else:
+        stem = stem + "-coded"
+    return str(p.with_name(stem + p.suffix))
+
+
+# ============================================================================
+# Project folder convention
+# ============================================================================
+
+def resolve_project_paths(project_dir):
+    """Map a project folder to its canonical artifacts.
+
+    Convention:
+      <project>/
+      ├── contexte.md            # project scope (narrative)
+      ├── instructions.md        # agent-authored extraction spec (per column)
+      ├── template.xlsx          # 2-row template (slug + instruction)
+      ├── articles/              # sources to extract (links or copies)
+      └── output/
+          ├── extraction-detailed.xlsx
+          └── extraction-coded.xlsx
+
+    All artifacts are optional except `template.{xlsx,csv}`. Missing
+    ones are returned as absolute paths so the caller can create them.
+    """
+    p = Path(project_dir).resolve()
+    if not p.is_dir():
+        sys.exit(f"--project: {project_dir} is not a directory.")
+
+    template = None
+    for cand in (p / "template.xlsx", p / "template.csv"):
+        if cand.exists():
+            template = cand
+            break
+    if not template:
+        sys.exit(f"--project: no template.xlsx or template.csv found in {p}.")
+
+    output_dir = p / "output"
+    return {
+        "root": p,
+        "context_md": p / "contexte.md",
+        "instructions_md": p / "instructions.md",
+        "template": template,
+        "articles_dir": p / "articles",
+        "output_dir": output_dir,
+        "detailed_output": output_dir / f"extraction-detailed{template.suffix}",
+        "coded_output": output_dir / f"extraction-coded{template.suffix}",
+    }
+
+
+
 DEFAULT_SR_COLUMNS = [
     "slug", "first_author", "year", "journal", "doi",
     "design", "country",
@@ -924,7 +1048,31 @@ def main():
                          "2-row templates that don't carry the legacy "
                          "INSTRUCTIONS marker in the slug column. Default: "
                          "auto-detect via the legacy markers.")
+    ap.add_argument("--coded", action="store_true",
+                    help="In addition to the detailed output, write a 'coded' "
+                         "sibling file with strict per-instruction format "
+                         "(canonical category labels, codes only for ordinal-"
+                         "coded scales, units stripped for quantitative). "
+                         "Use this for the publication-ready / R-ready table.")
+    ap.add_argument("--project",
+                    help="Operate on a literature-review project folder. "
+                         "Expects template.xlsx (or .csv) at root; writes "
+                         "outputs to <project>/output/extraction-{detailed,coded}.<ext>. "
+                         "Implies --coded. Optional contexte.md / instructions.md "
+                         "at the project root are read/written by the slash command "
+                         "(/wiki-extract-table), not by this script.")
     args = ap.parse_args()
+
+    project = None
+    if args.project:
+        project = resolve_project_paths(args.project)
+        if args.template:
+            sys.exit("--project and a positional template are mutually exclusive.")
+        args.template = str(project["template"])
+        if not args.output:
+            args.output = str(project["detailed_output"])
+        args.coded = True
+        project["output_dir"].mkdir(parents=True, exist_ok=True)
 
     # ---------- Analyze mode (no wiki access needed) ----------
     if args.analyze:
@@ -1115,6 +1263,37 @@ def main():
         print(f"  ✓ {out} updated (in-place).")
     else:
         print(f"  ✓ {out} written  (template preserved at {args.template}).")
+
+    # Coded sibling output — strict per-instruction format
+    if args.coded:
+        col_classifications = {}
+        for h in headers:
+            if h == args.slug_column:
+                continue
+            instr = (instructions.get(h) or "").strip() if instructions else ""
+            col_classifications[h] = {
+                "instruction": instr,
+                **classify_instruction(instr),
+            }
+
+        coded_data = []
+        for row in data:
+            coded_row = {}
+            for h in headers:
+                if h == args.slug_column:
+                    coded_row[h] = row.get(h, "")
+                else:
+                    coded_row[h] = code_value(row.get(h, ""), col_classifications[h])
+            coded_data.append(coded_row)
+
+        if args.project:
+            coded_out = str(project["coded_output"])
+        else:
+            coded_out = derive_coded_output_path(out)
+
+        coded_final = list(final_rows[: -len(data)]) + coded_data
+        write_table(coded_out, headers, coded_final, fmt)
+        print(f"  ✓ {coded_out} written  (coded — strict per-instruction format).")
     print(f"\nPer-row status:")
     for k, v in row_status.items():
         print(f"  {k}: {v}")

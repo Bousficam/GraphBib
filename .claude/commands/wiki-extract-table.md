@@ -1,58 +1,76 @@
 ---
-description: Drive a systematic-review data extraction from a user-prepared 2-row template. The agent analyzes the template, debriefs with the user about ambiguous columns, then runs the extraction (deterministic → LLM) into a sibling file.
-argument-hint: "<template.xlsx>  OR  --from-source <SR-slug>"
+description: Drive a systematic-review data extraction in a project folder (contexte.md, instructions.md, template, articles, output). Analyzes the template, debriefs with the user, persists clarifications to instructions.md, runs deterministic + LLM extraction into TWO outputs (detailed + coded), then proposes adaptive refinements based on the extracted data.
+argument-hint: "<project-folder>  OR  <template.xlsx>  OR  --from-source <SR-slug>"
 ---
 
 Run the systematic-review data extraction workflow.
 
 Arguments: $ARGUMENTS
 
-# Template format (NEW — 2-row)
+# Project folder convention (preferred)
 
-A template is an Excel (or CSV) file with **2 header rows** + one row
-per source:
+A literature-review project lives in its own folder:
 
-| Row | What | Example |
-|---|---|---|
-| 1 | Column headers — variable names | `slug`, `year`, `n_intervention`, `risk_of_bias`, `baseline_FM` |
-| 2 | **Instructions** per column — categorical scale, natural-language rule, or empty for implicit variables | (see below) |
-| 3+ | One row per source (slug in the first column) | `cervera-2020`, `khedr-2005`, … |
+```
+my-mibci-review/
+├── contexte.md          # Project scope: research question, inclusion criteria, dates
+├── instructions.md      # Per-column extraction spec (agent-authored from Phase 1)
+├── template.xlsx        # 2-row Excel template (slug + variable + instruction)
+├── articles/            # Source markdown files (or symlinks to raw/papers/)
+└── output/
+    ├── extraction-detailed.xlsx   # Verbatim values with units / quotes
+    └── extraction-coded.xlsx      # Strict per-instruction format (publication-ready)
+```
 
-Row 2 cell content drives how the agent extracts each column:
+When `$ARGUMENTS` is a folder, this is the assumed layout. When it's a
+single `.xlsx`/`.csv`, the legacy "one-template, sibling output" mode
+applies (outputs land alongside the template, no `contexte.md` / no
+`instructions.md`).
 
-| Row-2 content | Interpretation | Example |
-|---|---|---|
-| `value \| value \| value` | **Categorical** with these allowed values (the agent picks one verbatim) | `low \| some concerns \| high` |
-| `value, value, value` (short tokens) | **Categorical** comma-separated | `RCT, cohort, cross-sectional, case-series` |
-| `0=label, 1=label, 2=label` | **Coded ordinal** (the agent returns the code) | `0=low, 1=some concerns, 2=high` |
-| `(unit)` or `(range)` | **Quantitative type hint** | `(years)`, `(0-100)` |
-| Sentence (3+ words) | **Natural-language instruction** — the agent reads the source and applies the rule | `Fugl-Meyer UE baseline mean, intervention arm only` |
-| **Empty** | **Implicit variable** — the agent will ASK what to extract during debrief | (e.g. `adherence_pct` with no instruction) |
+# Template format (2-row)
 
-The legacy 4-row format (INSTRUCTIONS / TYPE / SCALE markers in the
-slug column) is still supported for backward compatibility — same
-flow below, omit `--instructions-row` and let the script auto-detect.
+| Row | What |
+|---|---|
+| 1 | Column headers (variable names) |
+| 2 | Instructions per column — polymorphic content |
+| 3+ | One row per source (slug in first column) |
+
+Row 2 cell content drives extraction:
+
+| Format | Interpretation |
+|---|---|
+| `a \| b \| c` | Categorical — pick verbatim |
+| `a, b, c` (short tokens) | Categorical — comma-separated |
+| `0=lo, 1=hi` | Ordinal coded — return the code |
+| `(years)` / `(0-100)` | Quantitative type hint |
+| Sentence (3+ words) | Natural-language instruction |
+| **Empty** | **Implicit variable** — agent ASKS in Phase 1 |
 
 # Procedure
 
-## Phase 0 — Locate or bootstrap the template
+## Phase 0 — Bootstrap or locate the project
 
-Two paths:
+**A. `$ARGUMENTS` is a folder path** — use as project root. Confirm it
+contains `template.xlsx` (or .csv). If `contexte.md` exists, read it
+to ground domain assumptions. If `instructions.md` exists, treat it
+as the source of truth for column instructions (may override row 2 of
+the template after a mismatch check).
 
-**A. The user already prepared a template.** Confirm the path
-(`$ARGUMENTS` should be the .xlsx / .csv). Proceed to Phase 1.
+**B. `$ARGUMENTS` is a template file** — legacy single-file mode. The
+template path is the spec; outputs land alongside; no
+`contexte.md` / `instructions.md` involvement.
 
-**B. The user passed `--from-source <SR-slug>`.** Pre-fill a starter
-template from the SR's `cites:`:
+**C. `$ARGUMENTS` starts with `--from-source <SR-slug>`** — bootstrap
+a new project folder:
 
 ```bash
-python tools/extract_data.py --from-source <SR-slug> -o <SR-slug>-extraction.xlsx --no-spec
+mkdir -p <SR-slug>-review/{articles,output}
+python tools/extract_data.py --from-source <SR-slug> -o <SR-slug>-review/template.xlsx --no-spec
 ```
 
-The `--no-spec` flag omits the legacy INSTRUCTIONS / TYPE / SCALE
-rows so the user gets a clean 2-row template they fill in. Surface
-the path, ask the user to edit row 2 in Excel, then re-invoke
-`/wiki-extract-table <path>` to proceed.
+Then prompt the user to fill row 2 (or skip and let Phase 1 handle
+empty instructions interactively), and re-invoke
+`/wiki-extract-table <SR-slug>-review/`.
 
 ## Phase 1 — Comprehension debrief (the gate)
 
@@ -60,16 +78,7 @@ the path, ask the user to edit row 2 in Excel, then re-invoke
 python tools/extract_data.py <template> --analyze --instructions-row 1
 ```
 
-This emits JSON describing each column:
-
-```
-columns: [
-  {name, instruction, kind: categorical|nl|empty|type_hint,
-   inferred_type, allowed_values}
-]
-```
-
-Process the JSON and present a grouped summary to the user:
+This emits JSON with per-column classification. Process and present:
 
 ```
 Template analyzed: <path>  (N columns, M data rows)
@@ -85,97 +94,194 @@ NEEDS YOUR CLARIFICATION (empty or ambiguous instruction):
 ```
 
 For each NEEDS-CLARIFICATION column, ask **a specific, leading
-question** so the user can answer concisely:
+question** so the user can answer concisely (see examples in the
+old slash command if helpful: dropout reasons, adherence, costs).
 
-- *"`adherence_pct` is empty. (a) % participants completing the
-  protocol, (b) % sessions completed of planned, or (c) something
-  else?"*
-- *"`cost` is empty. Direct medical cost only or societal? In what
-  currency, base year?"*
-- *"`dropout_reasons` says 'list main reasons'. Maximum how many?
-  Verbatim quotes or paraphrase? Include `n` per reason?"*
-
-**WAIT** for the user to answer every clarification. Then propose
-to update the template's row 2 in-place with the clarified
-instructions:
+**WAIT** for user answers. Then propose to:
+1. Update the template's row 2 in-place with the clarified instructions
+2. Write/update `instructions.md` in the project root with the
+   detailed clarifications (long-form, narrative, edge cases)
 
 ```
-I'll add these instructions to the template's row 2:
-  adherence_pct      → "% participants who completed ≥ 80% of planned sessions"
-  cost               → "Direct medical cost only, in 2020 USD"
-  dropout_reasons    → "Top 3 reasons verbatim, with n per reason"
+I'll update:
+  • template.xlsx row 2 (short, machine-readable)
+  • instructions.md   (long, human-readable, narrative)
+
 Confirm? [Y/n]
 ```
 
-On confirm, edit those cells in the template file (just row 2 for
-those columns) so the next phases have proper instructions. Tell
-the user the template now reflects the agreed spec and is reusable
-for the next extraction.
+On confirm, edit both files. The template's row 2 stays terse; the
+instructions.md captures the WHY of each decision plus edge cases
+the user mentioned. Format for `instructions.md`:
+
+```markdown
+# Extraction instructions — <project name>
+
+> Updated YYYY-MM-DD by the extraction agent.
+
+## adherence_pct
+**Row-2 instruction**: % participants who completed ≥ 80% of planned sessions
+
+**Detail**: Look for "adherence", "compliance", "completion rate" in the
+Methods or Results. If the paper reports completion of sessions rather
+than participants, infer participant-level adherence as the lowest
+session-completion threshold. If only "X dropped out" is reported,
+compute (N - X) / N × 100.
+
+**Edge cases**: Per-protocol vs intention-to-treat — prefer ITT.
+
+## cost
+...
+```
+
+This file becomes the durable spec — version-controlled, editable,
+and survives template re-generation.
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
 ```bash
-python tools/extract_data.py <template> --instructions-row 1
+python tools/extract_data.py --project <folder> --instructions-row 1
+# OR for single-file mode:
+python tools/extract_data.py <template> --instructions-row 1 --coded
 ```
 
-Frontmatter + body-regex pass. Writes to `<template-stem>-filled.<ext>`
-**next to the template** (the template stays as a reusable spec).
-Reports:
+`--project` mode automatically:
+- Reads the template at `<folder>/template.xlsx`
+- Writes `extraction-detailed.xlsx` to `<folder>/output/`
+- ALSO writes `extraction-coded.xlsx` (strict per-instruction format)
 
-```
-✓ <stem>-filled.xlsx written  (template preserved at <stem>.xlsx).
+`--coded` produces a SECOND output where:
+- Categorical cells hold the canonical label only (e.g. `RCT` not `RCT (n=42, blinded)`)
+- Ordinal-coded cells hold the integer code (e.g. `0` for "low risk")
+- Quantitative cells strip units (e.g. `12.4` not `12.4 ± 3.1 years`)
+- NL cells pass through unchanged
 
-Per-row status:    complete: K | partial: K | empty: K | not_found: K
-Per-cell method:   frontmatter: K | regex: K | manual: K | empty: K | invalid: K
-```
+The detailed version is for audit / spot-checking. The coded version
+is what you feed to R / Python / Excel pivot tables.
 
-If `empty` is small (<10% of cells), suggest filling the rest by
-hand and stop. Otherwise propose Phase 3.
+Reports per-cell method counts; if many cells stay empty (>30%),
+suggest Phase 3.
 
 ## Phase 3 — LLM extraction (opt-in, costs tokens)
 
 ```bash
-python tools/extract_data.py <template> --llm --instructions-row 1
+python tools/extract_data.py --project <folder> --instructions-row 1 --llm
 ```
 
-For each remaining empty cell with a non-empty instruction, the
-script delegates to the `extractor` sub-agent (haiku — ~10× cheaper
-than sonnet). The sub-agent reads the source MD, applies the
-instruction with TYPE / SCALE awareness (inferred from row-2 content
-per Phase 1's classification), and returns one validated value or
-`not reported`.
+Per-cell delegation to the `extractor` sub-agent for empty cells with
+a non-empty instruction. Both outputs (detailed + coded) are rewritten
+with the LLM fills.
 
-Results cached in `tools/.cache/extract_llm.json` keyed by
-(slug, column, instruction-hash) so re-runs on unchanged instructions
-are free.
+LLM cache: keyed by (slug, column, instruction-hash); re-runs on
+unchanged instructions are free.
 
-## Phase 4 — Recap
+## Phase 4 — Recap and audit
 
-Print final counts and the output path. Suggest:
+Print:
 
 ```
-Extraction written to <stem>-filled.xlsx (M of N cells filled).
+Extraction summary
+  Detailed: <folder>/output/extraction-detailed.xlsx (M of N cells filled)
+  Coded:    <folder>/output/extraction-coded.xlsx    (strict format)
 
-K cells empty after all phases — likely "not reported" in source.
-Spot-check before publishing.
-
-Reusable spec at <stem>.xlsx — re-run /wiki-extract-table <stem>.xlsx
-to update with new sources you add to the SR's cites:.
+Per-cell method:
+  frontmatter: K | regex: K | llm: K | manual: K | empty: K | invalid: K
 ```
+
+Spot-check guidance: open both files side by side, compare a few rows
+to catch any mis-coding (a categorical value that didn't match any
+allowed label will appear blank in the coded file — that's the signal
+to refine the instruction).
+
+## Phase 5 — Adaptive refinement proposals (the new feedback loop)
+
+**Read the detailed output and look for patterns** that suggest the
+column spec should evolve:
+
+### Triggers to surface
+
+1. **Variable should be added** — when the same kind of information
+   appears in many sources but no column captures it.
+   - *"7/12 papers report a baseline NIHSS but you have no `baseline_nihss`
+     column. Add it?"*
+
+2. **Variable should be split** — when one column accumulates
+   heterogeneous content.
+   - *"`intervention_dose` values include frequency (Hz), intensity (%),
+     and session count mixed. Split into `frequency_hz`, `intensity_pct`,
+     `n_sessions`?"*
+
+3. **Instruction needs refinement** — when extraction is inconsistent.
+   - *"`follow_up_duration` has 4 cells in weeks, 3 in months, 2 in
+     'end of treatment'. Refine to 'weeks only, convert if needed' and
+     re-extract?"*
+
+4. **Allowed-values mismatch** — when a categorical column has cells
+   blank in the coded output but populated in the detailed.
+   - *"`design`: 'controlled clinical trial' in [kim-2018] didn't match
+     any allowed value. Add 'CCT' to the scale, or refine
+     [kim-2018]'s extraction?"*
+
+5. **Many `not reported`** — when extraction success rate < 30% for a
+   column.
+   - *"`adverse_events`: 9 of 12 cells are 'not reported'. Is this column
+     answerable from this corpus, or should the instruction be relaxed
+     ('any safety info, even narrative')?"*
+
+### Procedure
+
+After Phase 4, scan the detailed output. For each trigger, surface
+ONE proposal as a question; cap the total at 5 proposals per run to
+avoid overload.
+
+```
+Adaptive refinement proposals (5 max):
+
+1. ADD COLUMN  baseline_nihss
+   Found in 7/12 sources, no column captures it.
+   Confirm? [Y/n]
+
+2. SPLIT COLUMN  intervention_dose
+   Current values mix freq + intensity + sessions.
+   Propose split into: frequency_hz | intensity_pct | n_sessions
+   Confirm? [Y/n]
+
+3. REFINE  follow_up_duration
+   Current row-2: "follow-up timepoint"
+   Proposed:    "follow-up duration in WEEKS (convert from months: ×4.345)"
+   Confirm? [Y/n]
+```
+
+On each `Y`:
+- For ADD: append column to template row 1, leave row 2 empty so the
+  next Phase 1 catches it for clarification
+- For SPLIT: replace one column with N new ones, copy verbatim values
+  across, mark row 2 as "needs clarification"
+- For REFINE: update template row 2 + `instructions.md` for that
+  column; re-run Phase 2/3 only for that column
+
+Append the decisions to `<folder>/log.md` (audit trail).
 
 # Hard constraints
 
-- **NEVER skip Phase 1.** The comprehension gate is the whole point
-  of this workflow. Even if all instructions look clear, present the
-  classification summary and ask "anything to clarify before I
-  extract?".
-- **NEVER overwrite the template.** Output goes to a sibling
-  `<stem>-filled.<ext>` file. The template is the user's reusable
-  spec.
-- **NEVER write fake values.** If the LLM can't find the answer,
-  the cell stays empty (or holds the literal `not reported`). No
-  paraphrasing to fit a scale.
-- **For Implicit (empty-instruction) columns: refuse to extract
-  without explicit user clarification.** Don't guess from the column
-  name alone — `tms_sessions` could mean count, list of frequencies,
-  or duration per session.
+- **NEVER skip Phase 1.** Even if the template's row 2 looks complete,
+  surface the classification summary and ask "anything to clarify?".
+- **NEVER overwrite the template.** Outputs go to `output/` (project
+  mode) or sibling files (single-file mode).
+- **NEVER auto-apply adaptive proposals.** Each ADD / SPLIT / REFINE
+  requires explicit user `Y`.
+- **NEVER write fake values.** Empty cell or literal `not reported`.
+  Never paraphrase to fit a scale.
+- **Implicit (empty-instruction) columns: refuse to extract** until
+  Phase 1 clarifies.
+
+# Files written by this workflow
+
+| File | When | Editable by user? |
+|---|---|---|
+| `template.xlsx` row 2 | After Phase 1 confirmation | Yes — re-run triggers re-debrief |
+| `instructions.md` | After Phase 1 confirmation | Yes — long-form spec |
+| `output/extraction-detailed.xlsx` | Phase 2 + 3 | No — regenerated each run |
+| `output/extraction-coded.xlsx` | Phase 2 + 3 | No — regenerated each run |
+| `log.md` | Phase 5 decisions | Append-only audit trail |
+| `contexte.md` | Bootstrap (not auto-managed) | Yes — narrative scope |
