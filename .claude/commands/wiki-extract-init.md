@@ -14,7 +14,7 @@ GraphBib has **two distinct types of folders**:
 | Folder | Purpose | Obsidian? |
 |---|---|---|
 | `wiki/` (at repo root) | The agent's knowledge graph: sources, concepts, methods, recommendations, questions, syntheses, entities. Read by Obsidian as a vault. | **YES** — opened as an Obsidian vault |
-| `<project>-review/` (sibling of wiki/) | Self-contained literature-review extraction project: contexte, instructions, template, articles, output. **NOT part of any Obsidian vault.** | **NO** — pure file system, opened in Excel / a code editor |
+| `project-review/<name>/` (sibling of wiki/) | Self-contained literature-review extraction project: contexte, instructions, template, articles, output. **NOT part of any Obsidian vault.** | **NO** — pure file system, opened in Excel / a code editor |
 
 This command creates the **project folder**, which is **separate from
 the wiki and outside any Obsidian vault**. The wiki keeps its job
@@ -24,26 +24,34 @@ review.
 
 # Location
 
-The project folder is created **at the repo root**, as a sibling of
-`wiki/`:
+All extraction projects live under a single container directory
+`project-review/` at the repo root. Each project is a sub-folder
+named after the user's project name:
 
 ```
 GraphBib/                        ← repo root
 ├── wiki/                        ← Obsidian vault (knowledge graph)
 ├── raw/                         ← source MDs / PDFs
 ├── docs/, tools/, pdf2md/       ← agent infrastructure
-└── <project>-review/            ← THIS COMMAND creates folders here
+└── project-review/              ← container for all extraction projects
+    ├── mibci/                   ← project 1 (created by /wiki-extract-init mibci)
+    ├── tms-dose-response/       ← project 2
+    └── dti-biomarkers/          ← project N
 ```
 
-The command **refuses** to create a project inside `wiki/`,
-`raw/`, `docs/`, `tools/`, or any other repo top-level directory —
-projects are first-class artifacts at the same level as those, not
-nested under them.
+The container (`project-review/`) is created on first run if missing.
+Each new `/wiki-extract-init <name>` creates a sub-folder
+`project-review/<name>/` — keeps the repo root clean, groups all
+extraction work under one parent.
+
+The command **refuses** to create a project anywhere else (inside
+`wiki/`, `raw/`, `docs/`, `tools/`, or as a sibling of these).
+`project-review/<name>` is the only valid path.
 
 # What this command creates
 
 ```
-<project>-review/
+project-review/<name>/
 ├── contexte.md           # narrative scope — agent seeds, user fills
 ├── instructions.md       # per-column spec — empty preamble, filled by Phase 1
 ├── template.xlsx         # 2-row template (slug + instruction)
@@ -51,9 +59,10 @@ nested under them.
 └── output/               # extraction outputs land here (empty for now)
 ```
 
-Naming: if `$ARGUMENTS` does not end in `-review`, append `-review` for
-clarity (e.g. `mibci → mibci-review`). Override by passing the exact
-folder name.
+Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
+`dti-biomarkers`) — the agent does NOT append `-review` since the
+parent `project-review/` already conveys "this is a review project".
+Use kebab-case for multi-word names.
 
 # Procedure
 
@@ -72,8 +81,8 @@ Parse `$ARGUMENTS`:
 Show the plan and ask before creating:
 
 ```
-Will create: ./<project-name>-review/
-  ├── contexte.md   (seeded with research-question prompts)
+Will create: ./project-review/<name>/
+  ├── contexte.md   (seeded with extraction-relevant prompts)
   ├── instructions.md   (empty preamble)
   ├── template.xlsx   (M columns × N rows)
   │     M = 27 (default SR set) | <count from --columns>
@@ -83,7 +92,7 @@ Will create: ./<project-name>-review/
 Proceed? [Y/n]
 ```
 
-If the folder already exists and is non-empty:
+If `project-review/<name>/` already exists and is non-empty:
 - If any of `contexte.md`, `instructions.md`, `template.{xlsx,csv}` exist
   → REFUSE. Ask user to pick a different name or `rm -rf` themselves
   before re-running (don't overwrite their work).
@@ -92,45 +101,55 @@ If the folder already exists and is non-empty:
 ## Step 2 — Create the folder structure
 
 ```bash
-mkdir -p <project>/articles <project>/output
+mkdir -p project-review/<name>/articles project-review/<name>/output
 ```
+
+The container `project-review/` is auto-created if it doesn't exist
+yet (first project bootstrap).
 
 ## Step 3 — Seed contexte.md
 
-Write `<project>/contexte.md` with a guided template the user fills:
+Write `project-review/<name>/contexte.md` with a **minimal** guided template —
+only what the extraction agent will actually consume. Inclusion /
+exclusion criteria, date ranges, and language filters belong to the
+**pre-extraction** screening phase (which papers to include in the
+SR) and are NOT consulted during data extraction. Keep contexte.md
+focused on what disambiguates extraction calls:
 
 ```markdown
 # Project context — <project-name>
 
 > Fill me before running /wiki-extract-table. The extraction agent
-> reads this to ground inclusion / exclusion decisions and to
-> calibrate its style.
+> reads this to disambiguate which value to extract, sanity-check
+> numerics, and apply your style conventions.
 
 ## Research question
 
-(One sentence — the PICO question if clinical, the cause-effect
-hypothesis if experimental, the construct under review if theoretical.)
+(One sentence — what this review is trying to answer. Used by the
+agent to prioritize when a paper reports many candidates for the
+"primary" outcome.)
 
-## Inclusion criteria
+## Population frame
 
-- Population: ...
-- Intervention / Exposure: ...
-- Comparator (if applicable): ...
-- Outcomes of interest: ...
-- Study designs: RCT, cohort, ...
-- Date range: YYYY-MM-DD to YYYY-MM-DD
-- Languages: en, fr, ...
+(Brief — used only for sanity checks during numerical extraction:
+"baseline age of 8 in a chronic stroke study would be wrong",
+"MEP amplitude of 200 mV would be wrong". One or two sentences.)
 
-## Exclusion criteria
+## Primary outcomes of interest
 
-- ...
+(Which scales / which subscales the review hinges on. Anchors
+extraction when the paper reports many variants — e.g.
+*Fugl-Meyer Upper Extremity total* vs *FM-UE motor subscale only*.)
 
 ## Notes for the extraction agent
 
 - Domain priors (e.g. *prefer ITT over PP analyses*)
-- Style preferences (e.g. *quote dose parameters verbatim*)
-- Known caveats (e.g. *MEP amplitude is reported in mV or µV — convert
-  to mV*)
+- Unit conventions (e.g. *MEP amplitude is reported in mV or µV —
+  always convert to mV*)
+- Terminology disambiguation (e.g. *"chronic" = ≥ 6 months
+  post-stroke*)
+- Style preferences (e.g. *quote dose parameters verbatim — never
+  paraphrase frequency / intensity / sessions*)
 
 ## Source list
 
@@ -144,7 +163,7 @@ line, matching `wiki/sources/<slug>.md`.)
 
 ## Step 4 — Seed instructions.md (empty preamble)
 
-Write `<project>/instructions.md`:
+Write `project-review/<name>/instructions.md`:
 
 ```markdown
 # Extraction instructions — <project-name>
@@ -153,7 +172,7 @@ Write `<project>/instructions.md`:
 > Each column gets a section with the row-2 terse instruction
 > plus narrative detail and edge cases.
 
-(Empty — run `/wiki-extract-table <project>/` to populate.)
+(Empty — run `/wiki-extract-table project-review/<name>/` to populate.)
 ```
 
 ## Step 5 — Create the template
@@ -163,7 +182,7 @@ Write `<project>/instructions.md`:
 ```bash
 python tools/extract_data.py \
     --from-source <SR-slug> \
-    -o <project>/template.xlsx \
+    -o project-review/<name>/template.xlsx \
     --no-spec
 ```
 
@@ -177,7 +196,7 @@ Pass `--columns` if provided.
 Create an empty template with just headers + empty row 2:
 
 ```python
-python tools/extract_data.py --from-source __empty__ -o <project>/template.xlsx --no-spec --columns "<cols>"
+python tools/extract_data.py --from-source __empty__ -o project-review/<name>/template.xlsx --no-spec --columns "<cols>"
 ```
 
 If that doesn't work (since `__empty__` isn't a real slug), write the
@@ -193,7 +212,7 @@ wb = Workbook()
 ws = wb.active
 ws.append(cols)        # row 1: variable names
 ws.append([""] * len(cols))  # row 2: empty instructions (Phase 1 will fill)
-wb.save("<project>/template.xlsx")
+wb.save("project-review/<name>/template.xlsx")
 PY
 ```
 
@@ -208,7 +227,7 @@ right now (default = yes, since this is usually what the user wants).
 Ask:
 
 ```
-✓ Project skeleton created at ./<project>-review/
+✓ Project skeleton created at ./project-review/<name>/
 
 Build the project now? I can walk you through:
   1. contexte.md   → research question, inclusion criteria, notes
@@ -224,13 +243,19 @@ If the user **confirms**, run Steps 7–8 in order.
 
 ## Step 7 — Build contexte.md (interactive)
 
-Ask 5 short questions in sequence, ONE AT A TIME, waiting for each
-answer before asking the next. Use Q&A style — keep your prompts
-SHORT, suggest concrete examples to make answering fast:
+Ask 4 short questions in sequence, ONE AT A TIME, waiting for each
+answer before asking the next. Every question must be **directly
+useful to the extraction agent** — pre-extraction methodology
+(inclusion/exclusion, search dates, language filters) is OUT OF
+SCOPE here, it belongs to your SR protocol, not to contexte.md.
 
 ```
 Q1 — Research question?
-    (One sentence. Examples:
+    (One sentence — what this review answers. The agent uses it to
+     prioritize when a paper reports many candidates for the
+     "primary" outcome.
+
+     Examples:
       "Does MI-BCI improve upper-limb motor recovery after
        chronic stroke vs sham?"
       "What's the dose-response of low-frequency rTMS over
@@ -240,43 +265,50 @@ Q1 — Research question?
 Wait for answer. Then:
 
 ```
-Q2 — Inclusion criteria (PICO):
-    Population: ?   (e.g. "chronic stroke patients > 6 mo post-onset")
-    Intervention: ?  (e.g. "MI-BCI, ≥ 10 sessions")
-    Comparator: ?   (e.g. "sham BCI or standard rehab")
-    Outcomes: ?     (e.g. "Fugl-Meyer UE primary; ARAT secondary")
-    Designs accepted: ?  (e.g. "RCT, controlled trials only")
-    Date range: ?   (e.g. "2010-01-01 to today")
-    Languages: ?    (e.g. "en, fr")
+Q2 — Population frame?
+    (Brief — only for sanity checks during numerical extraction.
+     E.g. so the agent flags a baseline age of 8 in a chronic
+     stroke study, or an MEP amplitude of 200 mV.
+
+     Examples:
+      "Adults > 18, chronic stroke (≥ 6 mo post-onset),
+       moderate-to-severe upper-limb hemiparesis (FM-UE 10–50)."
+      "Healthy adults, no neurological history.")
 ```
 
 Wait. Then:
 
 ```
-Q3 — Exclusion criteria?
-    (e.g. "case reports, n < 5, paediatric")
+Q3 — Primary outcomes of interest?
+    (Which scales / subscales the review hinges on. Anchors
+     extraction when the paper reports many variants.
+
+     Examples:
+      "Fugl-Meyer UE total score (0-66), not the motor or sensation
+       subscales separately."
+      "MEP amplitude peak-to-peak in mV; latency in ms — both
+       from contralesional M1 stimulation only.")
 ```
 
 Wait. Then:
 
 ```
 Q4 — Domain priors / style notes for the extraction agent?
-    (e.g. "Prefer ITT over PP analyses."
-          "MEP amplitude reported in mV or µV — always convert to mV."
-          "Distinguish acute/subacute/chronic — recovery dynamics
-           differ profoundly.")
-```
+    (Unit conventions, ITT vs PP preference, terminology
+     disambiguation, anything else the agent should know to do
+     consistent extraction.
 
-Wait. Then:
-
-```
-Q5 — Anything else to record in the context?
-    (Notes, deadlines, collaborators, registration ID,
-     anything that grounds your decisions later.)
+     Examples:
+      "Prefer ITT over PP analyses."
+      "MEP amplitude reported in mV or µV — always convert to mV."
+      "Distinguish acute / subacute / chronic — recovery dynamics
+       differ profoundly."
+      "Quote dose parameters verbatim — never paraphrase
+       frequency, intensity, or session count.")
 ```
 
 Wait for the last answer, then **write all answers** into
-`<project>-review/contexte.md`, replacing the seeded placeholders with
+`project-review/<name>/contexte.md`, replacing the seeded placeholders with
 the user's prose. Confirm:
 
 ```
@@ -376,18 +408,18 @@ Confirm with a summary:
 Print:
 
 ```
-✓ Project ready at ./<project>-review/
+✓ Project ready at ./project-review/<name>/
 
 To run the extraction:
-  /wiki-extract-table <project>-review/
+  /wiki-extract-table project-review/<name>/
 
   Phase 1 will re-check the instructions you just authored
   (catches empty / ambiguous columns), then Phase 2 + 3 produce
   output/extraction-{detailed,coded}.xlsx.
 
 To add sources to extract:
-  - List the slugs in <project>-review/contexte.md under "Source list"
-  - Or copy / link the source MDs into <project>-review/articles/
+  - List the slugs in project-review/<name>/contexte.md under "Source list"
+  - Or copy / link the source MDs into project-review/<name>/articles/
   - Or leave both empty and extract_data.py reads straight from wiki/sources/
 ```
 
@@ -405,7 +437,7 @@ To add sources to extract:
   writes there.
 
 - **This command does NOT touch the wiki.** It only creates files
-  under `<project>-review/` at the repo root. Removing the project
+  under `project-review/<name>/` at the repo root. Removing the project
   folder removes all artifacts; the wiki is unaffected.
 
 - Each review lives in its OWN sibling folder. You can have many
@@ -421,17 +453,20 @@ To add sources to extract:
 
 # Hard constraints
 
-- **NEVER create the project folder inside `wiki/`** (or any repo
-  top-level directory). Projects are siblings of `wiki/`, at the repo
-  root. If the user passes a path containing `wiki/`, `raw/`,
-  `docs/`, `tools/`, `pdf2md/`, `.claude/`, or `graph/`, REFUSE and
-  explain the project / wiki separation.
+- **ALWAYS create the project under `project-review/<name>/`.** Never
+  at the repo root, never inside `wiki/`, `raw/`, `docs/`, `tools/`,
+  `pdf2md/`, `.claude/`, or `graph/`. If the user passes a path with
+  a slash in it (e.g. `project-review/foo` or `wiki/bar`), strip
+  everything except the basename and use that as `<name>`. If the
+  resulting name is empty or invalid, refuse and ask.
 - **NEVER overwrite an existing `contexte.md`, `instructions.md`, or
-  `template.{xlsx,csv}`.** Ask the user to remove the folder manually
-  if they want a fresh project.
-- **NEVER use a project name that conflicts with a repo top-level
-  directory** (`raw`, `wiki`, `pdf2md`, `tools`, `docs`, `.claude`,
-  `graph`). Refuse and ask for a different name.
+  `template.{xlsx,csv}`** inside the target sub-folder. Ask the user
+  to remove `project-review/<name>/` manually if they want a fresh
+  project.
+- **NEVER use a project name that conflicts with a reserved name**
+  (`articles`, `output`, `contexte`, `instructions`, `template`,
+  `log`) — these are sub-artifact names inside each project. Refuse
+  and ask for a different name.
 - **NEVER call `extract_data.py --from-source` with a slug not present
   in `wiki/sources/`.** Verify first; if missing, suggest
   `/wiki-batch-ingest` first to ingest the SR.
