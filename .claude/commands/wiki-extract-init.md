@@ -1,10 +1,9 @@
 ---
-description: Bootstrap a literature-review extraction project folder (contexte.md, instructions.md, template, articles/, output/). Pairs with /wiki-extract-table which extracts into the created folder.
-argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]"
+description: Bootstrap and interactively build a literature-review extraction project. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md, co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
+argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
 ---
 
-Create a fresh extraction project folder with the structure expected
-by `/wiki-extract-table`.
+Create and interactively build a fresh extraction project.
 
 Arguments: $ARGUMENTS
 
@@ -66,6 +65,9 @@ Parse `$ARGUMENTS`:
   rows from the SR's `cites:` list
 - `--columns col1,col2,...` (optional) — column set for the template;
   default is the 27-column SR set in `tools/extract_data.py`
+- `--skeleton-only` (optional) — skip the interactive build, just
+  create the empty files. The user can run Phase 1 of
+  `/wiki-extract-table` later to clarify instructions.
 
 Show the plan and ask before creating:
 
@@ -199,22 +201,194 @@ Default column set (if no `--columns`): the 27-field SR set used by
 `extract_data.py --from-source`. Keep it broad — users delete what
 they don't need.
 
-## Step 6 — Final guidance
+## Step 6 — Propose interactive build
 
-Print the next-steps message:
+After the skeleton is created, **propose** to fill it interactively
+right now (default = yes, since this is usually what the user wants).
+Ask:
 
 ```
-✓ Project created at ./<project>/
+✓ Project skeleton created at ./<project>-review/
 
-Next steps:
-  1. Edit contexte.md  → fill research question + inclusion criteria
-  2. Add sources to articles/  (copy / symlink from raw/papers/)
-       cp wiki/sources/articles/bci/cervera-2020.md <project>/articles/
-       (or just list slugs in contexte.md — extract_data.py will find them
-        in the wiki regardless of articles/ contents)
-  3. Run /wiki-extract-table <project>/
-       → Phase 1 will debrief on empty template row 2,
-         then write instructions.md and produce output/extraction-{detailed,coded}.xlsx
+Build the project now? I can walk you through:
+  1. contexte.md   → research question, inclusion criteria, notes
+  2. template      → which variables matter for this review
+  3. instructions  → what to extract for each variable
+
+[Y / skip — just leave the empty files for me to fill later]
+```
+
+If the user **skips**, jump to Step 9 (Final guidance) and stop.
+
+If the user **confirms**, run Steps 7–8 in order.
+
+## Step 7 — Build contexte.md (interactive)
+
+Ask 5 short questions in sequence, ONE AT A TIME, waiting for each
+answer before asking the next. Use Q&A style — keep your prompts
+SHORT, suggest concrete examples to make answering fast:
+
+```
+Q1 — Research question?
+    (One sentence. Examples:
+      "Does MI-BCI improve upper-limb motor recovery after
+       chronic stroke vs sham?"
+      "What's the dose-response of low-frequency rTMS over
+       contralesional M1?")
+```
+
+Wait for answer. Then:
+
+```
+Q2 — Inclusion criteria (PICO):
+    Population: ?   (e.g. "chronic stroke patients > 6 mo post-onset")
+    Intervention: ?  (e.g. "MI-BCI, ≥ 10 sessions")
+    Comparator: ?   (e.g. "sham BCI or standard rehab")
+    Outcomes: ?     (e.g. "Fugl-Meyer UE primary; ARAT secondary")
+    Designs accepted: ?  (e.g. "RCT, controlled trials only")
+    Date range: ?   (e.g. "2010-01-01 to today")
+    Languages: ?    (e.g. "en, fr")
+```
+
+Wait. Then:
+
+```
+Q3 — Exclusion criteria?
+    (e.g. "case reports, n < 5, paediatric")
+```
+
+Wait. Then:
+
+```
+Q4 — Domain priors / style notes for the extraction agent?
+    (e.g. "Prefer ITT over PP analyses."
+          "MEP amplitude reported in mV or µV — always convert to mV."
+          "Distinguish acute/subacute/chronic — recovery dynamics
+           differ profoundly.")
+```
+
+Wait. Then:
+
+```
+Q5 — Anything else to record in the context?
+    (Notes, deadlines, collaborators, registration ID,
+     anything that grounds your decisions later.)
+```
+
+Wait for the last answer, then **write all answers** into
+`<project>-review/contexte.md`, replacing the seeded placeholders with
+the user's prose. Confirm:
+
+```
+✓ contexte.md written. Reading it back:
+[show the file content, ~30 lines]
+
+Edit / add anything? [n / paste edit]
+```
+
+Apply edits if any, then proceed to Step 8.
+
+## Step 8 — Build template + instructions.md (interactive)
+
+### Step 8a — Co-design the template (if it's blank or empty)
+
+Check the template's columns. If the template was created with
+`--from-source` or `--columns`, the column set already exists →
+skip to Step 8b.
+
+If the template is BLANK (only `slug` column or nothing), co-design:
+
+```
+Let's decide which variables you'll extract. The default SR set has
+27 columns; you can use it whole, a subset, or start from scratch.
+
+  [a] Use the default SR set (27 columns)
+  [b] Pick a category-by-category subset
+  [c] Start blank and add one at a time
+  [d] Paste a custom list
+```
+
+For **[b]**, walk through categories ONE AT A TIME:
+
+```
+  Identifiers — slug, first_author, year, journal, doi, country [Y/n]
+  Design — study_design, n_total, n_intervention, n_control [Y/n]
+  Population — age_mean, sex_pct_female, population, chronicity [Y/n]
+  Baseline outcomes — baseline_fm, baseline_<scale> [Y/n]
+  Intervention — intervention, intervention_subfamily, n_sessions, session_duration_min [Y/n]
+  Outcomes — primary_outcome_delta, p_value, effect_size, confidence_interval [Y/n]
+  Safety — adverse_events, dropouts [Y/n]
+  Quality — risk_of_bias, trial_registration [Y/n]
+  Free-form — notes [Y/n]
+```
+
+Aggregate the user's choices into the final column list, write it as
+row 1 of the template (leaving row 2 empty — filled in 8b).
+
+For **[c]** or **[d]**, prompt for the column names directly.
+
+### Step 8b — Per-column instructions (one at a time)
+
+For each column (except `slug`), ask the user the instruction.
+**Ask one column at a time**, in template order:
+
+```
+Column 1 of N — year
+  What instruction? (categorical | NL | unit hint | skip)
+    Examples:
+      Categorical:   "RCT, cohort, cross-sectional"
+      NL:            "Publication year, 4 digits"
+      Unit hint:     "(YYYY)"
+      Skip:          (leave empty — implicit, you'll clarify later)
+```
+
+Wait for answer. Echo back to confirm:
+
+```
+  → "Publication year, 4 digits"   (kind: nl)
+  Confirm? [Y / re-enter]
+```
+
+If categorical, the agent validates: "I'll interpret this as the
+allowed values `[a, b, c]`. Pick one of these verbatim during
+extraction. OK?"
+
+Move to next column. Continue until all columns done.
+
+### Step 8c — Persist to both files
+
+Write the instructions into:
+- `template.xlsx` row 2 (terse, machine-readable — exactly what the
+  user typed)
+- `instructions.md` (long-form, with the column name as `## <name>`
+  heading, the row-2 instruction, plus any clarifying detail the
+  user added during 8b)
+
+Confirm with a summary:
+
+```
+✓ template.xlsx row 2 filled (N columns).
+✓ instructions.md written  ({categorical: K, NL: K, empty: K} kinds).
+```
+
+## Step 9 — Final guidance
+
+Print:
+
+```
+✓ Project ready at ./<project>-review/
+
+To run the extraction:
+  /wiki-extract-table <project>-review/
+
+  Phase 1 will re-check the instructions you just authored
+  (catches empty / ambiguous columns), then Phase 2 + 3 produce
+  output/extraction-{detailed,coded}.xlsx.
+
+To add sources to extract:
+  - List the slugs in <project>-review/contexte.md under "Source list"
+  - Or copy / link the source MDs into <project>-review/articles/
+  - Or leave both empty and extract_data.py reads straight from wiki/sources/
 ```
 
 # Notes
@@ -261,3 +435,11 @@ Next steps:
 - **NEVER call `extract_data.py --from-source` with a slug not present
   in `wiki/sources/`.** Verify first; if missing, suggest
   `/wiki-batch-ingest` first to ingest the SR.
+- **In the interactive build (Steps 7–8): ask ONE question at a time,
+  WAIT for the answer, echo back to confirm.** Do not batch 5
+  questions into one prompt — that's the failure mode that turns the
+  wizard into a wall of text the user skims and skips. The whole
+  point of the interactive build is a guided conversation.
+- **Allow the user to bail out at any step.** "skip / continue
+  later" should always be a valid answer; on bail, fall through to
+  Step 9 (Final guidance) and exit cleanly.
