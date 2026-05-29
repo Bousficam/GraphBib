@@ -1,5 +1,5 @@
 ---
-description: Bootstrap and interactively build a literature-review extraction project. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md, co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
+description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, population, outcomes, style notes — with dynamic follow-ups for ambiguous answers), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
 argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
 ---
 
@@ -120,12 +120,28 @@ focused on what disambiguates extraction calls:
 # Project context — <project-name>
 
 > Fill me before running /wiki-extract-table. The extraction agent
-> reads this to disambiguate which value to extract, sanity-check
-> numerics, and apply your style conventions.
+> reads this to calibrate extraction depth, disambiguate which
+> value to extract, sanity-check numerics, and apply your style
+> conventions.
+
+## Review type
+
+(systematic / meta-analysis / scoping / narrative / umbrella /
+mapping / methodological. Drives extraction stringency — a
+meta-analysis needs effect sizes + CIs + per-arm Ns, a scoping
+review can be looser.)
+
+## Review objective
+
+(Why this review exists — the broader purpose / contribution.
+Different from the research question. Examples:
+ "Inform AHA/ESO guideline update on post-stroke motor rehab."
+ "Map the methodological heterogeneity of TMS dose-response trials."
+ "Identify gaps for an EU H2026 grant proposal.")
 
 ## Research question
 
-(One sentence — what this review is trying to answer. Used by the
+(One sentence — what this review specifically answers. Used by the
 agent to prioritize when a paper reports many candidates for the
 "primary" outcome.)
 
@@ -150,6 +166,8 @@ extraction when the paper reports many variants — e.g.
   post-stroke*)
 - Style preferences (e.g. *quote dose parameters verbatim — never
   paraphrase frequency / intensity / sessions*)
+- Effect-size convention (meta-analyses only — *Cohen's d for
+  continuous outcomes, log-OR for binary, both with 95% CI*)
 
 ## Source list
 
@@ -243,32 +261,69 @@ If the user **confirms**, run Steps 7–8 in order.
 
 ## Step 7 — Build contexte.md (interactive)
 
-Ask 4 short questions in sequence, ONE AT A TIME, waiting for each
-answer before asking the next. Every question must be **directly
-useful to the extraction agent** — pre-extraction methodology
-(inclusion/exclusion, search dates, language filters) is OUT OF
-SCOPE here, it belongs to your SR protocol, not to contexte.md.
+Ask 6 structured questions ONE AT A TIME, waiting for each answer
+before asking the next. Every question is **directly useful to the
+extraction agent** — pre-extraction methodology (inclusion/exclusion,
+search dates, language filters) is OUT OF SCOPE here, it belongs to
+your SR protocol, not to contexte.md.
+
+After the 6 structured questions, **ask 0–5 targeted follow-ups**
+based on what's ambiguous or under-specified in the answers (Step 7b).
+
+### Structured questions (always asked, in order)
 
 ```
-Q1 — Research question?
-    (One sentence — what this review answers. The agent uses it to
-     prioritize when a paper reports many candidates for the
-     "primary" outcome.
+Q1 — Review type?
+    (Pick one: systematic / meta-analysis / scoping / narrative /
+     umbrella / mapping / methodological. This calibrates extraction
+     stringency — see the table below.)
 
-     Examples:
-      "Does MI-BCI improve upper-limb motor recovery after
-       chronic stroke vs sham?"
-      "What's the dose-response of low-frequency rTMS over
-       contralesional M1?")
+       Type             Stringency / typical template focus
+       ─────────────    ────────────────────────────────────────────
+       systematic       Strict per-PRISMA; risk of bias mandatory
+       meta-analysis    Adds effect size + 95% CI + per-arm N + heterogeneity
+       scoping          Broader, descriptive; less stringent on outcomes
+       narrative        Thematic synthesis; loose template
+       umbrella         Review-of-reviews; metadata-heavy
+       mapping          Methodological landscape; design + outcomes focus
+       methodological   Tool / scale evaluation; psychometric data
 ```
 
 Wait for answer. Then:
 
 ```
-Q2 — Population frame?
+Q2 — Review objective?
+    (Why this review exists — the broader purpose / contribution.
+     Different from the research question.
+
+     Examples:
+      "Inform AHA/ESO guideline update on post-stroke motor rehab."
+      "Map the methodological heterogeneity of TMS dose-response trials."
+      "Identify gaps for an EU H2026 grant proposal.")
+```
+
+Wait. Then:
+
+```
+Q3 — Research question?
+    (One sentence — what this review specifically answers. The agent
+     uses it to prioritize when a paper reports many candidates for
+     the "primary" outcome.
+
+     Examples:
+      "Does MI-BCI improve upper-limb motor recovery after chronic
+       stroke vs sham?"
+      "What's the dose-response of low-frequency rTMS over
+       contralesional M1?")
+```
+
+Wait. Then:
+
+```
+Q4 — Population frame?
     (Brief — only for sanity checks during numerical extraction.
-     E.g. so the agent flags a baseline age of 8 in a chronic
-     stroke study, or an MEP amplitude of 200 mV.
+     E.g. so the agent flags a baseline age of 8 in a chronic stroke
+     study, or an MEP amplitude of 200 mV.
 
      Examples:
       "Adults > 18, chronic stroke (≥ 6 mo post-onset),
@@ -279,37 +334,85 @@ Q2 — Population frame?
 Wait. Then:
 
 ```
-Q3 — Primary outcomes of interest?
+Q5 — Primary outcomes of interest?
     (Which scales / subscales the review hinges on. Anchors
      extraction when the paper reports many variants.
 
      Examples:
       "Fugl-Meyer UE total score (0-66), not the motor or sensation
        subscales separately."
-      "MEP amplitude peak-to-peak in mV; latency in ms — both
-       from contralesional M1 stimulation only.")
+      "MEP amplitude peak-to-peak in mV; latency in ms — both from
+       contralesional M1 stimulation only.")
 ```
 
 Wait. Then:
 
 ```
-Q4 — Domain priors / style notes for the extraction agent?
+Q6 — Domain priors / style notes for the extraction agent?
     (Unit conventions, ITT vs PP preference, terminology
-     disambiguation, anything else the agent should know to do
-     consistent extraction.
+     disambiguation, effect-size conventions (meta-analyses),
+     anything else the agent should know to do consistent extraction.
 
      Examples:
       "Prefer ITT over PP analyses."
       "MEP amplitude reported in mV or µV — always convert to mV."
       "Distinguish acute / subacute / chronic — recovery dynamics
        differ profoundly."
-      "Quote dose parameters verbatim — never paraphrase
-       frequency, intensity, or session count.")
+      "Cohen's d for continuous outcomes, log-OR for binary; always
+       report 95% CI." (if meta-analysis)
+      "Quote dose parameters verbatim — never paraphrase frequency,
+       intensity, or session count.")
 ```
 
-Wait for the last answer, then **write all answers** into
-`project-review/<name>/contexte.md`, replacing the seeded placeholders with
-the user's prose. Confirm:
+### Step 7b — Targeted follow-up questions (dynamic)
+
+After Q1–Q6 are answered, **review the answers together** and ask
+0–5 follow-ups for whatever is still ambiguous or under-specified.
+DO NOT ask follow-ups gratuitously — only when an answer leaves a
+real extraction decision unclear.
+
+Examples of when to ask follow-ups (with the actual phrasing):
+
+- **Q1 = meta-analysis but no effect-size metric mentioned in Q6**
+  → *"You said meta-analysis. Which effect size do you want extracted
+  — Cohen's d, Hedges' g, log-OR, RR, or raw mean difference? Each
+  needs different ancillary variables in the template."*
+
+- **Q5 primary outcome is a multi-component scale, no subscale specified**
+  → *"FM-UE — total score (0–66), motor subscale only (0–60), or
+  motor + sensation? Papers report all three; pick now to avoid
+  per-cell ambiguity."*
+
+- **Q4 population says "adults" but Q3 asks about chronic stroke**
+  → *"Q4 says 'adults' and Q3 says chronic stroke — confirm: chronic
+  stroke adults only (≥ 6 mo post-onset), or any adult with
+  cerebrovascular disease (incl. acute / subacute)?"*
+
+- **Q1 = scoping but Q6 mentions ITT preference**
+  → *"Scoping reviews usually don't extract analysis-arm details.
+  Skip ITT/PP for this review, or keep it as an optional column?"*
+
+- **Q6 has nothing about timepoint / follow-up**
+  → *"Many papers report outcomes at multiple timepoints (end of
+  treatment, 1 mo follow-up, 6 mo). Which timepoint anchors your
+  primary outcome — extract latest, end-of-treatment, or specific
+  follow-up?"*
+
+- **Q3 mentions a comparator that hints at a complex design**
+  → *"You mentioned 'sham BCI' — do you also accept active controls
+  (e.g. standard PT)? If so, the extraction should distinguish
+  sham vs active-control comparators."*
+
+Each follow-up is a single targeted question. Wait for the answer
+before asking the next. Cap at 5 total — if you have more concerns,
+say so once at the end as a note ("Other potential ambiguities to
+revisit: …") rather than running a long interrogation.
+
+### Step 7c — Persist
+
+When all questions answered (structured + follow-ups), **write all
+answers** into `project-review/<name>/contexte.md`, replacing the
+seeded placeholders with the user's prose. Confirm:
 
 ```
 ✓ contexte.md written. Reading it back:
