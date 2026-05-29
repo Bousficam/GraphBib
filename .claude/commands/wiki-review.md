@@ -1,20 +1,51 @@
 ---
-description: Generate a structured literature review on a topic from the wiki — Background / Methods / Findings / Recommendations / Open Questions / APA bibliography. Saves to wiki/syntheses/.
-argument-hint: "<topic>"
+description: Generate a structured literature review on a topic from the wiki — Background / Methods / Findings / Recommendations / Open Questions / APA bibliography. Saves to wiki/syntheses/. Sonnet by default; pass --opus for higher-quality long-form synthesis on complex or high-stakes topics.
+argument-hint: "<topic>  [--opus]"
 ---
 
 Produce a citation-rigorous literature review on the given topic.
 
-Arguments: $ARGUMENTS — the topic (free text), e.g.
-*"MI-BCI in chronic stroke"*, *"corticospinal integrity as biomarker
-for motor recovery"*, *"cTBS over contralesional M1"*.
+Arguments: $ARGUMENTS — the topic (free text) + optional `--opus`
+flag at the end.
+
+Examples:
+- *"MI-BCI in chronic stroke"*
+- *"corticospinal integrity as biomarker for motor recovery"*
+- *"cTBS over contralesional M1 --opus"*
+
+# Model selection
+
+By **default the `reviewer` sub-agent runs on Sonnet** — fast, cheap,
+solid quality for routine reviews.
+
+Pass **`--opus`** at the end of the topic to upgrade for that one
+run. Use it when:
+- the topic spans many sources (≥ 30) and the narrative needs to
+  hold together across sub-themes
+- there are known contradictions in the literature you want
+  carefully weighed
+- the review is going into a paper / grant / guideline draft
+  (user-facing output, quality matters more than cost)
+
+Cost guide: Opus ≈ 5× Sonnet pricing. A 30-source review with
+Opus ≈ $15 vs Sonnet ≈ $3. Worth it for the qualitatively better
+long-form coherence on stakes-high outputs, wasteful for routine
+synthesis.
 
 # Procedure
 
-Delegate to the `reviewer` sub-agent:
+Parse `$ARGUMENTS`:
+- If `--opus` is the last token, strip it and set `MODEL=opus`.
+- Otherwise, `MODEL=sonnet` (the agent's default).
+
+Delegate to the `reviewer` sub-agent. With the model override:
 
 ```
-Agent(subagent_type=reviewer, prompt="Review topic: $ARGUMENTS. Save to wiki/syntheses/.")
+Agent(
+    subagent_type=reviewer,
+    model=$MODEL,                # only set if --opus was passed
+    prompt="Review topic: $TOPIC. Save to wiki/syntheses/."
+)
 ```
 
 The sub-agent:
@@ -46,3 +77,6 @@ The sub-agent:
   regenerated from the current wiki state). Manual edits to the
   saved file should be made after the agent finishes, not before.
 - Word count target: 1500–4000 words depending on topic breadth.
+- Confirm the model in your end-of-run recap: *"Review on '<topic>'
+  written via <Sonnet | Opus> to wiki/syntheses/<slug>.md"* so the
+  user knows what was used.
