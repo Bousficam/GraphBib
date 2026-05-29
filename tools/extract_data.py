@@ -590,6 +590,32 @@ def detect_format(path):
     sys.exit(f"Unsupported format: {suffix}. Use .xlsx or .csv.")
 
 
+def _read_csv_with_encoding_fallback(path):
+    """Open a CSV trying common encodings in order.
+
+    Excel on Windows/Mac defaults to cp1252 (with smart quotes, em-dashes,
+    accented characters) — opening such a file with strict UTF-8 raises
+    UnicodeDecodeError. We try UTF-8 (with BOM tolerance), then cp1252,
+    then latin-1 (cannot fail on any byte sequence).
+    """
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            with open(path, newline="", encoding=encoding) as f:
+                reader = csv.DictReader(f)
+                headers = list(reader.fieldnames or [])
+                data = list(reader)
+            if encoding != "utf-8-sig":
+                print(f"  · {Path(path).name}: decoded as {encoding} (not UTF-8 — "
+                      f"re-save as UTF-8 in Excel for cleaner future reads)",
+                      file=sys.stderr)
+            return headers, data
+        except UnicodeDecodeError:
+            continue
+    sys.exit(f"Could not decode {path} with any common encoding "
+             f"(utf-8 / cp1252 / latin-1). The file may be corrupt or in "
+             f"an exotic encoding. Try re-saving as UTF-8 from Excel.")
+
+
 def read_table(path):
     fmt = detect_format(path)
     if fmt == "xlsx":
@@ -605,10 +631,7 @@ def read_table(path):
         for r in rows[1:]:
             data.append({h: ("" if v is None else v) for h, v in zip(headers, r)})
         return headers, data, fmt
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        headers = list(reader.fieldnames or [])
-        data = list(reader)
+    headers, data = _read_csv_with_encoding_fallback(path)
     return headers, data, fmt
 
 
