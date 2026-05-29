@@ -11,3 +11,8 @@ raw/*
 wiki/*
 pdf2md/Split/*
 .claude/settings.local.json
+
+# Extraction projects — per-user analytical artifacts.
+# If you want to commit a project's spec (contexte/instructions/template)
+# while excluding output/articles, unignore selectively in a sub-.gitignore.
+project-review/*

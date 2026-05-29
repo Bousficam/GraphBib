@@ -9,23 +9,44 @@ Arguments: $ARGUMENTS
 
 # Project folder convention (preferred)
 
-A literature-review project lives in its own folder:
+All literature-review extraction projects live under a single
+container directory `project-review/` at the repo root. Each project
+is its own sub-folder, **OUTSIDE the wiki / Obsidian vault**:
 
 ```
-my-mibci-review/
-├── contexte.md          # Project scope: research question, inclusion criteria, dates
-├── instructions.md      # Per-column extraction spec (agent-authored from Phase 1)
-├── template.xlsx        # 2-row Excel template (slug + variable + instruction)
-├── articles/            # Source markdown files (or symlinks to raw/papers/)
-└── output/
-    ├── extraction-detailed.xlsx   # Verbatim values with units / quotes
-    └── extraction-coded.xlsx      # Strict per-instruction format (publication-ready)
+GraphBib/                            ← repo root
+├── wiki/                            ← Obsidian vault — UNRELATED to this command
+├── raw/, docs/, tools/, …           ← agent infrastructure
+└── project-review/                  ← container for all extraction projects
+    ├── mibci/                       ← THIS COMMAND operates on a sub-folder
+    │   ├── contexte.md              #   project scope (extraction-relevant only)
+    │   ├── instructions.md          #   per-column spec (Phase 1 fills this)
+    │   ├── template.xlsx            #   2-row template (slug + variable + instruction)
+    │   ├── articles/                #   source MD copies (or empty — uses wiki/sources/)
+    │   └── output/
+    │       ├── extraction-detailed.xlsx  # verbatim + units (audit)
+    │       └── extraction-coded.xlsx     # strict per-instruction (publication-ready)
+    ├── tms-dose-response/           ← project 2 — independent
+    └── dti-biomarkers/              ← project N — independent
 ```
 
-When `$ARGUMENTS` is a folder, this is the assumed layout. When it's a
-single `.xlsx`/`.csv`, the legacy "one-template, sibling output" mode
-applies (outputs land alongside the template, no `contexte.md` / no
-`instructions.md`).
+**The project folder is NOT part of any Obsidian vault.** `wiki/` is
+read by Obsidian; `project-review/*/` are pure file system, opened
+in Excel / a text editor. The wiki is the agent's knowledge graph
+(persistent, shared across projects); each project sub-folder is a
+self-contained analytical artifact for ONE specific systematic review.
+
+Bootstrap a fresh project via `/wiki-extract-init <name>` (creates
+`project-review/<name>/` + interactive build of contexte.md +
+template + instructions.md).
+
+When `$ARGUMENTS` is a folder under `project-review/`, this is the
+assumed layout. When it's a single `.xlsx`/`.csv`, the legacy
+"one-template, sibling output" mode applies (outputs land alongside
+the template, no `contexte.md` / no `instructions.md`).
+
+**Refuse** to operate on a folder that lives inside `wiki/` — that
+would conflate the knowledge graph with an extraction artifact.
 
 # Template format (2-row)
 
@@ -37,14 +58,17 @@ applies (outputs land alongside the template, no `contexte.md` / no
 
 Row 2 cell content drives extraction:
 
-| Format | Interpretation |
-|---|---|
-| `a \| b \| c` | Categorical — pick verbatim |
-| `a, b, c` (short tokens) | Categorical — comma-separated |
-| `0=lo, 1=hi` | Ordinal coded — return the code |
-| `(years)` / `(0-100)` | Quantitative type hint |
-| Sentence (3+ words) | Natural-language instruction |
-| **Empty** | **Implicit variable** — agent ASKS in Phase 1 |
+| Format | Inferred type | Closure | Example |
+|---|---|---|---|
+| `a \| b \| c` | nominal | **strict** | `RCT \| cohort \| cross-sectional` |
+| `a \| b \| c \| ...` | nominal | **open** (novel values flagged) | `RCT \| cohort \| ...` |
+| `a, b, other` | nominal | **open** (the `other` token signals openness) | `acute, subacute, other` |
+| `a, b, c` (no `...` / `other`) | nominal | **strict** | `acute, subacute, chronic` |
+| `0=label, 1=label` | ordinal coded | strict | `0=low, 1=high` |
+| `(int)` / `(integer)` / `(count)` / `(n)` | int | — | `(int)` → bare integer, rounds if source decimal |
+| `(years)` / `(0-100)` / `(mV)` | float | — | `(years)` → number + unit verbatim |
+| Sentence (3+ words) | NL (text or quant) | — | `Fugl-Meyer UE baseline mean, intervention arm only` |
+| **Empty** | implicit | — | **Agent ASKS in Phase 1** |
 
 # Procedure
 
@@ -78,24 +102,47 @@ empty instructions interactively), and re-invoke
 python tools/extract_data.py <template> --analyze --instructions-row 1
 ```
 
-This emits JSON with per-column classification. Process and present:
+This emits JSON with per-column classification: `kind`,
+`inferred_type` (int / float / ordinal / nominal / text), `closed`
+(strict vs open categorical), `allowed_values`. Process and present
+to the user with all four properties visible:
 
 ```
 Template analyzed: <path>  (N columns, M data rows)
 
 CLEAR — I'll extract these confidently:
-  • <name>     (kind: categorical, values: [a, b, c])
-  • <name>     (kind: nl, instruction: "<verbatim>")
-  • <name>     (kind: type_hint, will return numeric with units)
+  • year             nominal int        (e.g. 2024)
+  • n_intervention   type_hint int      (will round if source decimal)
+  • baseline_FM      type_hint float    (range 0-66, units stripped in coded output)
+  • design           categorical strict  values: [RCT, cohort, cross-sectional]
+                                          (no match → coded blank)
+  • intervention     categorical open    values: [BCI, TMS, tDCS, ...]
+                                          (novel value kept verbatim + flagged)
+  • risk_of_bias     categorical strict  codes:  [0=low, 1=some concerns, 2=high]
+                                          (returns code in coded output)
+  • adherence_rule   nl text             instruction: "% participants completing ≥ 80%
+                                          of planned sessions"
 
-NEEDS YOUR CLARIFICATION (empty or ambiguous instruction):
-  • <name>     instruction is empty — what should I extract?
-  • <name>     instruction "<X>" is short/vague — confirm meaning?
+NEEDS YOUR CLARIFICATION (empty / ambiguous / closure unclear):
+  • adherence_pct    instruction empty — what should I extract?
+  • dropout_reasons  instruction "list main reasons" — how many max?
+                                          verbatim quotes or paraphrase?
+  • intervention     CLOSURE? Currently inferred as OPEN (because of "..."),
+                                          but for a strict scoping review
+                                          you may want CLOSED. Confirm?
 ```
 
 For each NEEDS-CLARIFICATION column, ask **a specific, leading
-question** so the user can answer concisely (see examples in the
-old slash command if helpful: dropout reasons, adherence, costs).
+question**. For **closure ambiguity** specifically, ask the user:
+
+  > *"Column `<name>` has the allowed values [a, b, c]. If a paper
+  > reports a value not in this list (e.g. 'mixed BCI' or 'sham +
+  > standard PT'), should I (1) **strict** — drop the cell in the
+  > coded output, OR (2) **open** — keep the novel value verbatim
+  > and flag it for you to widen the spec later?"*
+
+Closed-by-default is safer for clean coded output; open-by-default
+is safer when the user is exploring a heterogeneous corpus.
 
 **WAIT** for user answers. Then propose to:
 1. Update the template's row 2 in-place with the clarified instructions
@@ -150,11 +197,25 @@ python tools/extract_data.py <template> --instructions-row 1 --coded
 - Writes `extraction-detailed.xlsx` to `<folder>/output/`
 - ALSO writes `extraction-coded.xlsx` (strict per-instruction format)
 
-`--coded` produces a SECOND output where:
-- Categorical cells hold the canonical label only (e.g. `RCT` not `RCT (n=42, blinded)`)
-- Ordinal-coded cells hold the integer code (e.g. `0` for "low risk")
-- Quantitative cells strip units (e.g. `12.4` not `12.4 ± 3.1 years`)
-- NL cells pass through unchanged
+`--coded` produces a SECOND output where each value is stripped to
+the strict per-instruction form. Cell format conventions:
+
+| Column type | Detailed cell | Coded cell |
+|---|---|---|
+| `(int)` | `12.4 ± 3.1 years \| Table 1 row "Age"` | `12` *(rounded)* |
+| `(years)` (float) | `12.4 ± 3.1 years \| Table 1 row "Age"` | `12.4` |
+| Categorical strict | `RCT (n=42, blinded) \| Methods §"Study design"` | `RCT` |
+| Categorical strict, no match | `controlled clinical trial \| Methods` | *(blank)* |
+| Categorical open, no match | `controlled clinical trial \| Methods` | `controlled clinical trial` *(novel, kept)* |
+| Ordinal coded | `low risk \| Table 4` | `0` |
+| NL | `Free narrative text \| p.7 §"..."` | `Free narrative text` *(passthrough, source suffix stripped)* |
+
+Note the **`| <source location>` suffix on every detailed value**:
+the extractor agent always appends where it found the value
+(`Table 3`, `Fig 2 caption`, `p.4 §"Demographic characteristics"`,
+`Methods §"Statistical analysis"`, …). The coded output strips this
+suffix; the detailed output keeps it so you can audit any cell
+back to the page.
 
 The detailed version is for audit / spot-checking. The coded version
 is what you feed to R / Python / Excel pivot tables.
