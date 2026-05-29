@@ -27,6 +27,15 @@ wiki/                 # Owned entirely by the agent
 ├── recommendations/  # Clinical/research recommendations grouped by evidence
 ├── questions/        # Open research questions identified across the corpus
 └── syntheses/        # Saved query answers and literature reviews
+project-review/       # Self-contained extraction projects (NOT in Obsidian)
+├── <name>/           # One folder per systematic / scoping / narrative review
+│   ├── contexte.md       # Review type, objective, question, outcomes, style notes
+│   ├── instructions.md   # Per-column extraction spec (agent-authored)
+│   ├── template.xlsx     # 2-row template (variable + instruction)
+│   ├── articles/         # Source MDs (optional — defaults to wiki/sources/)
+│   └── output/
+│       ├── extraction-detailed.xlsx   # Verbatim + units + source location
+│       └── extraction-coded.xlsx      # Strict per-instruction (R-ready)
 graph/
 ├── graph.json        # Persistent node/edge data (SHA256-cached)
 └── graph.html        # Interactive vis.js visualization
@@ -205,14 +214,16 @@ the `Agent` tool.
 | `fetch-reading` | haiku | Download OA PDFs for a DOI list (Unpaywall) |
 | `ingester` | sonnet | Ingest one source — forces all 16 ingest steps |
 | `source-extender` | sonnet | Deepen an already-ingested shallow source |
-| `concept-builder` | sonnet | Extend one concept page to chapter depth |
+| `concept-builder` | sonnet *(opus opt-in)* | Extend one concept page to chapter depth — pass "with opus" / "use opus" for theoretically-dense concepts |
 | `extractor` | haiku | Fill one cell of a SR data-extraction table |
 | `query-synthesizer` | sonnet | Answer a focused research question |
-| `reviewer` | sonnet | Generate a structured literature review |
+| `reviewer` | sonnet *(opus opt-in)* | Generate a structured literature review — pass `--opus` to `/wiki-review` for high-stakes / contradiction-heavy reviews |
 | `lint` | sonnet | Audit (deterministic + cached semantic) |
 | `librarian` | sonnet | Act on lint findings — auto-fix / delegate / confirm |
 | `source-remover` | sonnet | Cleanly remove a source and every cross-reference |
 | `deduplicator` | sonnet | Judge redundant concept/method pages, merge or extract via deterministic pre-filter |
+
+**Opus opt-in** for `reviewer` and `concept-builder`: these are the two synthesis-heavy agents where Opus' long-form coherence and contradiction handling move the needle. By **default both run on Sonnet** (fast, cheap, solid for routine work). Override with `/wiki-review <topic> --opus` or by asking the orchestrator to "build / extend `<Concept>` with opus". Opus ≈ 5× Sonnet pricing — worth it on high-stakes outputs (papers, grants, guidelines), wasteful on routine synthesis.
 
 ## Academic Pipeline
 
@@ -661,27 +672,68 @@ You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ### Systematic review data extraction
 
-After ingesting your included studies, generate a typed extraction
-table from the SR's `cites:`:
+Extraction projects live under `project-review/<name>/` at the repo
+root — **separate from the Obsidian wiki**, self-contained per review:
 
-```bash
-python tools/extract_data.py --from-source cervera-2020 \
-  --output cervera-extraction.xlsx
+```
+project-review/mibci/
+├── contexte.md      # Review type, objective, research question, outcomes, style
+├── instructions.md  # Per-column extraction spec (agent-authored from Phase 1 debrief)
+├── template.xlsx    # 2-row template (variable name + instruction)
+├── articles/        # Source MD copies — or empty, reads straight from wiki/sources/
+└── output/
+    ├── extraction-detailed.xlsx   # Verbatim + units + source location
+    └── extraction-coded.xlsx      # Strict per-instruction (R-ready)
 ```
 
-The Excel ships with three spec rows (INSTRUCTIONS / TYPE / SCALE) for
-27 default columns (design, n per arm, demographics, intervention
-parameters, outcomes, effect sizes, RoB, …). Edit the spec rows in
-Excel, then fill:
+**Two slash commands drive the workflow:**
 
-```bash
-python tools/extract_data.py cervera-extraction.xlsx --llm
-```
+1. **`/wiki-extract-init <name>`** — interactive bootstrap.
+   Creates the skeleton, then walks you through:
+   - **contexte.md** (5 structured questions: review type, objective,
+     research question, primary outcomes, style notes — plus 0–5
+     targeted follow-ups for ambiguities)
+   - **template** (co-design if blank: default 27-col SR set,
+     category subset, or paste custom list)
+   - **instructions** (per-column dialog: type-hint / categorical-
+     strict / categorical-open / coded / NL — with int vs float and
+     strict vs open confirmation)
 
-Three layers per cell: frontmatter (deterministic) → body regex
-(heuristic) → LLM with type/scale validation. Cached in
-`tools/.cache/extract_llm.json`. Reports per-cell method
-(frontmatter / regex / llm / manual / empty / invalid).
+2. **`/wiki-extract-table project-review/<name>/`** — runs extraction.
+   Phase 1 re-checks the spec, Phase 2–3 produce both outputs,
+   Phase 5 proposes adaptive refinements (add column / split column /
+   refine instruction) based on observed patterns.
+
+**Template format (2-row)**:
+- Row 1 = column headers (variable names)
+- Row 2 = per-column instructions, polymorphic:
+  - `a | b | c` → categorical strict (`| ...` makes it open)
+  - `0=low, 1=high` → ordinal coded (returns the code)
+  - `(int)` / `(integer)` → integer, rounds source decimals
+  - `(years)` / `(0-100)` / `(mV)` → float with unit
+  - Sentence (3+ words) → natural-language extraction rule
+  - Empty → implicit, agent asks during Phase 1 debrief
+
+**Detailed output cell format**: `<value> | <source location>`
+(e.g. `12.4 ± 3.1 years | Table 1 row "Age"` or `RCT | Methods §"Study design"`).
+The source location is precise — `Table N` / `Fig N` / `p.N §"heading"` /
+`Section §"subsection"` — so you can audit any cell back to the page.
+
+**Coded output**: same cells with the `| <source>` suffix stripped,
+units removed for floats, decimals rounded for ints, categorical
+labels canonicalized, strict mismatches blanked, open novel values
+kept-but-flagged. Drop straight into R / Python / Excel pivot tables.
+
+**Three layers per cell**: frontmatter (deterministic) → body regex
+(heuristic) → LLM via the `extractor` sub-agent (haiku) with
+type/closure validation. Cached in `tools/.cache/extract_llm.json`
+keyed by (slug, column, instruction-hash) so re-runs on unchanged
+instructions are free.
+
+**Backward compatible**: the single-file legacy 4-row template
+(INSTRUCTIONS / TYPE / SCALE markers) still works with
+`tools/extract_data.py <template>` directly — same flow without the
+project folder.
 
 ---
 
