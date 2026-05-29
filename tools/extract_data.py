@@ -632,16 +632,24 @@ def write_table(path, headers, data, fmt):
 # Instructions row handling
 # ============================================================================
 
-def split_spec_rows(rows, slug_col):
+def split_spec_rows(rows, slug_col, forced_instructions_row_idx=None):
     """Pop and return the spec rows (INSTRUCTIONS, TYPE, SCALE) if present.
 
     Returns (spec_dict, remaining_data_rows) where spec_dict has keys
     "instructions", "types", "scales" — each a dict[col → str] (or None
     if the row is absent).
+
+    If `forced_instructions_row_idx` is set (1-indexed counting from the
+    first row after headers), force that row to be treated as
+    instructions regardless of its slug column marker. Use for 2-row
+    templates that don't carry the legacy INSTRUCTIONS marker.
     """
     spec = {"instructions": None, "types": None, "scales": None}
     out = []
-    for r in rows:
+    for i, r in enumerate(rows, start=1):
+        if forced_instructions_row_idx is not None and i == forced_instructions_row_idx:
+            spec["instructions"] = {k: ("" if v is None else str(v)) for k, v in r.items()}
+            continue
         slug = str(r.get(slug_col, "")).strip().upper()
         if slug == INSTRUCTIONS_MARKER:
             spec["instructions"] = {k: ("" if v is None else str(v)) for k, v in r.items()}
@@ -654,6 +662,96 @@ def split_spec_rows(rows, slug_col):
             continue
         out.append(r)
     return spec, out
+
+
+# ============================================================================
+# Template analysis (--analyze mode)
+# ============================================================================
+
+_CATEGORICAL_PIPE_RE = re.compile(r"\s\|\s")
+_CATEGORICAL_CODED_RE = re.compile(r"\b\d+\s*=\s*\w")
+_CATEGORICAL_COMMA_LIST_RE = re.compile(r"^[A-Za-z][\w\-]*(?:\s*,\s*[A-Za-z][\w\-]*){1,}$")
+_UNIT_HINT_RE = re.compile(r"^\(.+\)$")
+
+
+def classify_instruction(text):
+    """Classify a column instruction so the orchestrator can ask the right
+    clarifying question if needed.
+
+    Returns a dict with:
+      kind            — categorical | nl | empty | type_hint
+      inferred_type   — quantitative | ordinal | nominal | text | unknown
+      allowed_values  — list[str] if kind == categorical, else None
+    """
+    s = (text or "").strip()
+    if not s:
+        return {"kind": "empty", "inferred_type": "unknown", "allowed_values": None}
+
+    if _CATEGORICAL_CODED_RE.search(s):
+        pairs = [p.strip() for p in re.split(r"[;,]", s) if "=" in p]
+        return {"kind": "categorical", "inferred_type": "ordinal", "allowed_values": pairs}
+    if _CATEGORICAL_PIPE_RE.search(s):
+        values = [v.strip() for v in s.split("|") if v.strip()]
+        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values}
+    if _CATEGORICAL_COMMA_LIST_RE.match(s):
+        values = [v.strip() for v in s.split(",") if v.strip()]
+        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values}
+    if _UNIT_HINT_RE.match(s):
+        return {"kind": "type_hint", "inferred_type": "quantitative", "allowed_values": None}
+
+    word_count = len(s.split())
+    inferred = "text" if word_count >= 3 else "unknown"
+    return {"kind": "nl", "inferred_type": inferred, "allowed_values": None}
+
+
+def analyze_template_json(template_path, slug_col, forced_instructions_row_idx):
+    """Read template, classify each column, return a JSON-serializable analysis."""
+    headers, rows, fmt = read_table(template_path)
+    if slug_col not in headers:
+        return {
+            "error": f"Template missing the '{slug_col}' column.",
+            "headers": headers,
+        }
+    spec, data = split_spec_rows(rows, slug_col, forced_instructions_row_idx)
+    instructions = spec["instructions"] or {}
+    types = spec["types"] or {}
+    scales = spec["scales"] or {}
+
+    cols_info = []
+    for h in headers:
+        if h == slug_col:
+            continue
+        instr = (instructions.get(h) or "").strip()
+        classification = classify_instruction(instr)
+        legacy_type = (types.get(h) or "").strip() if types else None
+        legacy_scale = (scales.get(h) or "").strip() if scales else None
+        cols_info.append({
+            "name": h,
+            "instruction": instr,
+            "kind": classification["kind"],
+            "inferred_type": classification["inferred_type"],
+            "allowed_values": classification["allowed_values"],
+            "legacy_type": legacy_type or None,
+            "legacy_scale": legacy_scale or None,
+        })
+
+    if types or scales:
+        fmt_detected = "legacy-4row"
+    elif forced_instructions_row_idx is not None:
+        fmt_detected = "forced-2row"
+    elif instructions:
+        fmt_detected = "instructions-marker-only"
+    else:
+        fmt_detected = "no-spec"
+
+    return {
+        "template_path": str(template_path),
+        "format_detected": fmt_detected,
+        "n_columns": len(cols_info),
+        "n_data_rows": len(data),
+        "slug_column": slug_col,
+        "columns": cols_info,
+    }
 
 
 # ============================================================================
@@ -772,7 +870,12 @@ def main():
     ap.add_argument("template", nargs="?",
                     help="Excel (.xlsx) or CSV template to populate.")
     ap.add_argument("--output", "-o",
-                    help="Write to this path (default: overwrite input).")
+                    help="Write to this path. Default: <template-stem>-filled<ext> "
+                         "next to the template (the template stays as a reusable spec). "
+                         "Use --in-place to overwrite the template instead.")
+    ap.add_argument("--in-place", action="store_true",
+                    help="Overwrite the template in place (legacy behavior). "
+                         "Default: write to a sibling <stem>-filled file.")
     ap.add_argument("--from-source",
                     help="Pre-fill a NEW template from a source's cites: "
                          "(use with --output).")
@@ -787,7 +890,26 @@ def main():
                     help="Fall back to LLM (litellm) for cells still empty "
                          "after frontmatter + regex, using the INSTRUCTIONS "
                          "row to drive extraction.")
+    ap.add_argument("--analyze", action="store_true",
+                    help="Read the template, classify each column's instruction, "
+                         "output a JSON analysis on stdout. Does not extract. "
+                         "Use this from the orchestrator agent to drive the "
+                         "comprehension-debrief gate.")
+    ap.add_argument("--instructions-row", type=int, default=None,
+                    help="Treat row N (1-indexed, counting from the first row "
+                         "after the headers) as the instructions row. Use for "
+                         "2-row templates that don't carry the legacy "
+                         "INSTRUCTIONS marker in the slug column. Default: "
+                         "auto-detect via the legacy markers.")
     args = ap.parse_args()
+
+    # ---------- Analyze mode (no wiki access needed) ----------
+    if args.analyze:
+        if not args.template:
+            sys.exit("--analyze requires a template path.")
+        result = analyze_template_json(args.template, args.slug_column, args.instructions_row)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return
 
     sources = load_sources()
     if not sources:
@@ -834,7 +956,7 @@ def main():
         sys.exit(f"Template must contain a '{args.slug_column}' column. "
                  f"Got: {headers}")
 
-    spec, data = split_spec_rows(rows, args.slug_column)
+    spec, data = split_spec_rows(rows, args.slug_column, args.instructions_row)
     instructions = spec["instructions"]
     types = spec["types"] or {}
     scales = spec["scales"] or {}
@@ -947,7 +1069,14 @@ def main():
     if args.llm:
         save_llm_cache(llm_cache)
 
-    out = args.output or args.template
+    if args.output:
+        out = args.output
+    elif args.in_place:
+        out = args.template
+    else:
+        tpl = Path(args.template)
+        out = str(tpl.with_name(tpl.stem + "-filled" + tpl.suffix))
+
     # Re-include the spec rows at the top of the output (preserve user's edits)
     final_rows = []
     if instructions:
@@ -959,7 +1088,10 @@ def main():
     final_rows.extend(data)
     write_table(out, headers, final_rows, fmt)
 
-    print(f"  ✓ {out} updated.")
+    if out == args.template:
+        print(f"  ✓ {out} updated (in-place).")
+    else:
+        print(f"  ✓ {out} written  (template preserved at {args.template}).")
     print(f"\nPer-row status:")
     for k, v in row_status.items():
         print(f"  {k}: {v}")
