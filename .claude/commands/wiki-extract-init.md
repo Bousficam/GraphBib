@@ -454,30 +454,57 @@ For **[c]** or **[d]**, prompt for the column names directly.
 ### Step 8b — Per-column instructions (one at a time)
 
 For each column (except `slug`), ask the user the instruction.
-**Ask one column at a time**, in template order:
+**Ask one column at a time**, in template order. Show the format
+mini-table so the user can answer fast:
 
 ```
 Column 1 of N — year
-  What instruction? (categorical | NL | unit hint | skip)
-    Examples:
-      Categorical:   "RCT, cohort, cross-sectional"
-      NL:            "Publication year, 4 digits"
-      Unit hint:     "(YYYY)"
-      Skip:          (leave empty — implicit, you'll clarify later)
+  What instruction?
+
+    Type hint:         (int)          → integer (rounds decimals)
+                       (years)        → float, units kept in detailed
+    Categorical strict: a | b | c     → must pick one
+    Categorical open:   a | b | ...   → novel values flagged
+                        a, b, other   → ditto (the `other` token signals open)
+    Ordinal coded:      0=low, 1=high → returns the code
+    Natural language:   Sentence describing what to extract
+    Skip:               (leave empty — implicit, clarify later)
 ```
 
-Wait for answer. Echo back to confirm:
+Wait for answer. Echo back the agent's parsed interpretation to
+confirm:
 
 ```
-  → "Publication year, 4 digits"   (kind: nl)
+  → "Publication year, 4 digits"
+    Parsed as: kind=nl, type=text, closure=n/a
   Confirm? [Y / re-enter]
 ```
 
-If categorical, the agent validates: "I'll interpret this as the
-allowed values `[a, b, c]`. Pick one of these verbatim during
-extraction. OK?"
+For **categorical** instructions, the agent always confirms closure:
 
-Move to next column. Continue until all columns done.
+```
+  → "RCT | cohort | cross-sectional"
+    Parsed as: kind=categorical, type=nominal, closure=STRICT
+                allowed = [RCT, cohort, cross-sectional]
+    Strict means: if a paper reports e.g. "controlled clinical trial"
+                  → the coded cell will be BLANK (no match dropped).
+    Want OPEN instead? Add " | ..." to the end (then novel values are
+    kept verbatim and flagged for you).
+  Confirm STRICT? [Y / open / re-enter]
+```
+
+For **type-hint** instructions, the agent confirms int vs float:
+
+```
+  → "(years)"
+    Parsed as: kind=type_hint, type=float
+    Coded output will be the numeric value, units stripped: e.g.
+                  "12.4 ± 3.1 years" (detailed) → "12.4" (coded)
+    If you want INTEGER (rounds decimals), use "(int)" instead.
+  Confirm float? [Y / int / re-enter]
+```
+
+Move to the next column. Continue until all columns done.
 
 ### Step 8c — Persist to both files
 

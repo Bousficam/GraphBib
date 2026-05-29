@@ -22,21 +22,44 @@ when batch-filling a table.
 
 In the new 2-row template workflow (`/wiki-extract-table`), the
 orchestrator passes a SINGLE `instruction` field rather than separate
-INSTRUCTIONS / TYPE / SCALE. You must infer the type / scale from the
-instruction's format:
+INSTRUCTIONS / TYPE / SCALE. You must infer the type / closure from
+the instruction's format:
 
-| Instruction format | Inferred type | Action |
-|---|---|---|
-| `value \| value \| value` | nominal (categorical) | Return one of the values verbatim |
-| `value, value, value` (short tokens) | nominal (categorical) | Return one of the values verbatim |
-| `0=label, 1=label, 2=label` | ordinal (coded) | Return the integer code only |
-| `(unit)` or `(range)` | quantitative | Return numeric value, include unit verbatim |
-| Sentence (3+ words, prose) | text or quantitative | Apply the rule directly |
+| Instruction format | Inferred type | Closure | Action |
+|---|---|---|---|
+| `value \| value \| value` | nominal | **strict** | Return one of the values verbatim |
+| `value \| value \| ...` | nominal | **open** | Return one of the values; if novel, return verbatim and flag |
+| `value, value, other` | nominal | **open** | Same as above (the `other` token signals openness) |
+| `value, value, value` (no `...`/`other`) | nominal | **strict** | Return one of the values verbatim |
+| `0=label, 1=label, 2=label` | ordinal coded | strict | Return the integer code only |
+| `(int)` / `(integer)` / `(count)` / `(n)` | int | — | Return the bare integer |
+| `(years)` / `(0-100)` / `(mV)` / `(percentage)` | float | — | Return numeric value with units verbatim |
+| Sentence (3+ words, prose) | text or quant | — | Apply the rule directly |
+
+**Closure rules**:
+
+- **Strict (closed)** — your value MUST match one of the allowed
+  values (case-insensitive, but return canonical case). If the source
+  uses a different label, pick the closest match. If no reasonable
+  match exists, return `not reported`.
+- **Open (non-strict)** — prefer a match against the allowed list,
+  but if the source uses a novel value that fits the column's intent,
+  return it verbatim and add a `# novel value, not in allowed list`
+  comment. The orchestrator will surface it for the user to decide
+  whether to widen the spec.
+
+**Int vs float**:
+
+- **int** columns: ONLY return integers. If the source reports a
+  decimal, you may round to the nearest int and add
+  `# rounded from <verbatim>` as the comment.
+- **float** columns: keep decimals; include the unit (the coded
+  output strips them).
 
 If the instruction is **empty**, return immediately with the literal
-string `INSTRUCTION_MISSING` and a comment — the orchestrator should
-have caught this in Phase 1 (comprehension debrief). Do not guess
-from the column name.
+string `INSTRUCTION_MISSING` — the orchestrator should have caught
+this in Phase 1 (comprehension debrief). Do not guess from the
+column name.
 
 ## Input format — separate TYPE / SCALE (legacy 4-row template)
 
@@ -89,30 +112,94 @@ transmitter's wording, return that wording but flag uncertainty.
 
 # Output format
 
-Return ONE line, plain text. No preamble. No JSON. No quotes around
-the value. Examples:
+Return ONE line in the form:
 
 ```
-12.4 ± 3.1 years
+<value> | <source location>
+```
+
+The `|` separator is RESERVED for the source location. If the value
+itself contains a `|` for legitimate reasons (e.g. a categorical with
+pipe-style labels), substitute `/` in the value (and note it in a
+comment).
+
+## Value rules (left of the `|`)
+
+- **Be terse.** No preamble like "The value is" / "Based on the
+  Methods section". No JSON. No surrounding quotes. The cell shows
+  the value, nothing else.
+- **No redundancy.** If the paper already labels the value
+  ("baseline FM-UE = 32.4"), return `32.4 ± 5.1` — the column name
+  is `baseline_FM`, you don't need to repeat "FM-UE" or "baseline"
+  in the value.
+- **Verbatim quantitative.** Quote with units exactly: `12.4 ± 3.1
+  years`, `p<0.001`, `Cohen's d = 0.62, 95% CI 0.18–1.06`.
+- **Canonical categorical.** Match the allowed list. For coded
+  ordinals, return the integer code only.
+- **`not reported` (lowercase, no period)** when the source doesn't
+  report the field. No source suffix needed in this case.
+
+## Source location rules (right of the `|`)
+
+Be precise but compact. Pick ONE location — the most authoritative.
+Format:
+
+| Source type | Format | Example |
+|---|---|---|
+| Table | `Table N` (+ row hint if needed) | `Table 3` / `Table 1 row "Intervention arm"` |
+| Figure | `Fig N` (+ caption / panel) | `Fig 2 caption` / `Fig 4 panel A` |
+| Specific page + paragraph | `p.N §"<heading or first words>"` | `p.4 §"Demographic characteristics"` / `p.7 §"Primary outcome analysis"` |
+| Specific page, no heading | `p.N` | `p.4` |
+| Section if no page | `Methods §"<subsection>"` | `Methods §"Statistical analysis"` / `Results §"Adverse events"` |
+| Abstract | `Abstract` (use only as last resort) | `Abstract` |
+
+If the value appears in **multiple locations**, prefer:
+Results > Methods > Discussion > Abstract.
+
+If the value is **derived** (e.g. you computed % completers from
+N and dropouts), say so: `8.3 | computed from p.5 (12/144 dropouts)`.
+
+## Uncertainty comments
+
+If you have meaningful uncertainty, append a `# <reason>` AFTER the
+source suffix:
+
+```
+1.2 ± 0.4 | p.6 §"Primary outcome"  # value reported only in Discussion text, not in Table
 ```
 
 ```
-1
+13 | p.4 §"Methods" # rounded from "12.6 sessions on average"
 ```
 
 ```
-RCT
+controlled clinical trial | Methods §"Study design"  # novel value, not in allowed list
+```
+
+## Examples (full)
+
+```
+12.4 ± 3.1 years | Table 1 row "Age"
+```
+
+```
+RCT | Methods §"Study design"
+```
+
+```
+0 | Fig 2 panel B  # FM-UE baseline mean, intervention arm
+```
+
+```
+0.62, 95% CI 0.18–1.06 | p.8 §"Effect size analysis"
+```
+
+```
+13 | Methods §"Intervention protocol"  # rounded from "12.6 sessions"
 ```
 
 ```
 not reported
 ```
 
-If you have meaningful uncertainty, add a single trailing comment
-prefixed with `# `:
-
-```
-1.2 ± 0.4  # quoted from authors' Discussion, not Results — verify
-```
-
-End-of-response marker: nothing. Just the value.
+End-of-response marker: nothing. Just the value + `| source`.

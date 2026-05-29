@@ -695,6 +695,13 @@ _CATEGORICAL_PIPE_RE = re.compile(r"\s\|\s")
 _CATEGORICAL_CODED_RE = re.compile(r"\b\d+\s*=\s*\w")
 _CATEGORICAL_COMMA_LIST_RE = re.compile(r"^[A-Za-z][\w\-]*(?:\s*,\s*[A-Za-z][\w\-]*){1,}$")
 _UNIT_HINT_RE = re.compile(r"^\(.+\)$")
+_OPEN_MARKER_RE = re.compile(r"(?:\|\s*\.{3}\s*$|,\s*\.{3}\s*$|\(\.{3}\)|\bother\b)", re.I)
+_INT_HINT_RE = re.compile(r"\b(int|integer|count|n)\b|\b(integer)\b", re.I)
+_FLOAT_HINT_RE = re.compile(
+    r"\b(float|percent|percentage|years?|months?|weeks?|days?|hours?|minutes?|m[gv]L?|"
+    r"mm|cm|hz|kg|score|mean|sd|seconds?|amplitude|ratio|\d+\s*-\s*\d+)",
+    re.I,
+)
 
 
 def classify_instruction(text):
@@ -703,28 +710,50 @@ def classify_instruction(text):
 
     Returns a dict with:
       kind            — categorical | nl | empty | type_hint
-      inferred_type   — quantitative | ordinal | nominal | text | unknown
+      inferred_type   — int | float | ordinal | nominal | text | unknown
       allowed_values  — list[str] if kind == categorical, else None
+      closed          — True if the allowed-values list is exhaustive (strict);
+                        False if the user signaled openness via `...` / "other"
+                        suffix (novel values allowed and flagged in output)
+
+    Closure conventions on categorical instructions:
+      "RCT | cohort | cross-sectional"        → closed=True  (strict)
+      "RCT | cohort | cross-sectional | ..."  → closed=False (open: novel OK)
+      "RCT | cohort | other"                  → closed=False (explicit "other")
+      "0=low, 1=high"                         → closed=True  (codes are universe)
+
+    Int vs float inference for type-hint quantitative:
+      "(int)" / "(integer)" / "(count)" / "(n)" → int
+      "(years)" / "(0-100)" / "(mV)" / "(%)"   → float
+      empty hint                                → unknown
     """
     s = (text or "").strip()
     if not s:
-        return {"kind": "empty", "inferred_type": "unknown", "allowed_values": None}
+        return {"kind": "empty", "inferred_type": "unknown", "allowed_values": None, "closed": True}
 
     if _CATEGORICAL_CODED_RE.search(s):
         pairs = [p.strip() for p in re.split(r"[;,]", s) if "=" in p]
-        return {"kind": "categorical", "inferred_type": "ordinal", "allowed_values": pairs}
+        return {"kind": "categorical", "inferred_type": "ordinal", "allowed_values": pairs, "closed": True}
+
+    open_marker = bool(_OPEN_MARKER_RE.search(s))
     if _CATEGORICAL_PIPE_RE.search(s):
-        values = [v.strip() for v in s.split("|") if v.strip()]
-        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values}
+        values = [v.strip() for v in s.split("|") if v.strip() and v.strip() != "..."]
+        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values, "closed": not open_marker}
     if _CATEGORICAL_COMMA_LIST_RE.match(s):
-        values = [v.strip() for v in s.split(",") if v.strip()]
-        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values}
+        values = [v.strip() for v in s.split(",") if v.strip() and v.strip() != "..."]
+        return {"kind": "categorical", "inferred_type": "nominal", "allowed_values": values, "closed": not open_marker}
+
     if _UNIT_HINT_RE.match(s):
-        return {"kind": "type_hint", "inferred_type": "quantitative", "allowed_values": None}
+        inner = s[1:-1].strip().lower()
+        if _INT_HINT_RE.search(inner):
+            return {"kind": "type_hint", "inferred_type": "int", "allowed_values": None, "closed": True}
+        if _FLOAT_HINT_RE.search(inner) or re.search(r"\d", inner):
+            return {"kind": "type_hint", "inferred_type": "float", "allowed_values": None, "closed": True}
+        return {"kind": "type_hint", "inferred_type": "unknown", "allowed_values": None, "closed": True}
 
     word_count = len(s.split())
     inferred = "text" if word_count >= 3 else "unknown"
-    return {"kind": "nl", "inferred_type": inferred, "allowed_values": None}
+    return {"kind": "nl", "inferred_type": inferred, "allowed_values": None, "closed": True}
 
 
 def analyze_template_json(template_path, slug_col, forced_instructions_row_idx):
@@ -800,30 +829,54 @@ def slugs_from_cites(source_slug, sources):
 
 _NUMERIC_RE = re.compile(r"-?\d+(?:[\.,]\d+)?")
 _SENTINEL_VALUES = {"", "not reported", "instruction_missing", "n/a", "na", "none"}
+_SOURCE_SUFFIX_RE = re.compile(r"\s*\|\s*(.+)$")
 
 
-def code_value(value, column_info):
-    """Reduce a verbatim value to the strict form per the column's instruction.
-
-    The "detailed" output keeps the LLM's verbatim answer (with units, quotes,
-    qualifiers like "± SD"). The "coded" output strips this to the strict
-    publication-ready / analysis-ready form per the column's classification:
-
-      - categorical (no codes)   → canonical allowed-value label (case-fixed)
-      - categorical (coded)      → the integer code only ("0", "1", …)
-      - quantitative type_hint   → numeric portion only (units stripped)
-      - nl / type_hint / unknown → verbatim (no transformation)
-
-    Sentinels ("", "not reported", "INSTRUCTION_MISSING") pass through unchanged.
+def _strip_source_suffix(value):
+    """Detailed output is `<value> | <source location>`. Strip the suffix for
+    the coded output. If no `|` is present, return the value unchanged.
+    Sentinel values (`not reported`, etc.) never carry a source — return as-is.
     """
     if value is None:
         return ""
     v = str(value).strip()
     if not v or v.lower() in _SENTINEL_VALUES:
         return v
+    m = _SOURCE_SUFFIX_RE.search(v)
+    if not m:
+        return v
+    return v[: m.start()].rstrip()
+
+
+def code_value(value, column_info):
+    """Reduce a verbatim value to the strict form per the column's instruction.
+
+    The "detailed" output keeps the LLM's verbatim answer with the source
+    location suffix (e.g. `12.4 ± 3.1 years | Table 1`). The "coded" output
+    strips both the qualifiers AND the source suffix, leaving the
+    publication-ready / analysis-ready form per the column's classification:
+
+      - categorical strict (closed)   → canonical allowed-value label (case-fixed)
+                                        or empty if no match
+      - categorical open (non-strict) → matched allowed-value if any,
+                                        else the verbatim value (novel, to review)
+      - categorical coded (ordinal)   → the integer code only ("0", "1", …)
+      - type_hint int                 → numeric portion, rounded to int
+      - type_hint float               → numeric portion (units stripped)
+      - nl / unknown                  → verbatim (no transformation)
+
+    Sentinels ("", "not reported", "INSTRUCTION_MISSING") pass through unchanged.
+    """
+    if value is None:
+        return ""
+    v = _strip_source_suffix(value)
+    if not v or v.lower() in _SENTINEL_VALUES:
+        return v
 
     kind = column_info.get("kind", "nl")
+    inferred_type = column_info.get("inferred_type", "unknown")
     allowed = column_info.get("allowed_values") or []
+    closed = column_info.get("closed", True)
 
     if kind == "categorical" and allowed:
         coded_map = {}
@@ -849,13 +902,22 @@ def code_value(value, column_info):
         for item in allowed:
             if str(item).lower() in v_lower:
                 return str(item)
-        return ""
+        # No match against the allowed list.
+        # Strict (closed) → drop the value (coded output stays clean).
+        # Open (non-strict) → keep verbatim, flagged for user review.
+        return "" if closed else v
 
     if kind == "type_hint":
         m = _NUMERIC_RE.search(v)
-        if m:
-            return m.group(0).replace(",", ".")
-        return ""
+        if not m:
+            return ""
+        numeric = m.group(0).replace(",", ".")
+        if inferred_type == "int":
+            try:
+                return str(int(round(float(numeric))))
+            except ValueError:
+                return ""
+        return numeric
 
     return v
 
