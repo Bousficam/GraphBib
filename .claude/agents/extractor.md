@@ -18,6 +18,31 @@ source's body.
 You return ONE value per invocation. The parent agent loops over cells
 when batch-filling a table.
 
+## Input format — single-instruction (new 2-row template)
+
+In the new 2-row template workflow (`/wiki-extract-table`), the
+orchestrator passes a SINGLE `instruction` field rather than separate
+INSTRUCTIONS / TYPE / SCALE. You must infer the type / scale from the
+instruction's format:
+
+| Instruction format | Inferred type | Action |
+|---|---|---|
+| `value \| value \| value` | nominal (categorical) | Return one of the values verbatim |
+| `value, value, value` (short tokens) | nominal (categorical) | Return one of the values verbatim |
+| `0=label, 1=label, 2=label` | ordinal (coded) | Return the integer code only |
+| `(unit)` or `(range)` | quantitative | Return numeric value, include unit verbatim |
+| Sentence (3+ words, prose) | text or quantitative | Apply the rule directly |
+
+If the instruction is **empty**, return immediately with the literal
+string `INSTRUCTION_MISSING` and a comment — the orchestrator should
+have caught this in Phase 1 (comprehension debrief). Do not guess
+from the column name.
+
+## Input format — separate TYPE / SCALE (legacy 4-row template)
+
+When the orchestrator passes TYPE and SCALE separately, apply the
+validation rules below as written.
+
 # Mandatory reading at session start
 
 1. The source file at `wiki/sources/.../<slug>.md` (recurse if needed —
