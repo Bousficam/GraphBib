@@ -9,23 +9,41 @@ Arguments: $ARGUMENTS
 
 # Project folder convention (preferred)
 
-A literature-review project lives in its own folder:
+A literature-review project lives in its OWN folder, **as a sibling
+of `wiki/` at the repo root** — NOT inside `wiki/`:
 
 ```
-my-mibci-review/
-├── contexte.md          # Project scope: research question, inclusion criteria, dates
-├── instructions.md      # Per-column extraction spec (agent-authored from Phase 1)
-├── template.xlsx        # 2-row Excel template (slug + variable + instruction)
-├── articles/            # Source markdown files (or symlinks to raw/papers/)
-└── output/
-    ├── extraction-detailed.xlsx   # Verbatim values with units / quotes
-    └── extraction-coded.xlsx      # Strict per-instruction format (publication-ready)
+GraphBib/                      ← repo root
+├── wiki/                      ← Obsidian vault (knowledge graph) — UNRELATED to this command
+├── raw/, docs/, tools/, …
+└── my-mibci-review/           ← THIS COMMAND operates here
+    ├── contexte.md            # Project scope: research question, inclusion criteria
+    ├── instructions.md        # Per-column extraction spec (agent-authored from Phase 1)
+    ├── template.xlsx          # 2-row Excel template (slug + variable + instruction)
+    ├── articles/              # Source MD files copies (or empty — reads from wiki/sources/)
+    └── output/
+        ├── extraction-detailed.xlsx   # Verbatim values with units / quotes
+        └── extraction-coded.xlsx      # Strict per-instruction format (publication-ready)
 ```
+
+**The project folder is NOT part of the Obsidian vault.** `wiki/` is
+read by Obsidian as a vault; project folders are pure file system,
+opened in Excel / a text editor. The two stay separate by design — the
+wiki is the agent's knowledge graph (sources, concepts, methods…),
+the project folder is a self-contained analytical artifact for ONE
+specific systematic review.
+
+Bootstrap a fresh project via `/wiki-extract-init <name>` (creates
+the folder structure + seeded `contexte.md` + empty `instructions.md`
++ blank or `--from-source`-seeded template).
 
 When `$ARGUMENTS` is a folder, this is the assumed layout. When it's a
 single `.xlsx`/`.csv`, the legacy "one-template, sibling output" mode
 applies (outputs land alongside the template, no `contexte.md` / no
 `instructions.md`).
+
+**Refuse** to operate on a folder that lives inside `wiki/` — that
+would conflate the knowledge graph with an analytical artifact.
 
 # Template format (2-row)
 

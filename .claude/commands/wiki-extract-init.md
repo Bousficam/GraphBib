@@ -8,14 +8,47 @@ by `/wiki-extract-table`.
 
 Arguments: $ARGUMENTS
 
+# Project folder vs. the wiki — IMPORTANT
+
+GraphBib has **two distinct types of folders**:
+
+| Folder | Purpose | Obsidian? |
+|---|---|---|
+| `wiki/` (at repo root) | The agent's knowledge graph: sources, concepts, methods, recommendations, questions, syntheses, entities. Read by Obsidian as a vault. | **YES** — opened as an Obsidian vault |
+| `<project>-review/` (sibling of wiki/) | Self-contained literature-review extraction project: contexte, instructions, template, articles, output. **NOT part of any Obsidian vault.** | **NO** — pure file system, opened in Excel / a code editor |
+
+This command creates the **project folder**, which is **separate from
+the wiki and outside any Obsidian vault**. The wiki keeps its job
+(domain knowledge graph). The project folder is a focused
+analytical artifact for ONE specific systematic review / literature
+review.
+
+# Location
+
+The project folder is created **at the repo root**, as a sibling of
+`wiki/`:
+
+```
+GraphBib/                        ← repo root
+├── wiki/                        ← Obsidian vault (knowledge graph)
+├── raw/                         ← source MDs / PDFs
+├── docs/, tools/, pdf2md/       ← agent infrastructure
+└── <project>-review/            ← THIS COMMAND creates folders here
+```
+
+The command **refuses** to create a project inside `wiki/`,
+`raw/`, `docs/`, `tools/`, or any other repo top-level directory —
+projects are first-class artifacts at the same level as those, not
+nested under them.
+
 # What this command creates
 
 ```
-<project-name>/
+<project>-review/
 ├── contexte.md           # narrative scope — agent seeds, user fills
 ├── instructions.md       # per-column spec — empty preamble, filled by Phase 1
 ├── template.xlsx         # 2-row template (slug + instruction)
-├── articles/             # source MD files (linked or copied later)
+├── articles/             # source MD files (linked or copied from wiki/sources/ later)
 └── output/               # extraction outputs land here (empty for now)
 ```
 
@@ -189,24 +222,39 @@ Next steps:
 - The `articles/` folder is a **convenience** — the actual source MD
   files live in `wiki/sources/<...>/<slug>.md` and `extract_data.py`
   finds them there via `load_sources()`. Copying / linking to
-  `articles/` is useful if the user wants a portable project folder
-  (e.g. to share with a collaborator who doesn't have the full wiki
-  cloned).
+  `articles/` is useful only if the user wants a portable project
+  folder (e.g. to share with a collaborator who doesn't have the full
+  wiki cloned). For solo workflows, leave `articles/` empty —
+  extraction reads straight from `wiki/sources/`.
 
 - `output/` is created empty. The slash command `/wiki-extract-table`
   writes there.
 
-- This command does NOT touch the wiki. It only creates files under
-  `<project>/`. Removing the project folder removes all artifacts.
+- **This command does NOT touch the wiki.** It only creates files
+  under `<project>-review/` at the repo root. Removing the project
+  folder removes all artifacts; the wiki is unaffected.
 
-- For multi-project users: each review lives in its own folder
-  alongside the repo root (don't nest inside `wiki/`).
+- Each review lives in its OWN sibling folder. You can have many
+  active reviews (`mibci-review/`, `tms-dose-response-review/`,
+  `dti-biomarkers-review/`) — they don't interact, share no state,
+  and each has its own `contexte.md` / `instructions.md` /
+  `template.xlsx`.
+
+- The project folder is intentionally NOT part of any Obsidian vault.
+  Open `template.xlsx` in Excel / LibreOffice / Numbers; open
+  `contexte.md` / `instructions.md` in any text editor. Obsidian
+  stays focused on the wiki.
 
 # Hard constraints
 
+- **NEVER create the project folder inside `wiki/`** (or any repo
+  top-level directory). Projects are siblings of `wiki/`, at the repo
+  root. If the user passes a path containing `wiki/`, `raw/`,
+  `docs/`, `tools/`, `pdf2md/`, `.claude/`, or `graph/`, REFUSE and
+  explain the project / wiki separation.
 - **NEVER overwrite an existing `contexte.md`, `instructions.md`, or
-  `template.{xlsx,csv}`.** Ask the user to remove it manually if they
-  want a fresh project.
+  `template.{xlsx,csv}`.** Ask the user to remove the folder manually
+  if they want a fresh project.
 - **NEVER use a project name that conflicts with a repo top-level
   directory** (`raw`, `wiki`, `pdf2md`, `tools`, `docs`, `.claude`,
   `graph`). Refuse and ask for a different name.
