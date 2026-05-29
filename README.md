@@ -8,7 +8,7 @@ This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-
 
 > Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time — cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
 
-This fork is configured for research on **stroke motor rehabilitation via MI-BCI and TMS**, anchored in neural control theory and white-matter anatomy (DTI). The schema adapts to other academic domains by editing `CLAUDE.md`.
+The agent core is **domain-neutral** — same IMRAD extraction, same citation network, same snowball discovery regardless of field. A single file at the repo root, **`context.md`**, tells the agent which domain *your* GraphBib instance covers: expected concepts, methods, intervention taxonomy, outcome scales, style notes. The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** — replace it with one of `docs/context/examples/` (or a custom one) to retarget. See [Adapting to your domain](#adapting-to-your-domain) below.
 
 ```
 raw/                  # Immutable source documents — never modified
@@ -101,6 +101,48 @@ In a single pass the agent produces:
 For batch work: `/wiki-batch-ingest raw/papers/` (or `raw/books/`) processes a whole directory with confirmation between batches.
 
 That's it — the wiki compounds from there. Everything below is depth.
+
+## Adapting to your domain
+
+GraphBib's agent core is field-agnostic. **Domain orientation lives in a single file: `context.md` at the repo root.** It declares:
+
+- The field's identity and central question
+- Expected **concepts** vocabulary (so repeated mentions land on the same page rather than spawning near-duplicates)
+- Expected **methods** vocabulary (measurement instruments, modalities)
+- **Interventions taxonomy** — two-tier `intervention_family` / `intervention_subfamily` enum
+- **Outcome scales** for systematic-review extraction
+- **Anatomical / structural anchors** (when relevant)
+- **Recommendation topics** under which the agent aggregates recommendations
+- **Style notes** — domain-specific writing conventions
+
+### Three ways to retarget
+
+```bash
+# A. Pick a pre-built example
+cp docs/context/examples/clinical-trials-cardiology.md context.md
+
+# B. Start from the neutral baseline and customize
+cp docs/context/examples/generic-academic.md context.md
+${EDITOR:-vim} context.md
+
+# C. Agent-assisted — open a fresh session and say:
+#    "Initialize context.md for a wiki on <X>. Ask me 5 clarifying
+#     questions, then draft the taxonomy."
+```
+
+The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** (the de-facto specialization of this fork). Replace it with your own to retarget.
+
+### Beyond context.md — code-level audits
+
+Some domain bias still lives in **Python** that needs separate editing if you're moving to a non-stroke field:
+
+| File | Why | Action |
+|---|---|---|
+| `tools/organize_sources.py` | `FAMILY_FOLDER` is a hardcoded Python dict mirroring the interventions taxonomy | Edit `FAMILY_FOLDER` to match your `context.md` |
+| `tools/dti_aggregator.py`, `tools/effect_size_aggregator.py`, `tools/brain_atlas_anchor.py`, `tools/cohort_tracker.py` | Stroke / motor-rehab specific regex (CST, FuglMeyer, ARAT, etc.) | Leave inert, delete, or rewrite for your domain |
+| `.claude/agents/*.md` | Sub-agent system prompts contain stroke examples | Search for `stroke`, `MI-BCI`, `TMS` and adapt |
+
+These tools won't *break* if you leave them — they'll just become inert (regex match nothing). Full adaptation checklist in [`docs/context/README.md`](docs/context/README.md).
 
 ## Usage
 

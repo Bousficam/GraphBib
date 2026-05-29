@@ -1,8 +1,7 @@
-# LLM Wiki Agent — Academic Edition
+# GraphBib — Academic Wiki Agent
 
-Academic knowledge base on **stroke motor rehabilitation via MI-BCI
-and TMS** (neural control theory + DTI). Maintained entirely by Claude
-Code: open this repo and talk to it.
+A domain-neutral academic knowledge-base agent. Maintained entirely
+by Claude Code: open this repo and talk to it.
 
 The agent's three jobs, in priority order:
 
@@ -12,6 +11,25 @@ The agent's three jobs, in priority order:
    recommend?"*.
 3. **Cite sources rigorously** — every factual claim points to a
    `[[source]]` with a page number, ready for APA reuse.
+
+---
+
+## Domain context — READ FIRST
+
+**Every session starts by loading `context.md`** at the repo root.
+That file declares which research field this GraphBib instance is
+configured for: the expected concepts / methods / interventions
+taxonomy, outcome scales, anatomical anchors, and style notes the
+agent should apply.
+
+If `context.md` is absent, the agent runs in **neutral mode** — it
+does all structural work (IMRAD extraction, citation network,
+snowball, lint) but with less domain consistency.
+
+To adapt this repo to a different research field: replace
+`context.md` with one of the examples in `docs/context/examples/`,
+or draft your own from the `generic-academic.md` template. See
+`docs/context/README.md` for the full adaptation checklist.
 
 ---
 
@@ -38,6 +56,7 @@ declaring an ingest complete.
 
 | Topic | Location |
 |---|---|
+| **Domain context (READ FIRST)** | `context.md` (root) + `docs/context/` |
 | Citation + Depth rules | `docs/rules/{citation,depth-completeness}.md` |
 | Ingest workflow (16 steps) | `docs/workflows/ingest.md` |
 | Long thesis ingestion | `docs/workflows/long-document-ingestion.md` |
