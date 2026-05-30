@@ -57,11 +57,13 @@ project-review/<name>/
 ├── template.xlsx         # 2-row template (slug + instruction)
 ├── articles/             # source MD files (linked or copied from wiki/sources/ later)
 ├── output/               # extraction outputs land here (empty for now)
-└── biblio/
-    ├── screened.md       # all articles considered for inclusion (with decision)
-    ├── excluded.md       # articles finally excluded after full-text review (with reason)
-    └── side/             # articles not extracted but useful for the review
-                          # (background refs, recommendations to cite, intro sources)
+├── biblio/
+│   ├── screened.md       # all articles considered for inclusion (with decision)
+│   ├── excluded.md       # articles finally excluded after full-text review (with reason)
+│   └── side/             # articles not extracted but useful for the review
+│                         # (background refs, recommendations to cite, intro sources)
+├── raw/                  # original PDF files of included articles (pre-ingestion)
+└── clone/                # post-ingestion MD copies from wiki/sources/ (portable snapshot)
 ```
 
 Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
@@ -94,10 +96,12 @@ Will create: ./project-review/<name>/
   │     N = 0 (manual) | <count from --from-source cites>
   ├── articles/          (empty — source MDs linked/copied here)
   ├── output/            (empty — extraction outputs land here)
-  └── biblio/
-      ├── screened.md    (table: all articles considered + decision)
-      ├── excluded.md    (table: excluded articles + reason + criterion)
-      └── side/          (empty — background refs, intro sources, reco to cite)
+  ├── biblio/
+  │   ├── screened.md    (table: all articles considered + decision)
+  │   ├── excluded.md    (table: excluded articles + reason + criterion)
+  │   └── side/          (empty — background refs, intro sources, reco to cite)
+  ├── raw/               (empty — PDF files of included articles, pre-ingestion)
+  └── clone/             (empty — post-ingestion MD copies from wiki/sources/)
 Proceed? [Y/n]
 ```
 
@@ -112,7 +116,9 @@ If `project-review/<name>/` already exists and is non-empty:
 ```bash
 mkdir -p project-review/<name>/articles \
          project-review/<name>/output \
-         project-review/<name>/biblio/side
+         project-review/<name>/biblio/side \
+         project-review/<name>/raw \
+         project-review/<name>/clone
 ```
 
 Then seed the two biblio tracking files:
