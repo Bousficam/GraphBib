@@ -251,6 +251,55 @@ Present one column at a time. Wait for answer before next column.
 - **ignorer**: Leave `À préciser — [verbatim]` in the detailed output;
   write `NR` in the coded output. No instruction change.
 
+## Phase 1c — Per-article eligibility anchors
+
+Before extracting **each article**, the agent reads the source page
+(`wiki/sources/.../<slug>.md`) and extracts a compact **eligibility
+anchor block** — the set of constraints that define who is in the study.
+This block is passed to the extractor and used as a sanity-check grid
+for every cell.
+
+### What to read
+
+From the source page **frontmatter**:
+- `population:` — narrative description of the sample
+- `sample_size:` — total N
+- Intervention/control group sizes if present
+
+From the **Methods section** of the source page:
+- Inclusion criteria (age range, diagnosis, severity, chronicity, etc.)
+- Exclusion criteria
+- Primary outcome definition
+- Any hard numerical constraints (e.g. "FMA-UE ≤ 40", "age ≥ 18")
+
+### Anchor format (internal, passed to extractor)
+
+```
+ELIGIBILITY ANCHORS — <slug>
+  population   : <frontmatter population value>
+  n_bci        : <BCI group N>
+  inclusion    : [bullet list — key numeric/categorical constraints]
+  exclusion    : [bullet list — key exclusion rules]
+  primary_outcome: <scale + range>
+```
+
+### Sanity-check grid (derived from anchors)
+
+The agent automatically derives a set of expected value ranges per
+column from the anchors. Examples:
+
+| Anchor constraint | Column(s) checked | Expected |
+|---|---|---|
+| `FMA-UE ≤ 40` (inclusion) | `Motor severity`, `baseline_fm` | mean < 40, category ≠ Full/Notable |
+| `chronic stroke` | `Time from stroke` | Chronic |
+| `N=14 BCI group` | `Population size` | 14 |
+| `age ≥ 18` | `age_mean` | > 18 |
+| `min 10 months post-stroke` | `Time from stroke` | Chronic |
+
+This grid is used in Phase 2/3: if an extracted value violates an
+anchor constraint, the cell is tagged `⚠️ SANITY CHECK — [verbatim]`
+(same pipeline as `À PRÉCISER`) and resolved at end of batch.
+
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
 ```bash
