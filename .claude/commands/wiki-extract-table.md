@@ -251,6 +251,35 @@ Present one column at a time. Wait for answer before next column.
 - **ignorer**: Leave `À préciser — [verbatim]` in the detailed output;
   write `NR` in the coded output. No instruction change.
 
+## Phase 1b — Article resolution (locate PDF and MD for each article)
+
+Before eligibility check or extraction, **locate and copy** the source
+files for each article in the source list. Never move files — always copy.
+
+### Resolution order (per article)
+
+**Step 1 — PDF**
+1. Look for PDF in `biblio/raw/<slug>.pdf` — already copied, nothing to do.
+2. If absent, look in `source_pdf:` field of the wiki source page frontmatter.
+3. If found at that path, **copy** it to `biblio/raw/<slug>.pdf`.
+4. If not found anywhere → note `PDF: not found` in `biblio/screened.md`.
+
+**Step 2 — Markdown**
+1. Look for MD in `biblio/markdown/<slug>.md` — already copied, nothing to do.
+2. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
+3. If found, **copy** it to `biblio/markdown/<slug>.md`.
+4. If not found in wiki → look in `raw/papers/` for a matching MD file.
+5. If still not found → note `MD: not found` in `biblio/screened.md`.
+
+**NEVER move files.** Use `cp`, not `mv`. The originals in `wiki/sources/`
+and `raw/papers/` must remain untouched.
+
+### After resolution
+
+Extraction reads from `biblio/markdown/<slug>.md` when available
+(portable, self-contained). Falls back to `wiki/sources/<slug>.md`
+directly if the copy is missing.
+
 ## Phase 1c — Eligibility check (article belongs in this review?)
 
 Before extracting each article, verify that it should be in this review
