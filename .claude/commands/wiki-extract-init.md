@@ -56,7 +56,12 @@ project-review/<name>/
 ├── instructions.md       # per-column spec — empty preamble, filled by Phase 1
 ├── template.xlsx         # 2-row template (slug + instruction)
 ├── articles/             # source MD files (linked or copied from wiki/sources/ later)
-└── output/               # extraction outputs land here (empty for now)
+├── output/               # extraction outputs land here (empty for now)
+└── biblio/
+    ├── screened.md       # all articles considered for inclusion (with decision)
+    ├── excluded.md       # articles finally excluded after full-text review (with reason)
+    └── side/             # articles not extracted but useful for the review
+                          # (background refs, recommendations to cite, intro sources)
 ```
 
 Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
@@ -82,13 +87,17 @@ Show the plan and ask before creating:
 
 ```
 Will create: ./project-review/<name>/
-  ├── contexte.md   (seeded with extraction-relevant prompts)
-  ├── instructions.md   (empty preamble)
-  ├── template.xlsx   (M columns × N rows)
+  ├── contexte.md        (seeded with extraction-relevant prompts)
+  ├── instructions.md    (empty preamble)
+  ├── template.xlsx      (M columns × N rows)
   │     M = 27 (default SR set) | <count from --columns>
   │     N = 0 (manual) | <count from --from-source cites>
-  ├── articles/   (empty)
-  └── output/   (empty)
+  ├── articles/          (empty — source MDs linked/copied here)
+  ├── output/            (empty — extraction outputs land here)
+  └── biblio/
+      ├── screened.md    (table: all articles considered + decision)
+      ├── excluded.md    (table: excluded articles + reason + criterion)
+      └── side/          (empty — background refs, intro sources, reco to cite)
 Proceed? [Y/n]
 ```
 
@@ -101,8 +110,42 @@ If `project-review/<name>/` already exists and is non-empty:
 ## Step 2 — Create the folder structure
 
 ```bash
-mkdir -p project-review/<name>/articles project-review/<name>/output
+mkdir -p project-review/<name>/articles \
+         project-review/<name>/output \
+         project-review/<name>/biblio/side
 ```
+
+Then seed the two biblio tracking files:
+
+**`biblio/screened.md`** — list of all articles considered, with their
+inclusion decision:
+
+```markdown
+# Screened articles — <project-name>
+
+> One entry per article considered for inclusion.
+> Status: ✅ included | ❌ excluded (reason) | ⏳ pending
+
+| Slug / DOI | Title | Status | Note |
+|---|---|---|---|
+```
+
+**`biblio/excluded.md`** — articles excluded after full-text review,
+with the exclusion reason mapped to the eligibility criteria:
+
+```markdown
+# Excluded articles — <project-name>
+
+> Articles excluded after full-text review. Reason must map to an
+> eligibility criterion defined in contexte.md.
+
+| Slug / DOI | Title | Exclusion reason | Criterion |
+|---|---|---|---|
+```
+
+The `biblio/side/` folder is left empty — the user adds PDFs or MDs
+manually for background references, recommendations to cite, or
+articles useful for the review introduction but not extracted.
 
 The container `project-review/` is auto-created if it doesn't exist
 yet (first project bootstrap).

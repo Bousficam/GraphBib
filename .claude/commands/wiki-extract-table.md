@@ -297,9 +297,9 @@ Tag the article **before** extraction begins:
 Ask the user **immediately** (do not proceed to extract that article
 until the user answers):
 - **Y** → extract the article normally, note the flag in the log
-- **exclure** → skip extraction for this article entirely; log the
-  exclusion in `output/exclusions.md` (created if missing) with the
-  reason
+- **exclure** → skip extraction for this article entirely; append a row
+  to `biblio/excluded.md` with slug, title, exclusion reason, and the
+  criterion from `contexte.md` that was not met
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
