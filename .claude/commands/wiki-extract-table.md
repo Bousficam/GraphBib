@@ -260,9 +260,12 @@ files for each article in the source list. Never move files — always copy.
 
 **Step 1 — PDF**
 1. Look for PDF in `biblio/raw/<slug>.pdf` — already copied, nothing to do.
-2. If absent, look in `source_pdf:` field of the wiki source page frontmatter.
-3. If found at that path, **copy** it to `biblio/raw/<slug>.pdf`.
-4. If not found anywhere → note `PDF: not found` in `biblio/screened.md`.
+2. If absent, read `source_pdf:` from the wiki source page frontmatter.
+3. Try the exact path first. If the file doesn't exist at that path, do a
+   **fuzzy search** in the same directory: `find <parent-dir> -iname "*<author>*<year>*"`.
+   The PDF filename often differs from the slug (e.g. extra title words, typos).
+4. If found (exact or fuzzy), **copy** to `biblio/raw/<slug>.pdf`.
+5. If not found anywhere → note `PDF: not found` in `biblio/screened.md`.
 
 **Step 2 — Markdown**
 1. Look for MD in `biblio/markdown/<slug>.md` — already copied, nothing to do.
