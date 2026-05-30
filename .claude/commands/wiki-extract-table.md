@@ -213,21 +213,22 @@ Current instruction: "[row-2 instruction]"
 Issue: [specific description — why the instruction is insufficient]
 
 Options:
-  [A] Adapt instruction (applies to ALL future articles):
-      Proposed: "[new instruction text]"
-  [B] One-off for this article: "[value to use]" (instruction unchanged)
-  [C] Mark NR and continue
+  [A] Adapter l'instruction (s'applique à CET article ET tous les suivants) :
+      Proposition : "[nouveau texte d'instruction]"
+  [B] Exception pour cet article uniquement : "[valeur à utiliser]"
+      (instruction inchangée — les articles suivants garderont l'instruction actuelle)
+  [C] Marquer NR et continuer
 
-Choice?
+Choix ?
 ```
 
 ### On user response
 
 - **[A]**: Update `template.xlsx` row 2 AND `instructions.md` for that
   column immediately. Use the adapted instruction for the current cell
-  and all subsequent articles. Confirm: `✓ Instruction updated — continuing.`
-- **[B]**: Record the one-off value verbatim. Continue without touching
-  the instruction.
+  and all subsequent articles. Confirm: `✓ Instruction mise à jour — extraction continue.`
+- **[B]**: Record the specified value verbatim for this article only.
+  Continue without touching the instruction.
 - **[C]**: Record `NR`. Continue.
 
 **Cap**: surface at most **3 pauses per article** to avoid interrupting
