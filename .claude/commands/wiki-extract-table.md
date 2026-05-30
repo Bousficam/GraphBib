@@ -227,27 +227,28 @@ Colonne [col-name]  (K articles concernés)
   • [slug-2] : "[verbatim-2]"
   Problème : [description de l'ambiguïté commune]
 
-  Options :
-    [A] Adapter l'instruction pour TOUS les articles (présents + futurs) :
-        Proposition : "[nouveau texte d'instruction]"
-        → met à jour template.xlsx row 2 + instructions.md
-        → ré-extrait les K cellules avec la nouvelle instruction
-    [B] Saisir la valeur article par article (instruction inchangée)
-    [C] Laisser "À préciser" dans le détaillé, NR dans le codé
+  Proposition d'instruction adaptée :
+    "[nouveau texte d'instruction]"
+    → mettra à jour template.xlsx row 2 + instructions.md
+    → ré-extraira les K cellules avec la nouvelle instruction
 
-Choix pour [col-name] ?
+  Confirmer ? [Y / modifier la proposition / ignorer cette colonne]
 ```
+
+Present one column at a time. Default action is **always to adapt the
+instruction** — the agent proposes the new instruction text directly.
+The user confirms, edits the proposal, or explicitly ignores.
 
 Present one column at a time. Wait for answer before next column.
 
 ### On user response
 
-- **[A]**: Update `template.xlsx` row 2 AND `instructions.md` immediately.
-  Re-extract only the tagged cells for that column. Confirm:
-  `✓ Instruction mise à jour — K cellules ré-extraites.`
-- **[B]**: For each tagged article, prompt the value to use (one at a
-  time). Record in detailed output; coded output uses the value as-is.
-- **[C]**: Leave `À préciser — [verbatim]` in the detailed output;
+- **Y** (default): Update `template.xlsx` row 2 AND `instructions.md`
+  immediately. Re-extract only the tagged cells for that column.
+  Confirm: `✓ Instruction mise à jour — K cellules ré-extraites.`
+- **modifier la proposition**: user pastes corrected instruction text →
+  apply that text instead, then re-extract.
+- **ignorer**: Leave `À préciser — [verbatim]` in the detailed output;
   write `NR` in the coded output. No instruction change.
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
