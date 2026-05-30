@@ -251,54 +251,55 @@ Present one column at a time. Wait for answer before next column.
 - **ignorer**: Leave `À préciser — [verbatim]` in the detailed output;
   write `NR` in the coded output. No instruction change.
 
-## Phase 1c — Per-article eligibility anchors
+## Phase 1c — Eligibility check (article belongs in this review?)
 
-Before extracting **each article**, the agent reads the source page
-(`wiki/sources/.../<slug>.md`) and extracts a compact **eligibility
-anchor block** — the set of constraints that define who is in the study.
-This block is passed to the extractor and used as a sanity-check grid
-for every cell.
+Before extracting each article, verify that it should be in this review
+at all — i.e. that it was not included by mistake during screening.
+
+This check is **not** about the values inside the article. It checks
+whether the article's characteristics match the **review's own
+eligibility criteria**, as declared in `contexte.md`.
 
 ### What to read
 
-From the source page **frontmatter**:
-- `population:` — narrative description of the sample
-- `sample_size:` — total N
-- Intervention/control group sizes if present
+1. `contexte.md` — review type, research question, primary outcomes,
+   population scope, domain notes. These define what an eligible article
+   looks like for THIS review.
 
-From the **Methods section** of the source page:
-- Inclusion criteria (age range, diagnosis, severity, chronicity, etc.)
-- Exclusion criteria
-- Primary outcome definition
-- Any hard numerical constraints (e.g. "FMA-UE ≤ 40", "age ≥ 18")
+2. The source page frontmatter and Summary section — population,
+   intervention family, study design, domain tags.
 
-### Anchor format (internal, passed to extractor)
+### Check logic
+
+For each article, compare its characteristics against the review's
+scope. Flag if there is a clear mismatch:
+
+| Review criterion (contexte.md) | Source characteristic to check |
+|---|---|
+| Intervention: MI-BCI | `intervention_family` / Summary — is BCI the intervention? |
+| Population: stroke patients | `domain` / `population` — is it stroke? Not SCI, epilepsy, healthy? |
+| Outcome: motor rehabilitation | `domain` — is motor rehab the goal? |
+| Any other scope constraints declared in contexte.md | Corresponding frontmatter / Summary field |
+
+### If a mismatch is found
+
+Tag the article **before** extraction begins:
 
 ```
-ELIGIBILITY ANCHORS — <slug>
-  population   : <frontmatter population value>
-  n_bci        : <BCI group N>
-  inclusion    : [bullet list — key numeric/categorical constraints]
-  exclusion    : [bullet list — key exclusion rules]
-  primary_outcome: <scale + range>
+⚠️ ELIGIBILITY CHECK — <slug>
+  Problème : [description du mismatch avec le périmètre de la review]
+  Article  : [caractéristique de l'article qui pose problème]
+  Review   : [critère de la review non satisfait]
+
+  Inclure quand même ? [Y / exclure]
 ```
 
-### Sanity-check grid (derived from anchors)
-
-The agent automatically derives a set of expected value ranges per
-column from the anchors. Examples:
-
-| Anchor constraint | Column(s) checked | Expected |
-|---|---|---|
-| `FMA-UE ≤ 40` (inclusion) | `Motor severity`, `baseline_fm` | mean < 40, category ≠ Full/Notable |
-| `chronic stroke` | `Time from stroke` | Chronic |
-| `N=14 BCI group` | `Population size` | 14 |
-| `age ≥ 18` | `age_mean` | > 18 |
-| `min 10 months post-stroke` | `Time from stroke` | Chronic |
-
-This grid is used in Phase 2/3: if an extracted value violates an
-anchor constraint, the cell is tagged `⚠️ SANITY CHECK — [verbatim]`
-(same pipeline as `À PRÉCISER`) and resolved at end of batch.
+Ask the user **immediately** (do not proceed to extract that article
+until the user answers):
+- **Y** → extract the article normally, note the flag in the log
+- **exclure** → skip extraction for this article entirely; log the
+  exclusion in `output/exclusions.md` (created if missing) with the
+  reason
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 

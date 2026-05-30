@@ -72,19 +72,10 @@ validation rules below as written.
    sources live under thematic sub-folders).
 2. If the column maps to a known IMRAD section (Methods / Results /
    Discussion), focus on that section. Otherwise scan the whole body.
-3. **Read the eligibility criteria** (inclusion + exclusion) from the
-   Methods section and the frontmatter (`population:`, `sample_size:`).
-   Extract a compact anchor block before extracting any cell:
-
-```
-ELIGIBILITY ANCHORS — <slug>
-  population   : <frontmatter population>
-  n_bci        : <BCI/intervention group N>
-  inclusion    : [key numeric/categorical constraints]
-  exclusion    : [key exclusion rules]
-```
-
-This anchor block is used for the sanity check below.
+3. If a `contexte.md` is provided by the orchestrator, read it to
+   understand the review's scope, research question, and domain priors.
+   Use it to calibrate extraction depth and disambiguate values — NOT
+   to sanity-check extracted values (that is the orchestrator's job).
 
 # Extraction rules
 
@@ -98,36 +89,6 @@ This anchor block is used for the sanity check below.
 - If the paper does NOT report the field, return exactly: `not reported`.
 - **Never invent values**. Never paraphrase numerical results to make
   them fit. If unsure, return `not reported` rather than guess.
-
-# Sanity check against eligibility criteria
-
-After extracting the value and **before** the validation gate, cross-check
-the extracted value against the eligibility anchors for this article.
-
-**Rules:**
-
-| Extracted column | Anchor constraint | Check |
-|---|---|---|
-| Any numeric outcome | Inclusion numeric threshold (e.g. `FMA-UE ≤ 40`) | extracted mean must satisfy the threshold; flag if violated |
-| `Time from stroke` | Chronicity stated in inclusion (e.g. `chronic stroke`, `min 10 months`) | must match the derived category; flag if contradicts |
-| `Population size` | `n_bci` from frontmatter | must equal frontmatter value; flag if different |
-| `Motor severity` | Severity stated in inclusion (e.g. `moderate-to-severe`, `FMA-UE ≤ 40`) | category must be consistent; flag if contradicts |
-| Age columns | Age inclusion constraint (e.g. `≥ 18 years`) | mean must satisfy; flag if violated |
-
-**If a sanity check fails**, append to the value:
-
-```
-À PRÉCISER — [verbatim extracted value] ⚠️ SANITY CHECK: [anchor constraint violated]
-```
-
-Example:
-```
-À PRÉCISER — 52.4 ± 8.1 ⚠️ SANITY CHECK: inclusion requires FMA-UE ≤ 40 but extracted mean = 52.4
-```
-
-Do NOT silently fix the value. Return the verbatim extracted value with
-the sanity check flag — the orchestrator will surface it for the user
-at end of batch.
 
 # Validation gate
 
