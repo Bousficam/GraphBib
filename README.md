@@ -29,13 +29,19 @@ wiki/                 # Owned entirely by the agent
 └── syntheses/        # Saved query answers and literature reviews
 project-review/       # Self-contained extraction projects (NOT in Obsidian)
 ├── <name>/           # One folder per systematic / scoping / narrative review
-│   ├── contexte.md       # Review type, objective, question, outcomes, style notes
-│   ├── instructions.md   # Per-column extraction spec (agent-authored)
-│   ├── template.xlsx     # 2-row template (variable + instruction)
+│   ├── contexte.md       # Review type, objective, question, outcomes, eligibility criteria
+│   ├── instructions.md   # Per-column extraction spec (agent-authored + reviewed)
+│   ├── template.xlsx     # 2-row template (row 1 = headers, row 2 = instructions)
 │   ├── articles/         # Source MDs (optional — defaults to wiki/sources/)
-│   └── output/
-│       ├── extraction-detailed.xlsx   # Verbatim + units + source location
-│       └── extraction-coded.xlsx      # Strict per-instruction (R-ready)
+│   ├── output/
+│   │   ├── extraction-detailed.xlsx   # Verbatim + units + source location (row 2 = instructions)
+│   │   └── extraction-coded.xlsx      # Strict per-instruction, R-ready (row 2 = instructions)
+│   └── biblio/
+│       ├── screened.md       # All articles considered + inclusion decision
+│       ├── excluded.md       # Excluded articles + reason + eligibility criterion
+│       ├── side/             # Background refs, reco to cite, intro sources (not extracted)
+│       ├── raw/              # PDF copies of included articles (cp, never mv)
+│       └── markdown/         # MD copies from wiki/sources/ (cp, never mv)
 graph/
 ├── graph.json        # Persistent node/edge data (SHA256-cached)
 └── graph.html        # Interactive vis.js visualization
@@ -689,20 +695,41 @@ project-review/mibci/
 **Two slash commands drive the workflow:**
 
 1. **`/wiki-extract-init <name>`** — interactive bootstrap.
-   Creates the skeleton, then walks you through:
+   Creates the full skeleton (`articles/`, `output/`, `biblio/{screened,excluded,side,raw,markdown}`),
+   then walks you through:
    - **contexte.md** (5 structured questions: review type, objective,
      research question, primary outcomes, style notes — plus 0–5
-     targeted follow-ups for ambiguities)
+     targeted follow-ups; eligibility criteria section for inclusion/
+     exclusion rules used to flag wrongly-included articles)
    - **template** (co-design if blank: default 27-col SR set,
      category subset, or paste custom list)
-   - **instructions** (per-column dialog: type-hint / categorical-
-     strict / categorical-open / coded / NL — with int vs float and
-     strict vs open confirmation)
+   - **instructions** (per-column dialog: type-hint / categorical-strict /
+     categorical-open / coded / NL — with int vs float and strict vs open
+     confirmation)
+   - **Step 8d — mandatory instruction review pass**: after saisie,
+     scans all columns for 10 issue types (empty, no NR fallback, open/
+     closed ambiguity, missing units, inconsistent tokens, etc.), severity
+     triage 🔴/🟠/🟡, resolves one by one before finalising
 
 2. **`/wiki-extract-table project-review/<name>/`** — runs extraction.
-   Phase 1 re-checks the spec, Phase 2–3 produce both outputs,
-   Phase 5 proposes adaptive refinements (add column / split column /
-   refine instruction) based on observed patterns.
+   - **Phase 1b** — article resolution: for each article, locates PDF
+     (`biblio/raw/`) and MD (`biblio/markdown/`) via the wiki; copies
+     both (never moves). Fuzzy PDF search when the filename doesn't
+     match the slug exactly.
+   - **Phase 1c** — eligibility check: compares each article's
+     characteristics against the review's eligibility criteria in
+     `contexte.md`; flags potential mismatches before extraction begins;
+     user decides `Y / exclure` (exclusions logged to `biblio/excluded.md`).
+   - **Phase 2–3** — deterministic + LLM extraction; ambiguous cells
+     tagged `À PRÉCISER — [verbatim]` without interrupting the batch.
+   - **End-of-batch resolution**: ambiguous cells grouped by column;
+     agent proposes adapted instruction → `Y` updates `template.xlsx`
+     row 2 + `instructions.md` and re-extracts; user can also ignore.
+   - **Phase 5** — adaptive refinement proposals (add column / split /
+     refine instruction) based on observed patterns.
+   - **Output format**: both detailed and coded files carry two header
+     rows — row 1 = column names, row 2 = instructions (readable without
+     opening the template).
 
 **Template format (2-row)**:
 - Row 1 = column headers (variable names)
