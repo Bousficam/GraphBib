@@ -184,61 +184,71 @@ compute (N - X) / N × 100.
 This file becomes the durable spec — version-controlled, editable,
 and survives template re-generation.
 
-## Phase 1b — Mid-extraction instruction update protocol
+## Phase 1b — Ambiguity tagging + end-of-batch resolution
 
-This protocol applies during **both Phase 2 and Phase 3**. When the
-extractor encounters a case where the current instruction is
-insufficient, it **pauses** before recording the cell and asks the user.
+During **Phase 2 and Phase 3**, the extractor **never pauses mid-article**.
+Instead it tags ambiguous cells and resolves them with the user at the
+end of the batch.
 
-### Triggers (pause required)
+### Triggers (tag, do not pause)
 
 1. **Strict categorical — no match**: the article reports a value not
    in the allowed list and the instruction is STRICT (no `| ...`)
-2. **Ambiguous instruction for this specific article**: the article
-   presents the information in a format not anticipated by the
-   instruction (e.g., instruction says "Fixed (Xs)" but the article
-   gives a range with a mechanism)
+2. **Ambiguous instruction for this article**: the article presents
+   information in a format not anticipated by the instruction
 3. **Multiple plausible extractions**: the instruction doesn't specify
-   which of two reported values to prefer (e.g., per-arm vs total N)
+   which of two reported values to prefer
 4. **Instruction gap revealed by data**: the article reports something
    clearly relevant to the column but the instruction doesn't cover it
 
-### Pause format
+### Tagging format
+
+Record the cell in the detailed output as:
 
 ```
-⚠️ Extraction pause — [article-slug], column [col-name]
-
-Article reports: "[verbatim excerpt]"
-Current instruction: "[row-2 instruction]"
-Issue: [specific description — why the instruction is insufficient]
-
-Options:
-  [A] Adapter l'instruction (s'applique à CET article ET tous les suivants) :
-      Proposition : "[nouveau texte d'instruction]"
-  [B] Exception pour cet article uniquement : "[valeur à utiliser]"
-      (instruction inchangée — les articles suivants garderont l'instruction actuelle)
-  [C] Marquer NR et continuer
-
-Choix ?
+À PRÉCISER — [verbatim excerpt from article]
 ```
+
+Continue extraction of all remaining cells and articles without
+interruption. Keep an internal list of all tagged cells:
+`(slug, column, verbatim, issue_description)`.
+
+### End-of-batch resolution (after ALL articles extracted)
+
+After Phase 2/3 complete, if any cells were tagged, present them
+grouped by **column** (not by article) — because a column-level fix
+applies to all articles at once:
+
+```
+⚠️ À préciser — N cellules après extraction du batch
+
+Colonne [col-name]  (K articles concernés)
+  • [slug-1] : "[verbatim-1]"
+  • [slug-2] : "[verbatim-2]"
+  Problème : [description de l'ambiguïté commune]
+
+  Options :
+    [A] Adapter l'instruction pour TOUS les articles (présents + futurs) :
+        Proposition : "[nouveau texte d'instruction]"
+        → met à jour template.xlsx row 2 + instructions.md
+        → ré-extrait les K cellules avec la nouvelle instruction
+    [B] Saisir la valeur article par article (instruction inchangée)
+    [C] Laisser "À préciser" dans le détaillé, NR dans le codé
+
+Choix pour [col-name] ?
+```
+
+Present one column at a time. Wait for answer before next column.
 
 ### On user response
 
-- **[A]**: Update `template.xlsx` row 2 AND `instructions.md` for that
-  column immediately. Use the adapted instruction for the current cell
-  and all subsequent articles. Confirm: `✓ Instruction mise à jour — extraction continue.`
-- **[B]**: Record the specified value verbatim for this article only.
-  Continue without touching the instruction.
-- **[C]**: Record `NR`. Continue.
-
-**Cap**: surface at most **3 pauses per article** to avoid interrupting
-every cell. If more than 3 ambiguities arise for one article, batch the
-remaining ones and present them after that article's extraction is
-complete.
-
-After resolving pauses, **re-persist** the updated instruction to both
-`template.xlsx` row 2 and `instructions.md` (a single write per column,
-not per article).
+- **[A]**: Update `template.xlsx` row 2 AND `instructions.md` immediately.
+  Re-extract only the tagged cells for that column. Confirm:
+  `✓ Instruction mise à jour — K cellules ré-extraites.`
+- **[B]**: For each tagged article, prompt the value to use (one at a
+  time). Record in detailed output; coded output uses the value as-is.
+- **[C]**: Leave `À préciser — [verbatim]` in the detailed output;
+  write `NR` in the coded output. No instruction change.
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
