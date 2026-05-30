@@ -184,6 +184,61 @@ compute (N - X) / N × 100.
 This file becomes the durable spec — version-controlled, editable,
 and survives template re-generation.
 
+## Phase 1b — Mid-extraction instruction update protocol
+
+This protocol applies during **both Phase 2 and Phase 3**. When the
+extractor encounters a case where the current instruction is
+insufficient, it **pauses** before recording the cell and asks the user.
+
+### Triggers (pause required)
+
+1. **Strict categorical — no match**: the article reports a value not
+   in the allowed list and the instruction is STRICT (no `| ...`)
+2. **Ambiguous instruction for this specific article**: the article
+   presents the information in a format not anticipated by the
+   instruction (e.g., instruction says "Fixed (Xs)" but the article
+   gives a range with a mechanism)
+3. **Multiple plausible extractions**: the instruction doesn't specify
+   which of two reported values to prefer (e.g., per-arm vs total N)
+4. **Instruction gap revealed by data**: the article reports something
+   clearly relevant to the column but the instruction doesn't cover it
+
+### Pause format
+
+```
+⚠️ Extraction pause — [article-slug], column [col-name]
+
+Article reports: "[verbatim excerpt]"
+Current instruction: "[row-2 instruction]"
+Issue: [specific description — why the instruction is insufficient]
+
+Options:
+  [A] Adapt instruction (applies to ALL future articles):
+      Proposed: "[new instruction text]"
+  [B] One-off for this article: "[value to use]" (instruction unchanged)
+  [C] Mark NR and continue
+
+Choice?
+```
+
+### On user response
+
+- **[A]**: Update `template.xlsx` row 2 AND `instructions.md` for that
+  column immediately. Use the adapted instruction for the current cell
+  and all subsequent articles. Confirm: `✓ Instruction updated — continuing.`
+- **[B]**: Record the one-off value verbatim. Continue without touching
+  the instruction.
+- **[C]**: Record `NR`. Continue.
+
+**Cap**: surface at most **3 pauses per article** to avoid interrupting
+every cell. If more than 3 ambiguities arise for one article, batch the
+remaining ones and present them after that article's extraction is
+complete.
+
+After resolving pauses, **re-persist** the updated instruction to both
+`template.xlsx` row 2 and `instructions.md` (a single write per column,
+not per article).
+
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
 ```bash

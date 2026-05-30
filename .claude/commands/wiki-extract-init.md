@@ -522,6 +522,72 @@ Confirm with a summary:
 ✓ instructions.md written  ({categorical: K, NL: K, empty: K} kinds).
 ```
 
+### Step 8d — Instruction review pass (mandatory)
+
+After persisting, **scan ALL columns** and flag issues before declaring
+the project ready. This step is NOT optional — it is the main quality
+gate that prevents extraction failures downstream.
+
+**Severity levels:**
+
+| Level | Meaning |
+|---|---|
+| 🔴 Blocking | Extraction will fail or produce wrong values without fix |
+| 🟠 Ambiguous | Extraction will be inconsistent across articles |
+| 🟡 Clarify | Edge case not covered — extractor will have to guess |
+
+**What to check for each column:**
+
+1. **Empty instruction** 🔴 — must fill before extraction
+2. **Strict categorical with no `NR` fallback** 🔴 — if a paper doesn't
+   report the variable, the extractor has nowhere to go
+3. **`Non Connu` / non-standard NR token** 🟠 — standardize to `NR`
+4. **Categorical missing `| ...` for open list** 🟠 — if novel values
+   are expected, list must be open
+5. **Numeric column with no unit or range specified** 🟠 — extractor
+   will report in the article's unit; downstream analysis breaks
+6. **Multi-value column with no separator rule** 🟠 — multiple tasks /
+   modalities reported: how to join?
+7. **"As-reported" columns with no mode disambiguation** 🟡 — e.g. a
+   duration that could be fixed, mean, or variable: instruction must
+   say what to specify
+8. **Derivable column not flagged as such** 🟡 — risk of inconsistent
+   extraction (some papers compute it, others don't report it directly)
+9. **Instruction conflates two distinct concepts** 🟠 → propose split
+10. **Inconsistent terminology across columns** 🟡 (e.g. one column says
+    "not reported", another says "NR" — standardize)
+
+**Procedure:**
+
+Present a table of all flagged issues (column name, severity, issue
+description) in one block. Then go through each issue **ONE AT A TIME**,
+starting with 🔴, then 🟠, then 🟡.
+
+```
+Instruction review — N issues found:
+
+  🔴  col_name_1   Empty instruction — must fill
+  🔴  col_name_2   No NR fallback for strict categorical
+  🟠  col_name_3   "Non Connu" → standardize to NR
+  🟠  col_name_4   Open list but no | ... at the end
+  🟡  col_name_5   No separator rule for multi-value
+
+Fix them one by one? [Y / skip all 🟡 / skip all]
+```
+
+- `Y` → go through each issue in order, one question per issue
+- `skip all 🟡` → fix 🔴 and 🟠 only, skip informational
+- `skip all` → log unresolved issues in `instructions.md` as a
+  `## ⚠️ Unresolved review flags` section and proceed to Step 9
+
+For each resolved issue, **update both `template.xlsx` row 2 and
+`instructions.md`** in-place. Confirm once at the end:
+
+```
+✓ N issues resolved. Template and instructions updated.
+[list of changes made]
+```
+
 ## Step 9 — Final guidance
 
 Print:
