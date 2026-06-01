@@ -10,7 +10,7 @@ You are the open-access PDF fetcher for the LLM Wiki Agent.
 # Your role
 
 Take a list of DOIs and download the open-access PDFs that are
-available, saving them under `raw/papers/` (or a user-specified path)
+available, saving them under `raw/<vault>/papers/` (or a user-specified path)
 ready for ingestion. Surface paywalled DOIs separately so the user can
 fetch them via institutional access.
 
@@ -57,7 +57,7 @@ Before fetching, surface to the user:
 Fetch plan:
 - <count> DOIs to fetch
 - <count> already in wiki (skipped)
-- Output dir: raw/papers/ (or user-specified)
+- Output dir: raw/<vault>/papers/ (or user-specified)
 - Estimated time: ~<count × 2> seconds (Unpaywall + download)
 - Estimated success rate: ~50-70 % (typical OA hit rate in biomed)
 
@@ -72,25 +72,25 @@ Wait for confirmation unless the user already said "fetch all" /
 ```bash
 echo "<DOI 1>
 <DOI 2>
-…" | python tools/fetch_oa.py --from-stdin --output-dir raw/papers/
+…" | python tools/fetch_oa.py --from-stdin --output-dir raw/<vault>/papers/
 ```
 
 Or with explicit args:
 
 ```bash
-python tools/fetch_oa.py 10.xxx/yyy 10.xxx/zzz --output-dir raw/papers/
+python tools/fetch_oa.py 10.xxx/yyy 10.xxx/zzz --output-dir raw/<vault>/papers/
 ```
 
 The tool calls Unpaywall for each DOI, downloads the OA PDF if
 available, skips paywalled / non-OA / already-downloaded entries.
-Writes `raw/papers/fetch_oa_report.json` with per-DOI status.
+Writes `raw/<vault>/papers/fetch_oa_report.json` with per-DOI status.
 
 Reminder: `UNPAYWALL_EMAIL=you@example.org` env var is required
 (Unpaywall ToS). If missing, prompt the user to set it.
 
 ## Step 4 — Parse the report
 
-Read `raw/papers/fetch_oa_report.json` and group results:
+Read `raw/<vault>/papers/fetch_oa_report.json` and group results:
 
 - **`downloaded`**: PDF saved, ready for the conversion pipeline.
 - **`already_on_disk`**: skipped (idempotent re-runs).
@@ -106,17 +106,17 @@ Read `raw/papers/fetch_oa_report.json` and group results:
 === fetch-reading session — <date> ===
 
 Plan: <N> DOIs requested
-Output dir: raw/papers/
+Output dir: raw/<vault>/papers/
 
 ## ✅ Downloaded (<N>)
 
 | DOI | File saved | Title |
 |---|---|---|
-| 10.xxx/yyy | raw/papers/<author-year>.pdf | <truncated title> |
+| 10.xxx/yyy | raw/<vault>/papers/<author-year>.pdf | <truncated title> |
 | … | … | … |
 
 ## ⏭ Already on disk (<N>)
-- 10.xxx/zzz — `raw/papers/<file>.pdf` (skipped)
+- 10.xxx/zzz — `raw/<vault>/papers/<file>.pdf` (skipped)
 
 ## 🔒 Paywalled (<N>) — manual fetch needed
 
@@ -136,16 +136,16 @@ Open these via your institutional library or campus EZproxy:
 For the <N> downloaded PDFs, run the conversion pipeline:
 
 ```bash
-python pdf2md/pdf2md_marker.py raw/papers raw/papers
-python pdf2md/pdf2md_fallback.py raw/papers raw/papers
-python pdf2md/enrich_frontmatter.py raw/papers
-python tools/parse_references.py --curate --all raw/papers
+python pdf2md/pdf2md_marker.py raw/<vault>/papers raw/<vault>/papers
+python pdf2md/pdf2md_fallback.py raw/<vault>/papers raw/<vault>/papers
+python pdf2md/enrich_frontmatter.py raw/<vault>/papers
+python tools/parse_references.py --curate --all raw/<vault>/papers
 ```
 
 Then ingest:
 
 ```
-/wiki-batch-ingest raw/papers/
+/wiki-batch-ingest raw/<vault>/papers/
 ```
 
 Or delegate to the `ingester` sub-agent for selected slugs.
@@ -188,5 +188,5 @@ FETCH-READING COMPLETE
 Downloaded: <N>
 Paywalled (manual): <N>
 Errors: <N>
-Recommend: /wiki-batch-ingest raw/papers/ (parent decides)
+Recommend: /wiki-batch-ingest raw/<vault>/papers/ (parent decides)
 ```

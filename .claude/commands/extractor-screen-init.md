@@ -13,7 +13,7 @@ The screening phase is a sub-folder INSIDE an existing project under
 `project-review/`:
 
 ```
-project-review/<name>/
+project-review/<vault>/<name>/
 ├── contexte.md                          # shared by screening + extraction
 ├── log.md                               # shared audit trail
 ├── background/                          # user-authored sub-agent context
@@ -28,7 +28,7 @@ project-review/<name>/
 └── extraction/                          # already-existing extraction phase
 ```
 
-If `project-review/<name>/` does not exist yet, refuse and tell the
+If `project-review/<vault>/<name>/` does not exist yet, refuse and tell the
 user to run `/extractor-init <name>` first (which creates the
 full project including the empty `screening/` and `background/`
 folders).
@@ -53,10 +53,10 @@ Parse `$ARGUMENTS`:
 
 If the project name is empty, refuse and ask.
 
-Build path `project-review/<name>/` and check it exists. If not:
+Build path `project-review/<vault>/<name>/` and check it exists. If not:
 
 ```
-✗ project-review/<name>/ does not exist.
+✗ project-review/<vault>/<name>/ does not exist.
   Run /extractor-init <name> first to bootstrap the full project,
   then re-run /extractor-screen-init <name>.
 ```
@@ -74,10 +74,10 @@ screening/criteria.md already has content. Options:
 ## Step 2 — Create the skeleton
 
 ```bash
-mkdir -p project-review/<name>/screening/identified \
-         project-review/<name>/screening/1st-pass/raw \
-         project-review/<name>/screening/1st-pass/markdown \
-         project-review/<name>/screening/reports
+mkdir -p project-review/<vault>/<name>/screening/identified \
+         project-review/<vault>/<name>/screening/1st-pass/raw \
+         project-review/<vault>/<name>/screening/1st-pass/markdown \
+         project-review/<vault>/<name>/screening/reports
 ```
 
 Seed `screening/1st-pass/missing.md` (empty list — filled by
@@ -279,10 +279,10 @@ Apply edits if any.
 Print:
 
 ```
-✓ Screening phase ready at ./project-review/<name>/screening/
+✓ Screening phase ready at ./project-review/<vault>/<name>/screening/
 
 Optional but recommended — author a domain primer for the sub-agents:
-   project-review/<name>/background/notes.md
+   project-review/<vault>/<name>/background/notes.md
    Drop seminal PDFs / prior reviews into background/raw/ for
    reference; the sub-agents read notes.md only (your distilled
    summary, < 800 words). This is what gives every screener decision
@@ -291,7 +291,7 @@ Optional but recommended — author a domain primer for the sub-agents:
 Next steps:
 
 1. Drop your identified-record CSVs into:
-   project-review/<name>/screening/identified/
+   project-review/<vault>/<name>/screening/identified/
    Expected columns (case-insensitive, all optional except title):
      title, authors, year, doi, pmid, abstract, journal
    One CSV per source database (pubmed.csv, scopus.csv, …) — the
@@ -310,17 +310,17 @@ Next steps:
    update the PRISMA flowchart.
 
 4. The included articles flow naturally into extraction via
-   /extractor-table project-review/<name>/
+   /extractor-table project-review/<vault>/<name>/
    Side-flagged excludes are pre-organized in
    extraction/biblio/side/{intro,discussion,method,reco,general}/
 ```
 
 # Hard constraints
 
-- **NEVER touch `project-review/<name>/extraction/`** — that's the
+- **NEVER touch `project-review/<vault>/<name>/extraction/`** — that's the
   extraction phase's territory. This command only writes under
-  `project-review/<name>/screening/` and (when seeding the project)
-  `project-review/<name>/contexte.md` if it's empty.
+  `project-review/<vault>/<name>/screening/` and (when seeding the project)
+  `project-review/<vault>/<name>/contexte.md` if it's empty.
 - **NEVER overwrite an existing non-empty `criteria.md`** without
   the `redo` confirmation in Step 1.
 - **Ask ONE question at a time** in the interactive build. Wait for

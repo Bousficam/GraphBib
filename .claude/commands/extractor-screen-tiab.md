@@ -12,7 +12,7 @@ Arguments: $ARGUMENTS
 The project must have a populated screening phase:
 
 ```
-project-review/<name>/
+project-review/<vault>/<name>/
 ├── contexte.md
 └── screening/
     ├── criteria.md                 # MUST exist and be non-empty
@@ -57,7 +57,7 @@ Proceed? [Y/n]
 ## Phase 1 — Deduplicate
 
 ```bash
-python tools/screen_dedupe.py project-review/<name>
+python tools/screen_dedupe.py project-review/<vault>/<name>
 ```
 
 Reports: records read, skipped (no ID / no title), unique after dedup.
@@ -68,7 +68,7 @@ Writes `screening/dedup.csv` and `screening/reports/dedup-log.md`.
 Skip if `--no-fetch` was passed.
 
 ```bash
-python tools/screen_fetch_metadata.py project-review/<name>
+python tools/screen_fetch_metadata.py project-review/<vault>/<name>
 ```
 
 (or with `--force` when `--force-metadata` was passed)
@@ -188,7 +188,7 @@ includes to full text). Run:
 
 ```bash
 python tools/fetch_oa.py --from-stdin \
-    --output-dir project-review/<name>/screening/1st-pass/raw/ \
+    --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
     < <doi-list>
 ```
 
@@ -244,8 +244,8 @@ convert:
 
 ```bash
 python pdf2md/marker_convert.py \
-    --in  project-review/<name>/screening/1st-pass/raw/<slug>.pdf \
-    --out project-review/<name>/screening/1st-pass/markdown/<slug>.md
+    --in  project-review/<vault>/<name>/screening/1st-pass/raw/<slug>.pdf \
+    --out project-review/<vault>/<name>/screening/1st-pass/markdown/<slug>.md
 ```
 
 (Or whichever conversion entrypoint matches `/wiki-convert`'s
@@ -300,7 +300,7 @@ run `/wiki-convert screening/1st-pass/raw/` separately.
 ## Phase 7 — Update PRISMA flowchart
 
 ```bash
-python tools/screen_prisma.py project-review/<name>
+python tools/screen_prisma.py project-review/<vault>/<name>
 ```
 
 Overwrites `screening/reports/prisma-flowchart.md` with the current
@@ -310,12 +310,12 @@ counts.
 
 ```
 ✓ T/A screening done.
-  See: project-review/<name>/screening/reports/tiab-report.md
-  See: project-review/<name>/screening/reports/prisma-flowchart.md
+  See: project-review/<vault>/<name>/screening/reports/tiab-report.md
+  See: project-review/<vault>/<name>/screening/reports/prisma-flowchart.md
 
 Next step:
   - Manually fetch any paywalled PDFs listed in
-    project-review/<name>/screening/1st-pass/missing.md
+    project-review/<vault>/<name>/screening/1st-pass/missing.md
     and drop them into screening/1st-pass/raw/<slug>.pdf
   - Then run:
     /extractor-screen-fulltext <name>

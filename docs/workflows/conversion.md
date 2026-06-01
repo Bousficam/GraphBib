@@ -44,7 +44,7 @@ the OPF manifest, so conversion is cleaner.
 
 **EPUB conversion** (`pdf2md/epub2md.py SRC [DST]`) — walks SRC
 recursively for `*.epub`, mirrors arborescence to DST (default
-`raw/books/`), and converts each book to Markdown via **pandoc**
+`raw/<vault>/books/`), and converts each book to Markdown via **pandoc**
 (primary) or **markitdown** (fallback). Metadata is extracted from
 the OPF (`dc:title`, `dc:creator` with `aut`/`edt` roles, ISBN,
 publisher, year, language) and written to frontmatter. The backend
@@ -53,7 +53,7 @@ Writes `epub.log` and `epub_report.json`. Idempotent.
 
 For long books / edited volumes (≥ 150 pages or any handbook with
 distinct per-chapter authors), follow with `pdf2md/split_thesis.py`
-on each produced `raw/books/<slug>.md` — the script splits by
+on each produced `raw/<vault>/books/<slug>.md` — the script splits by
 chapter heading and is type-agnostic. The chapters then ingest via
 `source-academic-paper.md` with the `parent_book` / `book_editors`
 extra fields documented in `docs/templates/source-book.md`.
@@ -65,8 +65,8 @@ DOI-bearing references.
 ## Agent procedure
 
 1. Confirm SRC exists. **Sniff content**:
-   - PDFs present → default DST `raw/papers/`, run Phases 1–5.
-   - EPUBs present → default DST `raw/books/`, run Phase E + Phases
+   - PDFs present → default DST `raw/<vault>/papers/`, run Phases 1–5.
+   - EPUBs present → default DST `raw/<vault>/books/`, run Phase E + Phases
      4–5 on the produced markdown.
    - Both → ask which to process (or run both in sequence with
      distinct DSTs).

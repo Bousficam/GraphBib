@@ -1,57 +1,81 @@
 ---
-description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, outcomes, style notes — with dynamic follow-ups for ambiguous answers, e.g. asking about population frame only when the review is clinical), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /extractor-table which runs the extraction.
-argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
+description: Bootstrap and interactively build a literature-review project under project-review/<vault>/<name>/. Multi-vault — projects are grouped per research domain (vault), independently of the wiki vaults. Creates the folder skeleton (contexte.md, background/, screening/, extraction/), then walks the user through filling contexte.md, co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /extractor-table which runs the extraction.
+argument-hint: "[<vault>/]<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
 ---
 
-Create and interactively build a fresh extraction project.
+Create and interactively build a fresh literature-review project.
 
 Arguments: $ARGUMENTS
 
 # Project folder vs. the wiki — IMPORTANT
 
-GraphBib has **two distinct types of folders**:
+GraphBib has **two distinct orchestrators**, each with its own
+folder structure. They are intentionally **independent**:
 
-| Folder | Purpose | Obsidian? |
-|---|---|---|
-| `wiki/` (at repo root) | The agent's knowledge graph: sources, concepts, methods, recommendations, questions, syntheses, entities. Read by Obsidian as a vault. | **YES** — opened as an Obsidian vault |
-| `project-review/<name>/` (sibling of wiki/) | Self-contained literature-review extraction project: contexte, instructions, template, articles, output. **NOT part of any Obsidian vault.** | **NO** — pure file system, opened in Excel / a code editor |
+| Orchestrator | Folder | Purpose | Obsidian? |
+|---|---|---|---|
+| **Wiki** | `wiki/<vault>/` + `raw/<vault>/` | The agent's knowledge graph: sources, concepts, methods, recommendations, questions, syntheses, entities. Read by Obsidian as a vault. | **YES** — opened as an Obsidian vault |
+| **Extractor** | `project-review/<vault>/<name>/` | Self-contained literature-review project: contexte, background, screening, extraction. **NOT part of any Obsidian vault.** | **NO** — pure file system, opened in Excel / a code editor |
 
-This command creates the **project folder**, which is **separate from
-the wiki and outside any Obsidian vault**. The wiki keeps its job
-(domain knowledge graph). The project folder is a focused
-analytical artifact for ONE specific systematic review / literature
-review.
+This command operates on the **Extractor side**. It does NOT touch
+the wiki. Even when the project vault name matches a wiki vault
+(e.g. both called `BCINET`), the two are independent — they share
+only a research-domain label. The user must explicitly decide to
+ingest a project-review's results into the wiki after the fact.
 
 # Location
 
-All extraction projects live under a single container directory
-`project-review/` at the repo root. Each project is a sub-folder
-named after the user's project name:
+All literature-review projects live under
+`project-review/<vault>/<name>/` at the repo root:
 
 ```
-GraphBib/                        ← repo root
-├── wiki/                        ← Obsidian vault (knowledge graph)
-├── raw/                         ← source MDs / PDFs
-├── docs/, tools/, pdf2md/       ← agent infrastructure
-└── project-review/              ← container for all extraction projects
-    ├── mibci/                   ← project 1 (created by /extractor-init mibci)
-    ├── tms-dose-response/       ← project 2
-    └── dti-biomarkers/          ← project N
+GraphBib/                            ← repo root
+├── wiki/<vault>/                    ← Wiki orchestrator (independent)
+├── raw/<vault>/                     ← Wiki orchestrator's raw inputs
+├── docs/, tools/, pdf2md/           ← agent infrastructure
+└── project-review/                  ← Extractor orchestrator
+    ├── <vault-A>/                   ← one vault per research domain
+    │   ├── mibci/                   ← project 1 (in vault-A)
+    │   ├── tms-dose-response/       ← project 2 (in vault-A)
+    │   └── dti-biomarkers/          ← project N (in vault-A)
+    └── <vault-B>/                   ← another vault, independent
+        └── cardiology-risk-factors/
 ```
 
-The container (`project-review/`) is created on first run if missing.
-Each new `/extractor-init <name>` creates a sub-folder
-`project-review/<name>/` — keeps the repo root clean, groups all
-extraction work under one parent.
+The vault is part of the argument. Two equivalent invocations:
+
+```
+/extractor-init BCINET/mibci          # explicit vault + project
+$PROJECT_VAULT=BCINET                 # env-driven default
+/extractor-init mibci                 # uses $PROJECT_VAULT
+```
+
+Resolution priority for the vault:
+
+1. The path argument contains a `/` → use everything before the `/` as the vault.
+2. `$PROJECT_VAULT` env var is set → use it as the vault.
+3. A single sub-vault exists under `project-review/` → use it.
+4. Multiple sub-vaults exist → REFUSE; ask the user to disambiguate.
+5. Legacy flat layout (`project-review/<name>/` projects at the root,
+   no sub-vault folders) → REFUSE; ask the user to pick a vault
+   (and optionally migrate existing projects via `mv`).
+
+The vault name is independent from `$WIKI_VAULT`. Setting them to
+the same string is fine and recommended for consistency, but not
+enforced. Use a different env var deliberately when you want a
+project-review under a different domain label than the wiki vault.
+
+The container (`project-review/<vault>/`) is created on first run
+if missing.
 
 The command **refuses** to create a project anywhere else (inside
 `wiki/`, `raw/`, `docs/`, `tools/`, or as a sibling of these).
-`project-review/<name>` is the only valid path.
+`project-review/<vault>/<name>` is the only valid path.
 
 # What this command creates
 
 ```
-project-review/<name>/
+project-review/<vault>/<name>/
 ├── contexte.md             # narrative scope — SHARED by screening + extraction
 ├── log.md                  # unified audit trail across both phases
 ├── background/             # USER-AUTHORED context for the sub-agents
@@ -113,22 +137,73 @@ mv instructions.md template.xlsx articles output biblio extraction/
 
 # Procedure
 
-## Step 1 — Confirm scope
+## Step 1 — Confirm scope + resolve the vault
 
 Parse `$ARGUMENTS`:
-- First positional argument = project name (e.g. `mibci-stroke`)
+- First positional argument:
+  - `<vault>/<project-name>` → explicit vault + project (e.g.
+    `BCINET/mibci-stroke`). Use everything before the FIRST `/` as
+    the vault, the rest as the project name (further slashes are
+    rejected as invalid).
+  - `<project-name>` → vault is resolved by Step 1b below.
 - `--from-source <SR-slug>` (optional) — seed the template's data
-  rows from the SR's `cites:` list
+  rows from the SR's `cites:` list.
 - `--columns col1,col2,...` (optional) — column set for the template;
-  default is the 27-column SR set in `tools/extract_data.py`
+  default is the 27-column SR set in `tools/extract_data.py`.
 - `--skeleton-only` (optional) — skip the interactive build, just
   create the empty files. The user can run Phase 1 of
   `/extractor-table` later to clarify instructions.
 
+## Step 1b — Vault resolution (when not given in the argument)
+
+```bash
+ls -la project-review/ 2>&1 | head -20
+```
+
+Apply this priority:
+
+1. **`$PROJECT_VAULT` env var is set** → use it as the vault. Verify
+   that `project-review/$PROJECT_VAULT/` exists (create the empty
+   container later) and confirm with the user:
+   `Use $PROJECT_VAULT=<vault> for this project? [Y/n]`
+2. **`project-review/` doesn't exist or is empty** → ASK the user
+   for a vault name (kebab-case, e.g. `BCINET`, `cardiology`).
+   Suggest reusing `$WIKI_VAULT` if it's set (with explicit
+   confirmation — the user must opt in, since the two are
+   independent):
+   `Reuse $WIKI_VAULT=<vault> as the project-review vault? [y/N]`
+3. **Single sub-vault exists** (a `project-review/<sub>/` folder that
+   itself contains existing projects with `contexte.md` /
+   `extraction/` / `screening/`) → use it automatically; confirm
+   with `Found existing vault project-review/<sub>/. Use it? [Y/n]`.
+4. **Multiple sub-vaults exist** → REFUSE; list them and ask the
+   user to either pass `<vault>/<name>` explicitly or export
+   `$PROJECT_VAULT`.
+5. **Legacy flat layout detected** (`project-review/<name>/` folders
+   exist at the top, no sub-vaults) → ASK the user:
+   - `[1] Pick a NEW vault and create project-review/<vault>/<name>/ here.`
+   - `[2] Stay flat — create project-review/<name>/ next to the others (legacy mode).`
+   - `[3] Cancel.`
+   Default: [1]. If [2], the project is created at the legacy flat
+   path and downstream commands will detect the layout
+   automatically.
+
+Once the vault is resolved, build the full target path:
+
+```
+project-review/<vault>/<project-name>/   # phased layout (preferred)
+project-review/<project-name>/           # flat legacy fallback
+```
+
+Refuse if any reserved name conflicts: the vault and project name
+must NOT match any of `screening`, `extraction`, `background`,
+`contexte`, `log`, `criteria`, `instructions`, `template`,
+`articles`, `output`, `biblio`.
+
 Show the plan and ask before creating:
 
 ```
-Will create: ./project-review/<name>/
+Will create: ./project-review/<vault>/<name>/
   ├── contexte.md                          (seeded — shared by both phases)
   ├── log.md                               (empty audit trail)
   ├── background/                          (user-authored sub-agent context)
@@ -154,7 +229,7 @@ Will create: ./project-review/<name>/
 Proceed? [Y/n]
 ```
 
-If `project-review/<name>/` already exists and is non-empty:
+If `project-review/<vault>/<name>/` already exists and is non-empty:
 - If `contexte.md`, `extraction/instructions.md`, or
   `extraction/template.{xlsx,csv}` exist → REFUSE. Ask user to pick a
   different name or remove the folder themselves (don't overwrite
@@ -164,21 +239,21 @@ If `project-review/<name>/` already exists and is non-empty:
 ## Step 2 — Create the folder structure
 
 ```bash
-mkdir -p project-review/<name>/background/raw \
-         project-review/<name>/background/markdown \
-         project-review/<name>/screening/identified \
-         project-review/<name>/screening/1st-pass/raw \
-         project-review/<name>/screening/1st-pass/markdown \
-         project-review/<name>/screening/reports \
-         project-review/<name>/extraction/articles \
-         project-review/<name>/extraction/output \
-         project-review/<name>/extraction/biblio/side/intro \
-         project-review/<name>/extraction/biblio/side/discussion \
-         project-review/<name>/extraction/biblio/side/method \
-         project-review/<name>/extraction/biblio/side/reco \
-         project-review/<name>/extraction/biblio/side/general \
-         project-review/<name>/extraction/biblio/raw \
-         project-review/<name>/extraction/biblio/markdown
+mkdir -p project-review/<vault>/<name>/background/raw \
+         project-review/<vault>/<name>/background/markdown \
+         project-review/<vault>/<name>/screening/identified \
+         project-review/<vault>/<name>/screening/1st-pass/raw \
+         project-review/<vault>/<name>/screening/1st-pass/markdown \
+         project-review/<vault>/<name>/screening/reports \
+         project-review/<vault>/<name>/extraction/articles \
+         project-review/<vault>/<name>/extraction/output \
+         project-review/<vault>/<name>/extraction/biblio/side/intro \
+         project-review/<vault>/<name>/extraction/biblio/side/discussion \
+         project-review/<vault>/<name>/extraction/biblio/side/method \
+         project-review/<vault>/<name>/extraction/biblio/side/reco \
+         project-review/<vault>/<name>/extraction/biblio/side/general \
+         project-review/<vault>/<name>/extraction/biblio/raw \
+         project-review/<vault>/<name>/extraction/biblio/markdown
 ```
 
 Seed `background/notes.md` (placeholder):
@@ -277,7 +352,7 @@ PDFs or MDs manually for background references and intro sources
 
 ## Step 3 — Seed contexte.md
 
-Write `project-review/<name>/contexte.md` (root level — shared by
+Write `project-review/<vault>/<name>/contexte.md` (root level — shared by
 screening and extraction) with a **minimal** guided template —
 only what the extraction agent will actually consume. Inclusion /
 exclusion criteria, date ranges, and language filters belong to the
@@ -347,7 +422,7 @@ line, matching `wiki/sources/<slug>.md`.)
 
 ## Step 4 — Seed instructions.md (empty preamble)
 
-Write `project-review/<name>/instructions.md`:
+Write `project-review/<vault>/<name>/instructions.md`:
 
 ```markdown
 # Extraction instructions — <project-name>
@@ -356,7 +431,7 @@ Write `project-review/<name>/instructions.md`:
 > Each column gets a section with the row-2 terse instruction
 > plus narrative detail and edge cases.
 
-(Empty — run `/extractor-table project-review/<name>/` to populate.)
+(Empty — run `/extractor-table project-review/<vault>/<name>/` to populate.)
 ```
 
 ## Step 5 — Create the template
@@ -366,7 +441,7 @@ Write `project-review/<name>/instructions.md`:
 ```bash
 python tools/extract_data.py \
     --from-source <SR-slug> \
-    -o project-review/<name>/extraction/template.xlsx \
+    -o project-review/<vault>/<name>/extraction/template.xlsx \
     --no-spec
 ```
 
@@ -380,7 +455,7 @@ Pass `--columns` if provided.
 Create an empty template with just headers + empty row 2:
 
 ```python
-python tools/extract_data.py --from-source __empty__ -o project-review/<name>/extraction/template.xlsx --no-spec --columns "<cols>"
+python tools/extract_data.py --from-source __empty__ -o project-review/<vault>/<name>/extraction/template.xlsx --no-spec --columns "<cols>"
 ```
 
 If that doesn't work (since `__empty__` isn't a real slug), write the
@@ -396,7 +471,7 @@ wb = Workbook()
 ws = wb.active
 ws.append(cols)        # row 1: variable names
 ws.append([""] * len(cols))  # row 2: empty instructions (Phase 1 will fill)
-wb.save("project-review/<name>/extraction/template.xlsx")
+wb.save("project-review/<vault>/<name>/extraction/template.xlsx")
 PY
 ```
 
@@ -411,7 +486,7 @@ right now (default = yes, since this is usually what the user wants).
 Ask:
 
 ```
-✓ Project skeleton created at ./project-review/<name>/
+✓ Project skeleton created at ./project-review/<vault>/<name>/
 
 Build the project now? I can walk you through:
   1. contexte.md   → research question, inclusion criteria, notes
@@ -569,7 +644,7 @@ revisit: …") rather than running a long interrogation.
 ### Step 7c — Persist
 
 When all questions answered (structured + follow-ups), **write all
-answers** into `project-review/<name>/contexte.md`, replacing the
+answers** into `project-review/<vault>/<name>/contexte.md`, replacing the
 seeded placeholders with the user's prose. Confirm:
 
 ```
@@ -763,7 +838,7 @@ the end:
 Print:
 
 ```
-✓ Project ready at ./project-review/<name>/
+✓ Project ready at ./project-review/<vault>/<name>/
 
 The project has TWO phases — both optional, you can use either or both:
 
@@ -776,14 +851,14 @@ Phase 1 (optional) — PRISMA screening
   → included articles are auto-copied into extraction/articles/
 
 Phase 2 — Data extraction
-  /extractor-table project-review/<name>/
+  /extractor-table project-review/<vault>/<name>/
   Phase 1 of that command re-checks the instructions you just authored
   (catches empty / ambiguous columns), then Phase 2 + 3 produce
   extraction/output/extraction-{detailed,coded}.xlsx.
 
 To add sources to extract WITHOUT screening:
-  - List the slugs in project-review/<name>/contexte.md under "Source list"
-  - Or copy / link the source MDs into project-review/<name>/extraction/articles/
+  - List the slugs in project-review/<vault>/<name>/contexte.md under "Source list"
+  - Or copy / link the source MDs into project-review/<vault>/<name>/extraction/articles/
   - Or leave both empty and extract_data.py reads straight from wiki/sources/
 ```
 
@@ -803,7 +878,7 @@ To add sources to extract WITHOUT screening:
   `/extractor-table` writes there.
 
 - **This command does NOT touch the wiki.** It only creates files
-  under `project-review/<name>/` at the repo root. Removing the
+  under `project-review/<vault>/<name>/` at the repo root. Removing the
   project folder removes all artifacts; the wiki is unaffected.
 
 - Each review lives in its OWN sibling folder. You can have many
@@ -818,7 +893,7 @@ To add sources to extract WITHOUT screening:
 
 # Hard constraints
 
-- **ALWAYS create the project under `project-review/<name>/`.** Never
+- **ALWAYS create the project under `project-review/<vault>/<name>/`.** Never
   at the repo root, never inside `wiki/`, `raw/`, `docs/`, `tools/`,
   `pdf2md/`, `.claude/`, or `graph/`. If the user passes a path with
   a slash in it (e.g. `project-review/foo` or `wiki/bar`), strip
@@ -827,7 +902,7 @@ To add sources to extract WITHOUT screening:
 - **NEVER overwrite an existing `contexte.md`,
   `extraction/instructions.md`, or `extraction/template.{xlsx,csv}`**
   inside the target sub-folder. Ask the user to remove
-  `project-review/<name>/` manually if they want a fresh project.
+  `project-review/<vault>/<name>/` manually if they want a fresh project.
 - **NEVER use a project name that conflicts with a reserved name**
   (`articles`, `output`, `contexte`, `instructions`, `template`,
   `log`, `screening`, `extraction`, `biblio`, `criteria`) — these

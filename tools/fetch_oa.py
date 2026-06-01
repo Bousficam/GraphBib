@@ -4,7 +4,9 @@
 Workflow:
   - Query Unpaywall (free, no key, just an email) for each DOI.
   - If `is_oa` and a PDF URL is available, download it.
-  - Save to `raw/papers/<first-author-year>.pdf` (slug from Crossref).
+  - Save to `raw/<vault>/papers/<first-author-year>.pdf` (slug from
+    Crossref). When no vault is set up (legacy flat layout), saves
+    to `raw/papers/`.
   - Skip DOIs that are paywalled, already downloaded, or fail.
 
 Usage:
@@ -18,8 +20,12 @@ Usage:
     python tools/suggest_readings.py --forward --top 30 \\
       | python tools/fetch_oa.py --from-stdin
 
-    # Override output directory (default: raw/papers/)
+    # Override output directory (default: raw/<vault>/papers/)
     python tools/fetch_oa.py --output-dir raw/snowball/ 10.xxx/yyy
+
+    # Pick an explicit vault (otherwise auto-detects the single vault,
+    # or errors when multiple exist)
+    WIKI_VAULT=BCINET python tools/fetch_oa.py 10.xxx/yyy
 
     # Set your contact email (required by Unpaywall ToS)
     UNPAYWALL_EMAIL=you@example.org python tools/fetch_oa.py 10.xxx/yyy
@@ -39,8 +45,10 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
-REPO_ROOT = Path(__file__).parent.parent
-DEFAULT_DST = REPO_ROOT / "raw" / "papers"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, raw_subdir  # noqa: E402
+
+DEFAULT_DST = raw_subdir("papers")
 
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
 DEFAULT_EMAIL = os.getenv("UNPAYWALL_EMAIL", "contact@example.com")

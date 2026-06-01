@@ -12,10 +12,12 @@ The agent core is **domain-neutral** — same IMRAD extraction, same citation ne
 
 ```
 raw/                  # Immutable source documents — never modified
-├── papers/           # Journal articles
-├── theses/           # PhD/MSc theses (with citation snowball)
-├── books/            # Academic books, edited volumes, handbooks (EPUB-friendly)
-└── notes/            # Lab reports, conference talks, personal notes
+├── <vault-name>/     # Per-vault raw inputs (mirrors wiki/<vault-name>/)
+│   ├── papers/       # Journal articles
+│   ├── theses/       # PhD/MSc theses (with citation snowball)
+│   ├── books/        # Academic books, edited volumes, handbooks (EPUB-friendly)
+│   └── notes/        # Lab reports, conference talks, personal notes
+└── …                 # Additional raw vaults for other domains
 wiki/                 # Multi-vault knowledge graph (one Obsidian vault per research domain)
 ├── <vault-name>/     # e.g. stroke-rehab/, cardiology/, nlp-research/
 │   ├── index.md      # Vault catalog — updated on every ingest
@@ -29,8 +31,9 @@ wiki/                 # Multi-vault knowledge graph (one Obsidian vault per rese
 │   ├── questions/    # Open research questions identified across the corpus
 │   └── syntheses/    # Saved query answers and literature reviews
 └── …                 # Additional vault sub-folders for other domains
-project-review/       # Self-contained review projects (NOT in Obsidian)
-├── <name>/           # One folder per systematic / scoping / narrative review
+project-review/       # Self-contained review projects (NOT in Obsidian) — Extractor orchestrator
+├── <vault>/          # Per-vault container — independent from wiki/<vault>/
+│   └── <name>/       # One folder per systematic / scoping / narrative review
 │   ├── contexte.md       # Shared scope — review type, objective, question, outcomes
 │   ├── log.md            # Audit trail across both phases
 │   ├── background/       # USER-AUTHORED context (input to every sub-agent)
@@ -105,15 +108,17 @@ Three steps inside the agent — **init the layout, add a source, ingest**.
 e.g. `/wiki-init stroke-rehab` or `/wiki-init cardiology`. Each
 **vault** is a self-contained Obsidian-compatible knowledge graph
 for one research domain — you can have many side-by-side under
-`wiki/`. The command creates `raw/{papers,theses,books,notes}/` once
-(shared across vaults) and `wiki/<vault-name>/{sources,concepts,
-methods,interventions,recommendations,questions,entities,
-syntheses}/`, plus seeds empty `index.md` / `log.md` /
-`overview.md` inside the new vault.
+`wiki/`. The command creates BOTH sides in lockstep:
+`raw/<vault-name>/{papers,theses,books,notes}/` for the raw inputs
+and `wiki/<vault-name>/{sources,concepts,methods,interventions,
+recommendations,questions,entities,syntheses}/` for the ingested
+graph, plus seeds empty `index.md` / `log.md` / `overview.md`
+inside the new vault.
 
 When multiple vaults exist, set `$WIKI_VAULT=<name>` to tell the
-tools which one to operate on (single-vault wikis are auto-detected;
-legacy flat `wiki/sources/` layouts still work).
+tools which one to operate on (resolves BOTH `wiki/<vault>/` and
+`raw/<vault>/`). Single-vault setups are auto-detected; legacy flat
+`wiki/sources/` + `raw/papers/` layouts keep working.
 
 ### 2. Add a source — drop a file into the right `raw/` folder
 
@@ -121,8 +126,8 @@ Markdown sources are ready immediately. PDF and EPUB sources need a
 one-shot conversion:
 
 ```
-/wiki-convert ~/path/to/your/PDFs         # PDFs  → raw/papers/*.md
-/wiki-convert ~/path/to/your/EPUBs        # EPUBs → raw/books/*.md
+/wiki-convert ~/path/to/your/PDFs         # PDFs  → raw/<vault>/papers/*.md
+/wiki-convert ~/path/to/your/EPUBs        # EPUBs → raw/<vault>/books/*.md
 ```
 
 The conversion pipeline (Marker → pymupdf4llm fallback → Crossref
@@ -132,7 +137,7 @@ runs idempotently — already-converted files are skipped.
 ### 3. Ingest — the agent builds the wiki
 
 ```
-ingest raw/papers/cervera-2020.md
+ingest raw/<vault>/papers/cervera-2020.md
 ```
 
 In a single pass the agent produces:
@@ -146,7 +151,7 @@ In a single pass the agent produces:
 - `index.md` / `log.md` / `overview.md` — all updated
 - frontmatter `cites: [DOIs]` populated, ready for `/wiki-snowball` and reverse-citation index
 
-For batch work: `/wiki-batch-ingest raw/papers/` (or `raw/books/`) processes a whole directory with confirmation between batches.
+For batch work: `/wiki-batch-ingest raw/<vault>/papers/` (or `raw/<vault>/books/`) processes a whole directory with confirmation between batches.
 
 That's it — the wiki compounds from there. Everything below is depth.
 
@@ -197,8 +202,8 @@ These tools won't *break* if you leave them — they'll just become inert (regex
 The agent understands natural language and shorthand triggers:
 
 ```
-ingest raw/papers/cervera-2020.md          # ingest a markdown source
-ingest raw/papers/                         # batch ingest a directory
+ingest raw/<vault>/papers/cervera-2020.md          # ingest a markdown source
+ingest raw/<vault>/papers/                         # batch ingest a directory
 review topic: MI-BCI in chronic stroke     # generate a literature review
 query: what does the wiki say about
        corticospinal integrity?            # synthesize an answer with citations
@@ -277,7 +282,7 @@ PDF library                                         EPUB library (academic books
    │  pdf2md/pdf2md_fallback.py   (free, last resort)  │     ← OPF metadata → title, authors, editors,
    │                                                   │       ISBN, publisher, year, language
    │                                                   │
-   ▼  Markdown files (raw/papers/)                     ▼  Markdown files (raw/books/)
+   ▼  Markdown files (raw/<vault>/papers/)                     ▼  Markdown files (raw/<vault>/books/)
    │
    ▼  pdf2md/enrich_frontmatter.py  ← Crossref → title, authors, journal, year, DOI
    │                                  Regex → cites: [DOIs]
@@ -303,8 +308,8 @@ PDF library                                         EPUB library (academic books
 ### Step 1 — PDF → Markdown
 
 ```bash
-python pdf2md/pdf2md_marker.py "/path/to/PDFs" raw/papers
-python pdf2md/pdf2md_fallback.py "/path/to/PDFs" raw/papers
+python pdf2md/pdf2md_marker.py "/path/to/PDFs" raw/<vault>/papers
+python pdf2md/pdf2md_fallback.py "/path/to/PDFs" raw/<vault>/papers
 ```
 
 `pdf2md_marker.py` walks the source directory recursively, runs each PDF
@@ -329,13 +334,13 @@ implementation uses **Mistral Document AI**:
 
 ```bash
 export MISTRAL_API_KEY=...                  # console.mistral.ai
-python pdf2md/pdf2md_mistral.py "/path/to/PDFs" raw/papers
+python pdf2md/pdf2md_mistral.py "/path/to/PDFs" raw/<vault>/papers
 ```
 
 Reads `marker_report.json` and only sends the entries Marker errored
 on or flagged as suspicious — typically 10–20 % of a corpus. Paces
 itself at ~2 req/s; the experimental plan is free with rate limits.
-Output is mirrored to `raw/papers/` with `backend: mistral` in the
+Output is mirrored to `raw/<vault>/papers/` with `backend: mistral` in the
 frontmatter so the source of each markdown is auditable.
 
 The script is a thin adapter (PDF → API → markdown + frontmatter), so
@@ -349,13 +354,13 @@ pipeline is provider-agnostic.
 ### Step 1b — EPUB → Markdown (academic books)
 
 ```bash
-python pdf2md/epub2md.py "/path/to/EPUBs"              # default DST: raw/books/
-python pdf2md/epub2md.py "/path/to/EPUBs" raw/books    # explicit DST
-python pdf2md/epub2md.py "/path/to/EPUBs" raw/books --engine markitdown
+python pdf2md/epub2md.py "/path/to/EPUBs"              # default DST: raw/<vault>/books/
+python pdf2md/epub2md.py "/path/to/EPUBs" raw/<vault>/books    # explicit DST
+python pdf2md/epub2md.py "/path/to/EPUBs" raw/<vault>/books --engine markitdown
 ```
 
 `epub2md.py` walks the source directory recursively for `*.epub`,
-mirrors arborescence to `raw/books/`, and converts each book to
+mirrors arborescence to `raw/<vault>/books/`, and converts each book to
 Markdown via **pandoc** (primary, install with `apt install pandoc`
 or `brew install pandoc`) or **markitdown** (fallback, `pip install
 markitdown`). Bibliographic metadata is extracted from the EPUB's
@@ -370,17 +375,17 @@ type-agnostic, despite the name) can then split a long book or
 edited handbook into per-chapter pages that ingest separately:
 
 ```bash
-python pdf2md/split_thesis.py raw/books/<slug>.md
+python pdf2md/split_thesis.py raw/<vault>/books/<slug>.md
 ```
 
-The chapters become `raw/books/<slug>/chXX-<title>.md`, ingest via
+The chapters become `raw/<vault>/books/<slug>/chXX-<title>.md`, ingest via
 `source-academic-paper.md` with the `parent_book` / `book_editors`
 frontmatter fields documented in `docs/templates/source-book.md`.
 
 ### Step 2 — Enrich Bibliographic Metadata
 
 ```bash
-python pdf2md/enrich_frontmatter.py raw/papers
+python pdf2md/enrich_frontmatter.py raw/<vault>/papers
 ```
 
 For each `.md`, finds the DOI (regex over the body and the first PDF
@@ -394,7 +399,7 @@ DOI-only / no-DOI / errors / how many sources got `cites:` populated.
 ### Step 3 — Validate and Curate Citations
 
 ```bash
-python tools/parse_references.py --curate --all raw/papers
+python tools/parse_references.py --curate --all raw/<vault>/papers
 ```
 
 Three opt-in phases:
@@ -425,13 +430,13 @@ claude
 
 Then in the agent:
 ```
-ingest raw/papers/cervera-2020.md
-ingest raw/papers/   # batch — process by length, ascending
+ingest raw/<vault>/papers/cervera-2020.md
+ingest raw/<vault>/papers/   # batch — process by length, ascending
 ```
 
 Or in plain English:
 ```
-"Ingest all PDFs under raw/papers/ in batches of 5, shortest first.
+"Ingest all PDFs under raw/<vault>/papers/ in batches of 5, shortest first.
  Confirm after each batch."
 ```
 
@@ -454,7 +459,7 @@ Claude reads `CLAUDE.md` and applies the academic schema:
 - `citation_apa` and `bibtex_key` auto-generated; `## How to Cite`
   section in each source page is copy-paste ready.
 
-For theses (`raw/theses/*`), Claude additionally extracts a
+For theses (`raw/<vault>/theses/*`), Claude additionally extracts a
 **citation snowball list** of high-value references the thesis builds on.
 
 ### Step 5 — Build and Maintain the Citation Network
@@ -664,13 +669,13 @@ when you start writing.
 
 ```
 # Conversion + metadata + citations (one-shot, idempotent)
-python pdf2md/pdf2md_marker.py "~/PDFs" raw/papers
-python pdf2md/pdf2md_fallback.py "~/PDFs" raw/papers
-python pdf2md/enrich_frontmatter.py raw/papers
-python tools/parse_references.py --curate --all raw/papers
+python pdf2md/pdf2md_marker.py "~/PDFs" raw/<vault>/papers
+python pdf2md/pdf2md_fallback.py "~/PDFs" raw/<vault>/papers
+python pdf2md/enrich_frontmatter.py raw/<vault>/papers
+python tools/parse_references.py --curate --all raw/<vault>/papers
 
 # Ingest in Claude Code (batch)
-"Ingest all .md under raw/papers/ in batches of 5, shortest first."
+"Ingest all .md under raw/<vault>/papers/ in batches of 5, shortest first."
 
 # Periodic maintenance
 python tools/update_cited_by.py
@@ -711,12 +716,14 @@ You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ### Systematic review — screening + extraction
 
-Review projects live under `project-review/<name>/` — **separate
-from the Obsidian wiki**, self-contained per review, organized in
-two sequential phases:
+Review projects live under `project-review/<vault>/<name>/` —
+**separate from the Obsidian wiki**, self-contained per review,
+organized in two sequential phases. The `<vault>` is independent
+from the wiki vault (set via `$PROJECT_VAULT` or as the first path
+segment, e.g. `BCINET/mibci`):
 
 ```
-project-review/mibci/
+project-review/BCINET/mibci/
 ├── contexte.md          # Shared scope (PICO, objective, question, outcomes)
 ├── screening/           # PRISMA 2020 — pass 1 (T/A) + pass 2 (full text)
 │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
@@ -793,7 +800,7 @@ project-review/mibci/
      closed ambiguity, missing units, inconsistent tokens, etc.), severity
      triage 🔴/🟠/🟡, resolves one by one before finalising
 
-5. **`/extractor-table project-review/<name>/`** — runs extraction.
+5. **`/extractor-table project-review/<vault>/<name>/`** — runs extraction.
    - **Phase 1b** — article resolution: for each article, locates PDF
      (`extraction/biblio/raw/` or, if the project went through screening,
      `screening/1st-pass/raw/`) and MD via the wiki; copies both (never
@@ -998,10 +1005,10 @@ bibliographic metadata automatically.
 For occasional non-PDF sources (lab notes, conference transcripts,
 slides), markitdown handles `.docx`, `.pptx`, `.xlsx`, `.html`, `.txt`,
 `.csv`, `.json`, `.xml`, `.rst`, `.rtf`, `.epub`, `.ipynb`. Drop the file
-in `raw/notes/` and ingest directly:
+in `raw/<vault>/notes/` and ingest directly:
 
 ```
-ingest raw/notes/conference-talk-2024.docx
+ingest raw/<vault>/notes/conference-talk-2024.docx
 ```
 
 ### arXiv preprints

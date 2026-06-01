@@ -1,12 +1,12 @@
 ---
-description: Initialize a fresh vault — create wiki/<vault-name>/ with the standard sub-folders + seed index.md / log.md / overview.md. Also creates raw/ at the repo root on first run. Multi-vault aware — each invocation adds a new vault sub-folder.
+description: Initialize a fresh vault — create wiki/<vault-name>/ AND raw/<vault-name>/ with the standard sub-folders + seed index.md / log.md / overview.md. Multi-vault aware — each invocation adds one new vault on both sides.
 argument-hint: "<vault-name>"
 ---
 
-Set up a clean vault inside the wiki/ directory. Use this:
+Set up a clean vault inside the wiki/ AND raw/ directories. Use this:
 - Once per research domain you want to track (e.g. `stroke-rehab`,
   `cardiology`, `nlp-research`)
-- After manually deleting `wiki/<vault>/` to recover
+- After manually deleting `wiki/<vault>/` or `raw/<vault>/` to recover
 
 # Multi-vault layout
 
@@ -17,21 +17,33 @@ wiki/                           ← parent (not opened directly in Obsidian)
 │   ├── sources/, concepts/, methods/, recommendations/, questions/, syntheses/, entities/
 ├── <vault-2>/
 │   └── ...
+
+raw/                            ← parent (parallel to wiki/, NOT an Obsidian vault)
+├── <vault-1>/                  ← raw inputs for vault-1 — papers, theses, books, notes
+│   ├── papers/, theses/, books/, notes/
+├── <vault-2>/
+│   └── ...
 ```
 
-Each `wiki/<vault>/` is independent: its own sources, concepts,
-citation graph. The agent operates on one vault at a time, resolved
-via this priority (handled by `tools/_lib.py:_detect_active_vault`):
+Each `wiki/<vault>/` and `raw/<vault>/` pair is independent — its own
+sources, raw inputs, citation graph. The agent operates on one vault
+at a time, resolved via this priority (handled by
+`tools/_lib.py:_detect_active_vault` AND `_detect_active_raw`):
 
-1. `$WIKI_VAULT` env var → `wiki/$WIKI_VAULT/`
-2. Single vault present  → that one, automatically
-3. Legacy flat layout    → `wiki/` itself (backward-compat for
-   pre-multi-vault wikis where `wiki/sources/` exists at the root)
+1. `$WIKI_VAULT` env var → `wiki/$WIKI_VAULT/` + `raw/$WIKI_VAULT/`
+2. Single vault present  → that one, automatically (on each side)
+3. Legacy flat layout    → `wiki/` / `raw/` themselves (backward-compat
+   for pre-multi-vault setups where `wiki/sources/` or `raw/papers/`
+   exists directly at the root)
 4. Multiple vaults, no env → ambiguous; tools warn and ask user
 
-`raw/` (shared pool of source documents) stays flat at the repo
-root — its content is reusable across vaults. Each ingest pulls
-from `raw/` into the active vault's `sources/`.
+Wiki and raw share the SAME vault name because raw is the input and
+wiki is the ingested output of the SAME research domain. Setting
+`$WIKI_VAULT=BCINET` resolves both `wiki/BCINET/` and `raw/BCINET/`.
+
+The `project-review/` orchestrator is independent (see
+`/extractor-init`) — it has its own vault scoping and is NOT created
+or read by this command.
 
 # Procedure
 
@@ -58,26 +70,28 @@ Refuse names that:
 ## Step 2 — Detect existing layout
 
 ```bash
-ls -la wiki/ 2>&1 | head
+ls -la wiki/ raw/ 2>&1 | head -30
 ```
 
-Three cases:
+Three cases (apply to both `wiki/` and `raw/` symmetrically):
 
-**A. `wiki/` doesn't exist or is empty** → proceed cleanly.
+**A. Neither `wiki/` nor `raw/` exists or both are empty** → proceed cleanly.
 
-**B. `wiki/<name>/` already exists** → REFUSE. Ask user to `rm -rf
-wiki/<name>` first if they want to reset that vault.
+**B. `wiki/<name>/` OR `raw/<name>/` already exists** → REFUSE. Ask user
+to `rm -rf` the conflicting folder first if they want to reset.
 
-**C. `wiki/sources/` exists directly (legacy flat layout)** →
-Ask the user:
+**C. Legacy flat layout** (`wiki/sources/` or `raw/papers/` exists
+directly at the root) → Ask the user:
 
-> *"Existing wiki uses the legacy flat layout (`wiki/sources/`,
-> `wiki/concepts/`, …). Multi-vault expects `wiki/<vault>/sources/`.
+> *"Existing wiki/raw uses the legacy flat layout (`wiki/sources/`,
+> `raw/papers/`, …). Multi-vault expects `wiki/<vault>/sources/` and
+> `raw/<vault>/papers/`.
 >
 > Options:
 >   [1] Migrate the existing content into a vault first
->       (rename to `wiki/<existing-vault-name>/`), then create
->       `wiki/<new-name>/` alongside.
+>       (rename to `wiki/<existing-vault-name>/` and
+>       `raw/<existing-vault-name>/`), then create the new vault
+>       alongside.
 >   [2] Skip — keep using the flat layout (legacy mode stays
 >       supported, but you can only have one vault).
 >   [3] Cancel.*
@@ -92,6 +106,12 @@ mv wiki/concepts wiki/<migration-target>/   # etc. for every existing subfolder
 mv wiki/index.md wiki/<migration-target>/
 mv wiki/log.md wiki/<migration-target>/
 mv wiki/overview.md wiki/<migration-target>/
+
+mkdir -p raw/<migration-target>
+mv raw/papers raw/<migration-target>/
+mv raw/theses raw/<migration-target>/   # if present
+mv raw/books  raw/<migration-target>/   # if present
+mv raw/notes  raw/<migration-target>/   # if present
 ```
 
 Then proceed to Step 3 for the new vault.
@@ -99,15 +119,14 @@ Then proceed to Step 3 for the new vault.
 ## Step 3 — Create the vault directory structure
 
 ```bash
-mkdir -p raw/papers raw/theses raw/books raw/notes
+mkdir -p raw/<vault>/papers raw/<vault>/theses raw/<vault>/books raw/<vault>/notes
 mkdir -p wiki/<vault>/sources/articles wiki/<vault>/sources/theses wiki/<vault>/sources/books
 mkdir -p wiki/<vault>/entities wiki/<vault>/concepts wiki/<vault>/methods
 mkdir -p wiki/<vault>/interventions wiki/<vault>/recommendations wiki/<vault>/questions
 mkdir -p wiki/<vault>/syntheses
 ```
 
-The `raw/` tree is shared across vaults — created once if missing,
-left alone otherwise.
+The `raw/<vault>/` tree is created in lockstep with the wiki vault.
 
 ## Step 4 — Seed the three top-level vault files
 
@@ -193,21 +212,24 @@ Living synthesis across all sources ingested into the `<vault>` vault.
 ## Step 5 — Verify
 
 ```bash
-find raw/ wiki/<vault>/ -type d | sort
+find raw/<vault>/ wiki/<vault>/ -type d | sort
 ```
 
 ## Step 6 — Suggest next steps + activation guidance
 
-If this is the **only vault** (`wiki/` had no other vaults), no
-further config needed — tools auto-detect it.
+If this is the **only vault** (`wiki/` and `raw/` had no other
+vaults), no further config needed — tools auto-detect it on both
+sides.
 
 If this is the **second+ vault**, tell the user:
 
 ```
-Multiple vaults now exist in wiki/. Set the active one explicitly
-when running tools (otherwise they'll error with "ambiguous"):
+Multiple vaults now exist. Set the active one explicitly when
+running tools (otherwise they'll error with "ambiguous" on both the
+wiki and the raw side):
 
-  export WIKI_VAULT=<vault>            # current shell
+  export WIKI_VAULT=<vault>            # current shell, resolves
+                                       # both wiki/<vault>/ and raw/<vault>/
   WIKI_VAULT=<vault> python tools/...  # one-off command
 
 Or run /wiki-status to see which vaults exist and switch.
@@ -218,9 +240,9 @@ Then the usual onboarding:
 ```
 Vault `<vault>` initialized. Suggested next steps:
 
-1. Drop your PDFs into raw/papers/ or raw/theses/ (shared across vaults).
-2. Run /wiki-convert <path-to-pdfs> raw/papers/  (or theses/)
-3. Run /wiki-batch-ingest raw/papers/
+1. Drop your PDFs into raw/<vault>/papers/ or raw/<vault>/theses/.
+2. Run /wiki-convert <path-to-pdfs> raw/<vault>/papers/  (or theses/)
+3. Run /wiki-batch-ingest raw/<vault>/papers/
    (ingest goes into wiki/<vault>/sources/)
 
 If you have a research focus already, edit context.md (at the repo

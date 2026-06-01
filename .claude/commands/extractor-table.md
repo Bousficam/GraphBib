@@ -49,7 +49,7 @@ in Excel / a text editor. The wiki is the agent's knowledge graph
 self-contained analytical artifact for ONE specific systematic review.
 
 Bootstrap a fresh project via `/extractor-init <name>` (creates
-`project-review/<name>/` with both `screening/` and `extraction/`
+`project-review/<vault>/<name>/` with both `screening/` and `extraction/`
 sub-folders + interactive build of contexte.md + template +
 instructions.md).
 
@@ -304,11 +304,11 @@ The path resolver picks the right one automatically.
    `screening/1st-pass/markdown/<slug>.md`.
 3. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
 4. If found, **copy** it to `<biblio>/markdown/<slug>.md`.
-5. If not found in wiki → look in `raw/papers/` for a matching MD file.
+5. If not found in wiki → look in `raw/<vault>/papers/` for a matching MD file.
 6. If still not found → note `MD: not found` in the project log.
 
 **NEVER move files.** Use `cp`, not `mv`. The originals in `wiki/sources/`,
-`raw/papers/`, and `screening/1st-pass/` must remain untouched.
+`raw/<vault>/papers/`, and `screening/1st-pass/` must remain untouched.
 
 ### After resolution
 

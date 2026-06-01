@@ -6,8 +6,8 @@ condenses chapters into bullets, and the source page is superficial.
 **Solution: split first, ingest chapter by chapter, aggregate at
 parent level.**
 
-This workflow applies identically to theses (`raw/theses/*`) and to
-academic books, edited volumes, and handbooks (`raw/books/*`). For
+This workflow applies identically to theses (`raw/<vault>/theses/*`) and to
+academic books, edited volumes, and handbooks (`raw/<vault>/books/*`). For
 books, the parent uses `docs/templates/source-book.md` and the
 chapters use `docs/templates/source-academic-paper.md` with the
 `parent_book` / `book_editors` / `pages_in_book` extra fields
@@ -15,10 +15,10 @@ documented in `source-book.md`.
 
 ## Step 0 — Split
 
-After the conversion pipeline produces `raw/theses/<slug>.md`, run:
+After the conversion pipeline produces `raw/<vault>/theses/<slug>.md`, run:
 
 ```bash
-python pdf2md/split_thesis.py raw/theses/<slug>.md
+python pdf2md/split_thesis.py raw/<vault>/theses/<slug>.md
 ```
 
 This detects chapter headings (`# Chapter N`, `# N. Title`, named
@@ -26,13 +26,13 @@ chapters like Introduction / Methods / Discussion / Conclusion) and
 emits one Markdown file per chapter:
 
 ```
-raw/theses/<slug>.md                            ← parent (untouched)
-raw/theses/<slug>/ch01-introduction.md
-raw/theses/<slug>/ch02-literature-review.md
-raw/theses/<slug>/ch03-methods.md
-raw/theses/<slug>/ch04-mi-bci-rct.md
+raw/<vault>/theses/<slug>.md                            ← parent (untouched)
+raw/<vault>/theses/<slug>/ch01-introduction.md
+raw/<vault>/theses/<slug>/ch02-literature-review.md
+raw/<vault>/theses/<slug>/ch03-methods.md
+raw/<vault>/theses/<slug>/ch04-mi-bci-rct.md
 …
-raw/theses/<slug>/ch08-general-discussion.md
+raw/<vault>/theses/<slug>/ch08-general-discussion.md
 ```
 
 Each chapter file inherits the parent's frontmatter and adds:
@@ -48,7 +48,7 @@ add `# Chapter N: Title` markers manually before splitting.
 ## Step 1 — Ingest the parent
 
 ```
-ingest raw/theses/<slug>.md
+ingest raw/<vault>/theses/<slug>.md
 ```
 
 Writes `wiki/sources/theses/<slug>/<slug>.md` using the **Thesis
@@ -71,8 +71,8 @@ on the parent and live on the chapter pages instead.
 ## Step 2 — Ingest each chapter
 
 ```
-ingest raw/theses/<slug>/ch01-introduction.md
-ingest raw/theses/<slug>/ch02-literature-review.md
+ingest raw/<vault>/theses/<slug>/ch01-introduction.md
+ingest raw/<vault>/theses/<slug>/ch02-literature-review.md
 …
 ```
 

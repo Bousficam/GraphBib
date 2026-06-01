@@ -10,8 +10,8 @@ processing a freshly-converted PDF library (output of `/wiki-convert`).
 Arguments: $ARGUMENTS
 
 - The first argument is `DIR` — the directory containing the source `.md`
-  files to ingest (e.g. `raw/papers/`, `raw/papers/articles/bci/`,
-  or `raw/theses/<slug>/`).
+  files to ingest (e.g. `raw/<vault>/papers/`, `raw/<vault>/papers/articles/bci/`,
+  or `raw/<vault>/theses/<slug>/`).
 - The second argument, if provided, is `BATCH_SIZE` — number of papers
   to ingest before confirming with the user (default: 5).
 
@@ -85,7 +85,7 @@ Arguments: $ARGUMENTS
   workload, not the parent's.
 - The parent agent (you) stays orchestrator: don't ingest yourself —
   delegate.
-- For theses (`raw/theses/<slug>/`), the parent ingestion order
+- For theses (`raw/<vault>/theses/<slug>/`), the parent ingestion order
   matters: ingest the parent thesis MD FIRST, then chapters in
   numerical order. Apply the rule from
   `docs/workflows/long-document-ingestion.md`.

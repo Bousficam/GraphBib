@@ -20,7 +20,7 @@ title: "Scoping Review Title"
 type: source
 tags: [scoping-review]
 date: YYYY-MM-DD
-source_file: raw/papers/<slug>.md
+source_file: raw/<vault>/papers/<slug>.md
 authors: [...]
 year: 2024
 journal: "..."

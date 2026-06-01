@@ -22,7 +22,7 @@ title: "Review Title"
 type: source
 tags: [narrative-review]
 date: YYYY-MM-DD
-source_file: raw/papers/<slug>.md
+source_file: raw/<vault>/papers/<slug>.md
 authors: [...]
 year: 2024
 journal: "..."
