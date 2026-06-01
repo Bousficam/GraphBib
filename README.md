@@ -31,8 +31,9 @@ wiki/                 # Multi-vault knowledge graph (one Obsidian vault per rese
 │   ├── questions/    # Open research questions identified across the corpus
 │   └── syntheses/    # Saved query answers and literature reviews
 └── …                 # Additional vault sub-folders for other domains
-project-review/       # Self-contained review projects (NOT in Obsidian)
-├── <name>/           # One folder per systematic / scoping / narrative review
+project-review/       # Self-contained review projects (NOT in Obsidian) — Extractor orchestrator
+├── <vault>/          # Per-vault container — independent from wiki/<vault>/
+│   └── <name>/       # One folder per systematic / scoping / narrative review
 │   ├── contexte.md       # Shared scope — review type, objective, question, outcomes
 │   ├── log.md            # Audit trail across both phases
 │   ├── background/       # USER-AUTHORED context (input to every sub-agent)
@@ -715,12 +716,14 @@ You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ### Systematic review — screening + extraction
 
-Review projects live under `project-review/<name>/` — **separate
-from the Obsidian wiki**, self-contained per review, organized in
-two sequential phases:
+Review projects live under `project-review/<vault>/<name>/` —
+**separate from the Obsidian wiki**, self-contained per review,
+organized in two sequential phases. The `<vault>` is independent
+from the wiki vault (set via `$PROJECT_VAULT` or as the first path
+segment, e.g. `BCINET/mibci`):
 
 ```
-project-review/mibci/
+project-review/BCINET/mibci/
 ├── contexte.md          # Shared scope (PICO, objective, question, outcomes)
 ├── screening/           # PRISMA 2020 — pass 1 (T/A) + pass 2 (full text)
 │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
@@ -797,7 +800,7 @@ project-review/mibci/
      closed ambiguity, missing units, inconsistent tokens, etc.), severity
      triage 🔴/🟠/🟡, resolves one by one before finalising
 
-5. **`/extractor-table project-review/<name>/`** — runs extraction.
+5. **`/extractor-table project-review/<vault>/<name>/`** — runs extraction.
    - **Phase 1b** — article resolution: for each article, locates PDF
      (`extraction/biblio/raw/` or, if the project went through screening,
      `screening/1st-pass/raw/`) and MD via the wiki; copies both (never

@@ -1,7 +1,7 @@
 # PRISMA screening workflow
 
 Two-pass article selection that feeds the data-extraction phase.
-Lives under `project-review/<name>/screening/` and is driven by three
+Lives under `project-review/<vault>/<name>/screening/` and is driven by three
 slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
 (the flowchart is auto-rendered from the decision CSVs).
 
@@ -81,7 +81,7 @@ extract — go straight to `/extractor-table`.
 ## Inputs
 
 Drop **CSV exports** into
-`project-review/<name>/screening/identified/`. One CSV per source
+`project-review/<vault>/<name>/screening/identified/`. One CSV per source
 database (the filename becomes the `source_db` tag in the dedup).
 
 Expected columns (case-insensitive; all optional except `title`):
@@ -107,7 +107,7 @@ in `dedup.csv` (prefixed `extra__`).
 ### Step 1 — Deduplicate
 
 ```bash
-python tools/screen_dedupe.py project-review/<name>
+python tools/screen_dedupe.py project-review/<vault>/<name>
 ```
 
 Identifier priority (highest wins):
@@ -128,7 +128,7 @@ Pass `--strict` to skip fuzzy matching (DOI + PMID only).
 ### Step 2 — Fetch missing abstracts
 
 ```bash
-python tools/screen_fetch_metadata.py project-review/<name>
+python tools/screen_fetch_metadata.py project-review/<vault>/<name>
 ```
 
 Cascade per record (stops at first success):
@@ -178,7 +178,7 @@ The orchestrator forces an audit pass before fetching PDFs:
 
 ```bash
 python tools/fetch_oa.py --from-stdin \
-    --output-dir project-review/<name>/screening/1st-pass/raw/ \
+    --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
     < <doi-list-of-includes>
 ```
 
@@ -313,7 +313,7 @@ The optional `background/` folder at the project root holds the
 user's domain primer:
 
 ```
-project-review/<name>/background/
+project-review/<vault>/<name>/background/
 ├── notes.md       # user-authored summary — THIS is what sub-agents read
 ├── raw/           # PDFs the user dropped (seminal works, prior reviews)
 └── markdown/      # converted MDs (or user-dropped MDs)

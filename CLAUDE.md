@@ -117,8 +117,12 @@ wiki is output of the same domain) and are resolved via the same
 Backward-compat: legacy flat `wiki/sources/` + `raw/papers/` layouts
 still work as an implicit single vault. Wikilinks: `[[PageName]]`.
 
-The `project-review/` orchestrator (Extractor side) is independent
-of the wiki side — see `docs/workflows/screening.md` and
-`docs/workflows/data-extraction.md`. It has its own vault scoping
-that the user controls explicitly; it is NOT created or read by
-`/wiki-init`.
+The `project-review/<vault>/<name>/` orchestrator (Extractor side)
+is independent of the wiki side — see `docs/workflows/screening.md`
+and `docs/workflows/data-extraction.md`. It has its own vault
+scoping resolved via `$PROJECT_VAULT` or the first path segment
+(e.g. `BCINET/mibci`); it is NOT created or read by `/wiki-init`.
+Sharing a vault name between `wiki/<vault>/` and
+`project-review/<vault>/` is allowed and useful for the same
+research domain, but never enforced — `$WIKI_VAULT` and
+`$PROJECT_VAULT` are deliberately separate env vars.

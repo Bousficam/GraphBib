@@ -49,7 +49,7 @@ in Excel / a text editor. The wiki is the agent's knowledge graph
 self-contained analytical artifact for ONE specific systematic review.
 
 Bootstrap a fresh project via `/extractor-init <name>` (creates
-`project-review/<name>/` with both `screening/` and `extraction/`
+`project-review/<vault>/<name>/` with both `screening/` and `extraction/`
 sub-folders + interactive build of contexte.md + template +
 instructions.md).
 

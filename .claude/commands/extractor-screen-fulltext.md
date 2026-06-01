@@ -12,7 +12,7 @@ Arguments: $ARGUMENTS
 The T/A pass must have produced at least these artifacts:
 
 ```
-project-review/<name>/
+project-review/<vault>/<name>/
 └── screening/
     ├── criteria.md                           # MUST exist
     ├── tiab-decisions.csv                    # MUST exist (from /extractor-screen-tiab)
@@ -63,8 +63,8 @@ convert via the same toolchain as `/wiki-convert`:
 
 ```bash
 python pdf2md/marker_convert.py \
-    --in  project-review/<name>/screening/1st-pass/raw/<slug>.pdf \
-    --out project-review/<name>/screening/1st-pass/markdown/<slug>.md
+    --in  project-review/<vault>/<name>/screening/1st-pass/raw/<slug>.pdf \
+    --out project-review/<vault>/<name>/screening/1st-pass/markdown/<slug>.md
 ```
 
 (See `docs/workflows/conversion.md` for the canonical entrypoint in
@@ -83,7 +83,7 @@ Spawn `screener-fulltext` with:
 - the project's `background/notes.md` path (or nothing if absent / empty)
 - the article's slug
 - the article MD path
-  (`project-review/<name>/screening/1st-pass/markdown/<slug>.md`)
+  (`project-review/<vault>/<name>/screening/1st-pass/markdown/<slug>.md`)
 
 The sub-agent returns ONE line:
 
@@ -221,7 +221,7 @@ Default = `a`. For each audited row, show:
 ## Phase 4 — Update PRISMA flowchart
 
 ```bash
-python tools/screen_prisma.py project-review/<name>
+python tools/screen_prisma.py project-review/<vault>/<name>
 ```
 
 Now both passes are reflected in the chart: identified → after-dedup
@@ -234,9 +234,9 @@ assessed → included.
 
 For each row in `fulltext-decisions.csv` with `decision = include`:
 - Copy `screening/1st-pass/markdown/<slug>.md` to
-  `project-review/<name>/extraction/articles/<slug>.md` (cp, never mv
+  `project-review/<vault>/<name>/extraction/articles/<slug>.md` (cp, never mv
   — the screening register stays intact).
-- Update (or create) `project-review/<name>/contexte.md`'s
+- Update (or create) `project-review/<vault>/<name>/contexte.md`'s
   `## Source list` block with the slug if it isn't already listed.
 
 ### 5b — Side-flagged excludes → extraction/biblio/side/<category>/
@@ -272,7 +272,7 @@ They stay listed in
 Phase 4b) for the user to either fetch the body and re-run the
 full-text pass with `--only <slug>`, or accept the speculative tag.
 
-This lets the user run `/extractor-table project-review/<name>/`
+This lets the user run `/extractor-table project-review/<vault>/<name>/`
 straight away without an extra manual copy step, with side
 references pre-organized by where they belong in the review.
 
@@ -281,14 +281,14 @@ references pre-organized by where they belong in the review.
 ```
 ✓ Full-text screening done.
   Included      : N studies
-  See: project-review/<name>/screening/reports/fulltext-report.md
-  See: project-review/<name>/screening/reports/prisma-flowchart.md
+  See: project-review/<vault>/<name>/screening/reports/fulltext-report.md
+  See: project-review/<vault>/<name>/screening/reports/prisma-flowchart.md
 
 Articles ready for extraction:
-  project-review/<name>/extraction/articles/
+  project-review/<vault>/<name>/extraction/articles/
 
 Next step:
-  /extractor-table project-review/<name>/
+  /extractor-table project-review/<vault>/<name>/
 ```
 
 # Hard constraints
