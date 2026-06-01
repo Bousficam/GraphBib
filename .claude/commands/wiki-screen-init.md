@@ -16,6 +16,10 @@ The screening phase is a sub-folder INSIDE an existing project under
 project-review/<name>/
 ├── contexte.md                          # shared by screening + extraction
 ├── log.md                               # shared audit trail
+├── background/                          # user-authored sub-agent context
+│   ├── notes.md                         # the file the screener sub-agents read
+│   ├── raw/                             # user-dropped context PDFs
+│   └── markdown/                        # converted MDs
 ├── screening/                           ← THIS COMMAND populates this
 │   ├── criteria.md                      # PICO + IN/OUT criteria (built here)
 │   ├── identified/                      # raw CSV exports (user drops them in)
@@ -25,8 +29,9 @@ project-review/<name>/
 ```
 
 If `project-review/<name>/` does not exist yet, refuse and tell the
-user to run `/wiki-extract-init <name>` first (which now creates the
-full project including the empty `screening/` folder).
+user to run `/wiki-extract-init <name>` first (which creates the
+full project including the empty `screening/` and `background/`
+folders).
 
 # What this command does
 
@@ -276,6 +281,13 @@ Print:
 ```
 ✓ Screening phase ready at ./project-review/<name>/screening/
 
+Optional but recommended — author a domain primer for the sub-agents:
+   project-review/<name>/background/notes.md
+   Drop seminal PDFs / prior reviews into background/raw/ for
+   reference; the sub-agents read notes.md only (your distilled
+   summary, < 800 words). This is what gives every screener decision
+   the same domain context.
+
 Next steps:
 
 1. Drop your identified-record CSVs into:
@@ -288,15 +300,19 @@ Next steps:
 2. Run the title/abstract screening pass:
    /wiki-screen-tiab <name>
    It will dedupe, fetch missing abstracts, judge each record against
-   criteria.md, auto-fetch PDFs of inclusions, and write the report.
+   criteria.md (+ background/notes.md if non-empty), auto-fetch PDFs
+   of inclusions, flag side-useful excludes, and write the report.
 
 3. Once you've finished fetching paywalled PDFs manually:
    /wiki-screen-fulltext <name>
-   It will judge each retrieved article's body against criteria.md
-   and update the PRISMA flowchart.
+   It will judge each retrieved article's body against criteria.md,
+   re-evaluate side flags on a more reliable basis (the body), and
+   update the PRISMA flowchart.
 
 4. The included articles flow naturally into extraction via
    /wiki-extract-table project-review/<name>/
+   Side-flagged excludes are pre-organized in
+   extraction/biblio/side/{intro,discussion,method,reco,general}/
 ```
 
 # Hard constraints

@@ -30,8 +30,16 @@ record's title or abstract is empty or too sparse to judge, return
 2. The project's `contexte.md` — review type, research question,
    primary outcomes. Calibrates how strict you should be (a
    meta-analysis filters harder than a scoping review).
+3. The project's `background/notes.md` — IF the file exists AND is
+   non-empty. This is the user's domain primer: seminal works that
+   frame the review, key prior reviews, glossary, motivation. Use it
+   to disambiguate terminology and recognize when an abstract
+   describes a domain-specific concept under a different name. Keep
+   it as background context — never let it override `criteria.md`.
 
-You do NOT need to read the wiki, prior decisions, or any other source.
+You do NOT need to read the wiki, prior decisions, or any other
+source. If `background/notes.md` is absent or empty, skip step 3
+silently.
 
 # Decision values
 
@@ -61,76 +69,116 @@ For `include`, the reason field is empty (no veto criterion fired).
 Return ONE line, no preamble, no quotes, no JSON:
 
 ```
-<decision> | <reason>
+<decision> | <reason> | <side_use>
 ```
 
 - `<decision>` ∈ {`include`, `exclude`, `uncertain`}
 - `<reason>` = short tag matching a criterion label, OR empty for `include`.
+- `<side_use>` = optional tag flagging the article as a useful
+  citation OUTSIDE the review even when excluded. One of:
+  `intro` (intro / motivation of the review), `discussion`
+  (interpretation / implications), `method` (methodological
+  reference — scale validation, technique paper), `reco` (clinical
+  / practice recommendation worth citing), `general` (useful side
+  reference, category unclear), or empty. **Only fill `<side_use>`
+  for `decision = exclude`** — `include` articles are already in
+  the review, `uncertain` ones will be re-judged at full text.
 
-The `|` separator is mandatory even when reason is empty
-(`include | `).
+The two `|` separators are MANDATORY even when fields are empty
+(`include | | `).
 
 If you need a free-text qualifier (e.g. "the abstract mentions BCI
 but does not specify whether motor or cognitive"), append a comment
 after the reason tag:
 
 ```
-uncertain | bci-modality-unclear  # abstract says "BCI" without specifying motor vs cognitive
+uncertain | bci-modality-unclear |   # abstract says "BCI" without specifying motor vs cognitive
 ```
 
 Multi-criterion exclusions: report the FIRST criterion that fires
 (criteria are evaluated in the order listed in `criteria.md`):
 
 ```
-exclude | wrong-population  # epilepsy cohort, not stroke
+exclude | wrong-population | 
 ```
 
 ## Examples
 
 ```
-include | 
+include | | 
 ```
 
 ```
-exclude | wrong-population
+exclude | wrong-population | 
 ```
 
 ```
-exclude | not-RCT  # cross-sectional study, no comparator arm
+exclude | wrong-population | intro  # epilepsy cohort but reviews stroke-MI definitions
 ```
 
 ```
-uncertain | abstract-missing
+exclude | not-RCT | method  # cross-sectional; validates the FM-UE scale used by includes
 ```
 
 ```
-uncertain | outcome-unclear  # abstract reports "improvement" without naming a scale
+exclude | wrong-outcome | reco  # cost-effectiveness only; cite in discussion of implementation
+```
+
+```
+uncertain | abstract-missing | 
+```
+
+```
+uncertain | outcome-unclear |   # abstract reports "improvement" without naming a scale
 ```
 
 # Decision rules — the algorithm
 
 For each candidate record, walk these checks IN ORDER and return at
-the first match:
+the first match. After deciding `decision`, also assess `<side_use>`
+if and only if `decision = exclude` (Step 10 below).
 
-1. **Empty abstract AND non-descriptive title** → `uncertain | abstract-missing`
+1. **Empty abstract AND non-descriptive title** → `uncertain | abstract-missing | `
 2. **Inclusion: study design** — if `criteria.md` constrains design
    (e.g. RCT only), and title/abstract clearly states a different
-   design → `exclude | <criterion-tag>`
+   design → `exclude | <criterion-tag> | <side_use>`
 3. **Inclusion: population** — if population is mis-matched
    (e.g. epilepsy when review is on stroke; pediatric when review is
-   adult-only) → `exclude | wrong-population`
+   adult-only) → `exclude | wrong-population | <side_use>`
 4. **Inclusion: intervention / exposure** — if the article studies a
-   different intervention class → `exclude | wrong-intervention`
+   different intervention class → `exclude | wrong-intervention | <side_use>`
 5. **Inclusion: outcome** — if the article doesn't measure any of the
-   eligible outcomes → `exclude | wrong-outcome`
+   eligible outcomes → `exclude | wrong-outcome | <side_use>`
 6. **Inclusion: setting / context** — if setting is out of scope
    (in-vitro for an in-vivo review, animal for a human review) →
-   `exclude | wrong-setting`
+   `exclude | wrong-setting | <side_use>`
 7. **Exclude: language / date / publication type** — if `criteria.md`
    lists hard exclusions (non-English, pre-2010, conference abstract
-   only, editorial) → `exclude | <criterion-tag>`
-8. **All checks passed** → `include | `
-9. **Any check is ambiguous from T/A alone** → `uncertain | <what-is-unclear>`
+   only, editorial) → `exclude | <criterion-tag> | <side_use>`
+8. **All checks passed** → `include | | `
+9. **Any check is ambiguous from T/A alone** → `uncertain | <what-is-unclear> | `
+
+## Step 10 — Side-use assessment (only when `decision = exclude`)
+
+Ask: even though this article is out of scope for extraction, would
+it be worth citing in the review somewhere? Pick **at most one**
+category:
+
+| Category     | Trigger                                                                  |
+|--------------|--------------------------------------------------------------------------|
+| `intro`      | Frames the problem / motivates the question (epidemiology, definitions). |
+| `discussion` | Worth citing in the discussion (alternative explanations, comparisons).  |
+| `method`     | Methodological reference — validates a scale or technique the review uses. |
+| `reco`       | Clinical / practice guideline or recommendation worth citing.             |
+| `general`    | Useful side reference but you cannot pick a section.                      |
+| _empty_      | Not useful as a side citation — pure exclude.                             |
+
+Be conservative: most excludes are NOT side-useful. Only flag when
+the abstract clearly hints at usefulness (a review, a guideline, a
+methodological validation paper, a high-level framing piece).
+
+Append the chosen category as the third pipe-delimited field. If
+none applies, leave it empty.
 
 # Hard constraints
 
@@ -147,5 +195,11 @@ the first match:
   that matches what you observed, return `uncertain` with a free-text
   comment instead.
 - **NEVER paraphrase the decision.** Output the exact format above —
-  one line, value left of `|`, reason right of `|`. The parent
-  orchestrator parses this strictly.
+  one line, exactly two `|` separators, three fields. The parent
+  orchestrator parses this strictly. An output with only one `|`
+  (legacy 2-field format) is logged as `error` by the orchestrator.
+- **NEVER fill `<side_use>` for `include` or `uncertain`.** The third
+  field is empty for those decisions. The orchestrator rejects
+  malformed rows.
+- **NEVER invent a side category.** Only `intro`, `discussion`,
+  `method`, `reco`, `general`, or empty are accepted.

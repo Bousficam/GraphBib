@@ -54,6 +54,10 @@ The command **refuses** to create a project anywhere else (inside
 project-review/<name>/
 ├── contexte.md             # narrative scope — SHARED by screening + extraction
 ├── log.md                  # unified audit trail across both phases
+├── background/             # USER-AUTHORED context for the sub-agents
+│   ├── notes.md            # domain primer read by screener-tiab/fulltext + extractor
+│   ├── raw/                # user drops context PDFs here (seminal works, prior reviews)
+│   └── markdown/           # converted MDs (or user-dropped MDs)
 ├── screening/              # PRISMA pass 1 + 2 (populated by /wiki-screen-* commands)
 │   ├── criteria.md         # PICO + IN/OUT criteria (built by /wiki-screen-init)
 │   ├── identified/         # user drops CSV exports here (pubmed.csv, scopus.csv, …)
@@ -68,14 +72,27 @@ project-review/<name>/
     ├── articles/           # source MDs (fed by screening or linked from wiki/sources/)
     ├── output/             # extraction outputs land here (empty for now)
     └── biblio/
-        ├── side/           # background refs (intro/discussion citations), NOT extracted
+        ├── side/           # excluded articles flagged as worth citing
+        │   ├── intro/      # cited in introduction / motivation
+        │   ├── discussion/ # cited in discussion / interpretation
+        │   ├── method/     # methodological references (scale validation, technique)
+        │   ├── reco/       # clinical / practice recommendations to cite
+        │   └── general/    # useful side reference, category unclear
         ├── raw/            # COPIES of included PDFs (portable project artifact)
         └── markdown/       # COPIES of post-ingestion MD from wiki/sources/
 ```
 
-The `screening/` skeleton is created empty (folders only). The PICO +
-criteria interactive build is delegated to `/wiki-screen-init <name>`
-so this command stays focused on the extraction phase setup.
+Two distinct context concepts:
+
+| Folder | Purpose | Who writes |
+|---|---|---|
+| `background/` | INPUT context. Articles the user has identified as foundational (motivation, seminal works, prior reviews, glossary). The sub-agents READ `background/notes.md` to ground their domain knowledge. | User — manually drops PDFs + authors `notes.md` |
+| `extraction/biblio/side/` | OUTPUT side references identified during screening. Articles EXCLUDED from extraction but worth citing in the review. | Screener sub-agents — auto-flagged; user can override at audit gate |
+
+The `screening/` and `extraction/` skeletons are created empty
+(folders only). The PICO + criteria interactive build is delegated
+to `/wiki-screen-init <name>` so this command stays focused on the
+extraction phase setup.
 
 Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
 `dti-biomarkers`) — the agent does NOT append `-review` since the
@@ -114,6 +131,10 @@ Show the plan and ask before creating:
 Will create: ./project-review/<name>/
   ├── contexte.md                          (seeded — shared by both phases)
   ├── log.md                               (empty audit trail)
+  ├── background/                          (user-authored sub-agent context)
+  │   ├── notes.md                         (placeholder — user fills with a short primer)
+  │   ├── raw/                             (empty — drop seminal PDFs / prior reviews here)
+  │   └── markdown/                        (empty — converted MDs)
   ├── screening/                           (PRISMA pass 1 + 2 skeleton)
   │   ├── criteria.md                      (placeholder — built by /wiki-screen-init)
   │   ├── identified/                      (drop your CSV exports here)
@@ -127,7 +148,7 @@ Will create: ./project-review/<name>/
       ├── articles/                        (empty — fed by screening or wiki/sources/)
       ├── output/                          (empty — extraction outputs)
       └── biblio/
-          ├── side/                        (empty — background / intro refs)
+          ├── side/{intro,discussion,method,reco,general}/  (auto-populated by screening)
           ├── raw/                         (empty — PDF copies of included articles)
           └── markdown/                    (empty — MD copies from wiki/sources/)
 Proceed? [Y/n]
@@ -143,15 +164,70 @@ If `project-review/<name>/` already exists and is non-empty:
 ## Step 2 — Create the folder structure
 
 ```bash
-mkdir -p project-review/<name>/screening/identified \
+mkdir -p project-review/<name>/background/raw \
+         project-review/<name>/background/markdown \
+         project-review/<name>/screening/identified \
          project-review/<name>/screening/1st-pass/raw \
          project-review/<name>/screening/1st-pass/markdown \
          project-review/<name>/screening/reports \
          project-review/<name>/extraction/articles \
          project-review/<name>/extraction/output \
-         project-review/<name>/extraction/biblio/side \
+         project-review/<name>/extraction/biblio/side/intro \
+         project-review/<name>/extraction/biblio/side/discussion \
+         project-review/<name>/extraction/biblio/side/method \
+         project-review/<name>/extraction/biblio/side/reco \
+         project-review/<name>/extraction/biblio/side/general \
          project-review/<name>/extraction/biblio/raw \
          project-review/<name>/extraction/biblio/markdown
+```
+
+Seed `background/notes.md` (placeholder):
+
+```markdown
+# Background — <project-name>
+
+> Optional but recommended. Short domain primer read by every
+> sub-agent (screener-tiab, screener-fulltext, extractor) at session
+> start. Use it to:
+>
+> - Disambiguate domain terminology (e.g. "what 'chronic' means in
+>   this corpus", "which intervention class label is canonical").
+> - Point to the seminal studies and key prior reviews that frame
+>   the question.
+> - Record motivation: why does this review exist, what gap does it
+>   fill, what prior reviews are out of date.
+>
+> Keep it short — under 800 words. Drop the PDFs of cited works
+> into `background/raw/`; their MDs (auto-converted or manually
+> dropped) live in `background/markdown/`.
+>
+> The sub-agents read this file only — they do NOT read every PDF
+> in `background/raw/`. The notes file is your distilled summary.
+
+## Motivation
+
+(Why this review? What problem does it answer?)
+
+## Seminal works
+
+(Key prior reviews / foundational papers the sub-agents should
+recognize. Cite by author-year.)
+
+- <author-year>: <one-line description>
+
+## Glossary / terminology disambiguation
+
+(Terms with multiple synonyms in the literature, terms with
+domain-specific meaning.)
+
+- **<term>**: <how this review defines it>
+
+## Domain priors
+
+(Conventions the sub-agents should apply when uncertain.)
+
+- <prior 1>
+- <prior 2>
 ```
 
 Seed the placeholder `screening/criteria.md`:

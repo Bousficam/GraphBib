@@ -91,17 +91,30 @@ Abstract fetch:
 
 ## Phase 3 — Screen each record (delegate to `screener-tiab`)
 
-Read `screening/criteria.md` ONCE (for context to pass to each
-delegation). Read `screening/dedup.csv`.
+Read `screening/criteria.md` and (if present and non-empty)
+`background/notes.md` ONCE (passed as context to each delegation).
+Read `screening/dedup.csv`.
 
 For each row in `dedup.csv` (capped by `--limit` if given), spawn
 `screener-tiab` with:
 - the project's `criteria.md` path
+- the project's `background/notes.md` path (or nothing if absent / empty)
 - the row's slug, title, abstract, year, journal, authors, doi, pmid
 
-The sub-agent returns one line: `<decision> | <reason>`. Parse it
-strictly. If parsing fails, log as `error` and continue (do NOT
-crash — the parent agent gathers all errors at the end).
+The sub-agent returns one line: `<decision> | <reason> | <side_use>`.
+Parse it strictly:
+
+1. Split on `|` → must yield exactly 3 fields. If 2, treat as legacy
+   format (side_use = empty). If anything else, log as `error`.
+2. Validate `<decision>` ∈ {include, exclude, uncertain}.
+3. Validate `<side_use>` ∈ {empty, intro, discussion, method, reco,
+   general}. If `<decision> ≠ exclude` AND `<side_use>` is non-empty,
+   log as `error` (protocol violation).
+4. Strip any `# <comment>` from the reason / side_use fields into a
+   separate `screener_note` column.
+
+If parsing fails, log as `error` and continue (do NOT crash — the
+parent agent gathers all errors at the end).
 
 **Batch in parallel** when sensible (5–10 sub-agents at a time) — the
 sub-agent is `haiku` and Read-only.
@@ -109,12 +122,11 @@ sub-agent is `haiku` and Read-only.
 Append each result to `screening/tiab-decisions.csv` with columns:
 
 ```
-slug, doi, pmid, title, year, journal, decision, reason, screener_note, timestamp
+slug, doi, pmid, title, year, journal, decision, reason, side_use,
+screener_note, timestamp
 ```
 
-Where `screener_note` is anything after the `#` comment in the
-sub-agent's reason field. `decision` ∈ {include, exclude, uncertain,
-error}.
+Where `decision` ∈ {include, exclude, uncertain, error}.
 
 ## Phase 3b — User audit gate (mandatory)
 
@@ -128,6 +140,14 @@ Decision breakdown:
   uncertain  : K   (default to retrieve)
   exclude    : K
   error      : K   (parsing failure, see below)
+
+Side-use flags (within excludes):
+  intro       : K
+  discussion  : K
+  method      : K
+  reco        : K
+  general     : K
+  (no side)   : K
 
 Top exclusion reasons:
   wrong-population   : K
@@ -143,14 +163,21 @@ Options:
   [a]   Audit a sample of decisions (default: random 10% or N=20 max)
   [u]   Show all `uncertain` rows for spot-check
   [e]   Show all `exclude` rows
+  [side] Audit all rows with a side_use flag (verify category)
   [c]   Continue to PDF fetch (Phase 4)
   [s]   Stop here — re-run later
 ```
 
-Default = `a` (sample audit). For each shown row, ask
-`keep / flip-to-include / flip-to-exclude`. Write all flips to
-`tiab-decisions.csv` and log them at the end of
-`screening/reports/tiab-report.md` under `## Manual overrides`.
+Default = `a` (sample audit). For each shown row, ask:
+
+```
+keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side
+```
+
+Where `<category>` ∈ {intro, discussion, method, reco, general}.
+Write all flips and side-edits to `tiab-decisions.csv` and log them
+at the end of `screening/reports/tiab-report.md` under
+`## Manual overrides`.
 
 ## Phase 4 — Auto-fetch PDFs for included articles
 
@@ -180,6 +207,34 @@ that didn't download → write a row in
 - "User note" (empty)
 
 Print the count split: fetched / paywalled / failed.
+
+## Phase 4b — Stage side-flagged articles into extraction/biblio/side/
+
+For each row in `tiab-decisions.csv` with `decision = exclude` AND
+`side_use ≠ empty`:
+
+- If a PDF was successfully fetched in Phase 4 (it shouldn't be —
+  Phase 4 only fetched includes — but T/A exclude+side rows MAY
+  also get a fetch attempt if the user opts in), copy the PDF to
+  `extraction/biblio/side/<category>/raw/<slug>.pdf` and the MD (if
+  converted) to `extraction/biblio/side/<category>/<slug>.md`.
+- Otherwise, append the row to
+  `extraction/biblio/side/<category>/pending.md` so the user knows
+  to fetch / convert manually later. Format:
+
+```markdown
+| Slug | DOI / PMID | Title | Why side (from T/A) |
+|---|---|---|---|
+| <slug> | <doi> | <title> | <reason from screener_note or empty> |
+```
+
+The full-text pass (`/wiki-screen-fulltext`) will re-evaluate
+side-use on a more reliable basis (body); rows with a body in
+`screening/1st-pass/markdown/` already are not duplicated here —
+they're handled by the full-text pass.
+
+Note: most T/A `exclude + side` flags are speculative (decided from
+abstract only). The full-text pass overrides them.
 
 ## Phase 5 — Convert PDFs to MD (for the upcoming full-text pass)
 
@@ -285,3 +340,7 @@ Next step:
   regenerated.** The flowchart is the canonical state of the
   screening — it must be in sync with the CSVs at every reported
   milestone.
+- **PASS `background/notes.md` to every screener-tiab invocation**
+  when the file exists and is non-empty. Sub-agents must have the
+  same context across all decisions for consistency. If the file is
+  absent or empty, skip silently — do NOT fabricate context.

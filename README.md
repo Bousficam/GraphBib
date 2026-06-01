@@ -33,12 +33,16 @@ project-review/       # Self-contained review projects (NOT in Obsidian)
 ├── <name>/           # One folder per systematic / scoping / narrative review
 │   ├── contexte.md       # Shared scope — review type, objective, question, outcomes
 │   ├── log.md            # Audit trail across both phases
+│   ├── background/       # USER-AUTHORED context (input to every sub-agent)
+│   │   ├── notes.md      # Domain primer read by screener-tiab/fulltext + extractor
+│   │   ├── raw/          # Seminal PDFs / prior reviews (user reference)
+│   │   └── markdown/     # Converted MDs (user reference)
 │   ├── screening/        # PRISMA 2020 — title/abstract + full-text passes
 │   │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
 │   │   ├── identified/            # Raw CSV exports (pubmed.csv, scopus.csv, …)
 │   │   ├── dedup.csv              # After dedup (DOI > PMID > fuzzy title)
-│   │   ├── tiab-decisions.csv     # Pass 1 — title/abstract decisions
-│   │   ├── fulltext-decisions.csv # Pass 2 — full-text decisions + verbatim excerpts
+│   │   ├── tiab-decisions.csv     # Pass 1 — decision + reason + side_use
+│   │   ├── fulltext-decisions.csv # Pass 2 — decision + verbatim excerpts + side_use
 │   │   ├── 1st-pass/
 │   │   │   ├── raw/               # PDFs auto-fetched after T/A inclusion
 │   │   │   ├── markdown/          # Converted for full-text reading
@@ -55,9 +59,14 @@ project-review/       # Self-contained review projects (NOT in Obsidian)
 │       │   ├── extraction-detailed.xlsx   # Verbatim + units + source location
 │       │   └── extraction-coded.xlsx      # Strict per-instruction, R-ready
 │       └── biblio/
-│           ├── side/             # Background refs, intro sources (not extracted)
-│           ├── raw/              # PDF copies of included articles (cp, never mv)
-│           └── markdown/         # MD copies from wiki/sources/ (cp, never mv)
+│           ├── side/         # OUTPUT — side refs auto-flagged during screening
+│           │   ├── intro/        # Cite in introduction / motivation
+│           │   ├── discussion/   # Cite in discussion / interpretation
+│           │   ├── method/       # Methodological references (scale validation, …)
+│           │   ├── reco/         # Clinical / practice recommendations
+│           │   └── general/      # Useful side reference, category unclear
+│           ├── raw/          # PDF copies of included articles (cp, never mv)
+│           └── markdown/     # MD copies from wiki/sources/ (cp, never mv)
 graph/
 ├── graph.json        # Persistent node/edge data (SHA256-cached)
 └── graph.html        # Interactive vis.js visualization
@@ -740,7 +749,12 @@ project-review/mibci/
    - Fetches missing abstracts via PubMed → OpenAlex → Crossref cascade
    - Delegates one decision per record to the `screener-tiab`
      sub-agent (haiku — title + abstract only, never reads PDFs)
+   - **Reads `background/notes.md`** when present (domain primer
+     authored by the user — gives every screener decision the same
+     context)
    - Defaults to over-inclusion (`uncertain` → retrieve)
+   - **Flags side-useful excludes** (`intro` / `discussion` /
+     `method` / `reco` / `general`)
    - Auto-fetches PDFs of included articles via Unpaywall
    - Lists paywalled PDFs in `1st-pass/missing.md` for manual fetch
    - Updates the PRISMA flowchart
@@ -748,10 +762,17 @@ project-review/mibci/
 3. **`/wiki-screen-fulltext <name>`** — pass 2, full text.
    - Reads each article's MD body via the `screener-fulltext`
      sub-agent (sonnet — Methods + Results mandatory)
+   - **Reads `background/notes.md`** when present (same primer as T/A)
    - Every full-text exclusion carries a **verbatim excerpt + source
      location** (audit trail)
-   - Mandatory user audit gate (sample + all `uncertain`)
+   - **Re-evaluates side-use on a more reliable basis** (the body) —
+     with optional justifying excerpt + location per side flag
+   - Mandatory user audit gate (sample + all `uncertain` + all
+     `side_use` flagged rows)
    - Copies included articles into `extraction/articles/`
+   - Copies side-flagged excludes into
+     `extraction/biblio/side/<category>/<slug>.md` + appends to the
+     per-category `index.md`
 
 #### Phase 2 — data extraction
 

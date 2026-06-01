@@ -11,7 +11,8 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
                                    ▼
               screening/criteria.md  (PICO + IN/OUT criteria)
                                    │
-        user drops CSV exports →   screening/identified/*.csv
+       user drops CSV exports  →   screening/identified/*.csv
+       user authors primer     →   background/notes.md (optional)
                                    │
                                    ▼
                        /wiki-screen-tiab <name>
@@ -19,12 +20,15 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
             │                      │                      │
         dedupe                fetch missing            screen T/A
    (screen_dedupe.py)        abstracts (cascade)    (screener-tiab)
-            │                      │                      │
+                                                          │
+                                                  reads background/notes.md
+                                                  if present, then decides
+                                                          │
             └──────────┬───────────┴──────────┬───────────┘
                        │                      │
                        ▼                      ▼
                 screening/dedup.csv    screening/tiab-decisions.csv
-                                              │
+                                              │   (decision + reason + side_use)
                                          fetch_oa.py
                                               │
                                               ▼
@@ -36,16 +40,22 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
                        /wiki-screen-fulltext <name>
                                               │
                                      screener-fulltext
+                                  (reads background/notes.md
+                                   + criteria.md + the body)
                                               │
                                               ▼
                        screening/fulltext-decisions.csv
-                                              │
-                          copy included MDs into
-                                              ▼
-                       project-review/<name>/extraction/articles/
-                                              │
-                                              ▼
-                       /wiki-extract-table  (existing pipeline)
+                                              │   (decision + reason + side_use)
+                          ┌───────────────────┴───────────────────┐
+                          │                                       │
+              copy included MDs into                  copy side-flagged excludes into
+                          ▼                                       ▼
+       extraction/articles/<slug>.md         extraction/biblio/side/<category>/<slug>.md
+                          │                                       │
+                          ▼                                       │
+                       /wiki-extract-table  (existing pipeline)   │
+                          ◄───────────────────────────────────────┘
+                       (side refs ready to cite in the review)
 ```
 
 The PRISMA flowchart at `screening/reports/prisma-flowchart.md` is
@@ -261,26 +271,107 @@ register is preserved.
 
 ### `screener-tiab` (haiku)
 
-- **Reads**: title, abstract, year, journal, authors, DOI/PMID.
+- **Reads**: title, abstract, year, journal, authors, DOI/PMID +
+  `background/notes.md` if present (domain primer).
   **Never** the body.
 - **Defaults to over-inclusion**: when title + abstract are
   insufficient to decide, returns `uncertain` (treated as retrieve).
-- **Reason format**: short criterion tag from `criteria.md`
-  (e.g. `wrong-population`, `not-RCT`).
+- **Output format**: `<decision> | <reason> | <side_use>`.
+  - `<reason>` = short criterion tag from `criteria.md`
+    (e.g. `wrong-population`, `not-RCT`).
+  - `<side_use>` ∈ {empty, intro, discussion, method, reco, general}
+    — only filled for `exclude`. Flags articles excluded from
+    extraction but worth citing in the review.
 
 ### `screener-fulltext` (sonnet)
 
-- **Reads**: the article's MD body (Methods + Results mandatory).
+- **Reads**: the article's MD body (Methods + Results mandatory) +
+  `background/notes.md` if present.
 - **Never returns `uncertain`** unless the body is truncated /
   unavailable.
-- **Reason format**: `<tag>; "<verbatim excerpt>"; <source location>`.
-  The verbatim excerpt + location is non-negotiable — the parent
-  rejects malformed responses.
+- **Output format**: `<decision> | <reason> | <side_use>`.
+  - `<reason>` for excludes: `<tag>; "<verbatim excerpt>"; <source location>`.
+  - `<side_use>` for excludes: bare category OR
+    `<category>; "<quote>"; <location>` (preferred — auditable).
+  - The verbatim excerpt + location is non-negotiable for the
+    `<reason>` field — the parent rejects malformed responses.
 
 Both sub-agents:
-- Never use external knowledge to fill in what the article doesn't say
+- Read `background/notes.md` at session start when present (domain
+  primer authored by the user)
+- Never use external knowledge to fill in what the article doesn't
+  say (background notes are domain context, NOT a license to guess)
 - Never invent criterion tags — tags come from `criteria.md`
+- Never invent side categories — only the 5 listed are valid
 - Output ONE line per invocation, parsed strictly by the orchestrator
+
+---
+
+## Background folder — sub-agent context
+
+The optional `background/` folder at the project root holds the
+user's domain primer:
+
+```
+project-review/<name>/background/
+├── notes.md       # user-authored summary — THIS is what sub-agents read
+├── raw/           # PDFs the user dropped (seminal works, prior reviews)
+└── markdown/      # converted MDs (or user-dropped MDs)
+```
+
+**Only `notes.md` is consumed by the sub-agents.** It's the user's
+distilled summary — under 800 words is a healthy target. Topics to
+include:
+
+- Motivation — why this review exists
+- Seminal works (author-year + one-liner)
+- Glossary / terminology disambiguation (e.g. what "chronic" means
+  in this corpus)
+- Domain priors (e.g. unit conventions, ITT preference)
+
+The PDFs in `background/raw/` are for the user's reference only —
+the sub-agents do NOT read them per invocation (cost prohibitive).
+If the user wants a PDF's content to influence decisions, they
+distill it into `notes.md`.
+
+If `notes.md` is absent or empty, sub-agents skip the background
+read silently and decide from criteria.md + the article alone.
+
+---
+
+## Side article detection
+
+During screening, the screeners flag articles that are excluded from
+the review but worth citing in it. The orchestrator copies their MD
+into `extraction/biblio/side/<category>/<slug>.md` so they're
+pre-organized for the writing phase.
+
+### Categories (closed list)
+
+| Category     | Where it gets cited in the review                                       |
+|--------------|-------------------------------------------------------------------------|
+| `intro`      | Introduction / motivation / background                                  |
+| `discussion` | Discussion / interpretation / comparison with other interventions       |
+| `method`     | Methods — validates a scale / technique used by included studies        |
+| `reco`       | Clinical / practice recommendation worth citing                         |
+| `general`    | Side-useful but the category is unclear                                 |
+
+### How it flows
+
+| Stage                  | What happens                                                                  |
+|------------------------|-------------------------------------------------------------------------------|
+| T/A pass (screener-tiab) | Flags side-useful excludes from abstract alone (speculative, conservative). |
+| `/wiki-screen-tiab` Phase 4b | Lists speculative T/A side flags in `extraction/biblio/side/<cat>/pending.md` (no copy — no body yet). |
+| Full-text pass (screener-fulltext) | Re-evaluates side-use from the body, with verbatim excerpt + location for audit. |
+| `/wiki-screen-fulltext` Phase 5b   | Copies the article MD (+ PDF if present) to `extraction/biblio/side/<cat>/<slug>.md` and appends a row to `extraction/biblio/side/<cat>/index.md`. |
+| User audit gate              | `set-side <cat>` / `clear-side` override the screener's category.       |
+
+### Conservative tagging
+
+Most excludes are NOT side-useful. The screeners are instructed to
+flag only when there's a clear signal (a guideline, a methodological
+validation, a high-level framing piece). False positives are cheap
+(an extra MD copied) but the index.md should stay short and useful.
 
 ---
 
@@ -288,18 +379,19 @@ Both sub-agents:
 
 ### `screening/tiab-decisions.csv` (Pass 1)
 
-| Column           | Type / values                                    |
-|------------------|--------------------------------------------------|
-| `slug`           | `<first-author>-<year>`                          |
-| `doi`            | normalized DOI (may be empty)                    |
-| `pmid`           | digits (may be empty)                            |
-| `title`          | verbatim                                         |
-| `year`           | `YYYY`                                           |
-| `journal`        | verbatim                                         |
-| `decision`       | `include` \| `exclude` \| `uncertain` \| `error` |
-| `reason`         | criterion tag (e.g. `wrong-population`) or empty |
-| `screener_note`  | free text from `# comment` in sub-agent output   |
-| `timestamp`      | ISO 8601                                         |
+| Column           | Type / values                                                           |
+|------------------|-------------------------------------------------------------------------|
+| `slug`           | `<first-author>-<year>`                                                 |
+| `doi`            | normalized DOI (may be empty)                                           |
+| `pmid`           | digits (may be empty)                                                   |
+| `title`          | verbatim                                                                |
+| `year`           | `YYYY`                                                                  |
+| `journal`        | verbatim                                                                |
+| `decision`       | `include` \| `exclude` \| `uncertain` \| `error`                        |
+| `reason`         | criterion tag (e.g. `wrong-population`) or empty                        |
+| `side_use`       | `intro` \| `discussion` \| `method` \| `reco` \| `general` \| empty     |
+| `screener_note`  | free text from `# comment` in sub-agent output                          |
+| `timestamp`      | ISO 8601                                                                |
 
 ### `screening/fulltext-decisions.csv` (Pass 2)
 
@@ -313,6 +405,9 @@ Both sub-agents:
 | `tag`            | criterion tag (e.g. `wrong-design`)                                      |
 | `excerpt`        | verbatim quote from the article (≤ 30 words)                             |
 | `location`       | source location (`Methods §"Study design"`, `Table 1`, `p.4 §"…"`, etc.) |
+| `side_use`       | `intro` \| `discussion` \| `method` \| `reco` \| `general` \| empty      |
+| `side_excerpt`   | optional verbatim quote justifying the side flag                         |
+| `side_location`  | optional source location for the side quote                              |
 | `screener_note`  | free text                                                                |
 | `timestamp`      | ISO 8601                                                                 |
 
@@ -372,6 +467,13 @@ flowchart TD
 - **Included articles are COPIED, never moved.** The screening
   register (PDFs in `1st-pass/raw/`, MDs in `1st-pass/markdown/`)
   stays intact even after extraction starts.
+- **Side-flagged articles are COPIED, never moved.** Same rule —
+  `screening/1st-pass/` is the authoritative source; everything
+  else is a copy for portability.
+- **`background/notes.md` is read by sub-agents BUT NEVER overrides
+  `criteria.md`.** The notes are domain context; eligibility is
+  decided by criteria. A criterion-violating article is excluded
+  even if the notes might suggest it's "important to the field".
 
 ---
 
