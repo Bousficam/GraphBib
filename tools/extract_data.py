@@ -941,15 +941,37 @@ def derive_coded_output_path(detailed_path):
 def resolve_project_paths(project_dir):
     """Map a project folder to its canonical artifacts.
 
-    Convention:
-      <project>/
-      ├── contexte.md            # project scope (narrative)
-      ├── instructions.md        # agent-authored extraction spec (per column)
-      ├── template.xlsx          # 2-row template (slug + instruction)
-      ├── articles/              # sources to extract (links or copies)
-      └── output/
-          ├── extraction-detailed.xlsx
-          └── extraction-coded.xlsx
+    Two layouts are supported:
+
+    A. **Phased layout** (preferred, used by new projects):
+
+        <project>/
+        ├── contexte.md             # shared by screening + extraction
+        ├── screening/              # PRISMA pass 1 + 2 (NOT touched here)
+        │   └── ...
+        └── extraction/
+            ├── instructions.md     # agent-authored extraction spec
+            ├── template.xlsx       # 2-row template
+            ├── articles/           # sources to extract
+            └── output/
+                ├── extraction-detailed.xlsx
+                └── extraction-coded.xlsx
+
+    B. **Flat legacy layout** (pre-screening projects):
+
+        <project>/
+        ├── contexte.md
+        ├── instructions.md
+        ├── template.xlsx
+        ├── articles/
+        └── output/
+            ├── extraction-detailed.xlsx
+            └── extraction-coded.xlsx
+
+    The function auto-detects which layout is in use by looking for an
+    `extraction/template.{xlsx,csv}` first; if absent, it falls back
+    to `<project>/template.{xlsx,csv}`. `contexte.md` always lives at
+    the project root in both layouts (shared between phases).
 
     All artifacts are optional except `template.{xlsx,csv}`. Missing
     ones are returned as absolute paths so the caller can create them.
@@ -958,21 +980,41 @@ def resolve_project_paths(project_dir):
     if not p.is_dir():
         sys.exit(f"--project: {project_dir} is not a directory.")
 
+    # Layout A — phased (extraction/ sub-folder)
+    extraction_root = p / "extraction"
     template = None
-    for cand in (p / "template.xlsx", p / "template.csv"):
-        if cand.exists():
-            template = cand
-            break
-    if not template:
-        sys.exit(f"--project: no template.xlsx or template.csv found in {p}.")
+    if extraction_root.is_dir():
+        for cand in (extraction_root / "template.xlsx", extraction_root / "template.csv"):
+            if cand.exists():
+                template = cand
+                break
 
-    output_dir = p / "output"
+    layout = "phased" if template else None
+
+    # Layout B — flat legacy fallback
+    if not template:
+        for cand in (p / "template.xlsx", p / "template.csv"):
+            if cand.exists():
+                template = cand
+                layout = "flat"
+                break
+
+    if not template:
+        sys.exit(
+            f"--project: no template.xlsx or template.csv found in {p}/extraction/ "
+            f"or {p}/ (legacy layout)."
+        )
+
+    # Artifacts that live next to the template (layout-aware)
+    art_root = template.parent  # either <project>/extraction/ or <project>/
+    output_dir = art_root / "output"
     return {
         "root": p,
-        "context_md": p / "contexte.md",
-        "instructions_md": p / "instructions.md",
+        "layout": layout,
+        "context_md": p / "contexte.md",  # always at project root in both layouts
+        "instructions_md": art_root / "instructions.md",
         "template": template,
-        "articles_dir": p / "articles",
+        "articles_dir": art_root / "articles",
         "output_dir": output_dir,
         "detailed_output": output_dir / f"extraction-detailed{template.suffix}",
         "coded_output": output_dir / f"extraction-coded{template.suffix}",

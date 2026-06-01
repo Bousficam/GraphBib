@@ -29,21 +29,35 @@ wiki/                 # Multi-vault knowledge graph (one Obsidian vault per rese
 │   ├── questions/    # Open research questions identified across the corpus
 │   └── syntheses/    # Saved query answers and literature reviews
 └── …                 # Additional vault sub-folders for other domains
-project-review/       # Self-contained extraction projects (NOT in Obsidian)
+project-review/       # Self-contained review projects (NOT in Obsidian)
 ├── <name>/           # One folder per systematic / scoping / narrative review
-│   ├── contexte.md       # Review type, objective, question, outcomes, eligibility criteria
-│   ├── instructions.md   # Per-column extraction spec (agent-authored + reviewed)
-│   ├── template.xlsx     # 2-row template (row 1 = headers, row 2 = instructions)
-│   ├── articles/         # Source MDs (optional — defaults to wiki/sources/)
-│   ├── output/
-│   │   ├── extraction-detailed.xlsx   # Verbatim + units + source location (row 2 = instructions)
-│   │   └── extraction-coded.xlsx      # Strict per-instruction, R-ready (row 2 = instructions)
-│   └── biblio/
-│       ├── screened.md       # All articles considered + inclusion decision
-│       ├── excluded.md       # Excluded articles + reason + eligibility criterion
-│       ├── side/             # Background refs, reco to cite, intro sources (not extracted)
-│       ├── raw/              # PDF copies of included articles (cp, never mv)
-│       └── markdown/         # MD copies from wiki/sources/ (cp, never mv)
+│   ├── contexte.md       # Shared scope — review type, objective, question, outcomes
+│   ├── log.md            # Audit trail across both phases
+│   ├── screening/        # PRISMA 2020 — title/abstract + full-text passes
+│   │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
+│   │   ├── identified/            # Raw CSV exports (pubmed.csv, scopus.csv, …)
+│   │   ├── dedup.csv              # After dedup (DOI > PMID > fuzzy title)
+│   │   ├── tiab-decisions.csv     # Pass 1 — title/abstract decisions
+│   │   ├── fulltext-decisions.csv # Pass 2 — full-text decisions + verbatim excerpts
+│   │   ├── 1st-pass/
+│   │   │   ├── raw/               # PDFs auto-fetched after T/A inclusion
+│   │   │   ├── markdown/          # Converted for full-text reading
+│   │   │   └── missing.md         # Paywalled — manual user fetch
+│   │   └── reports/
+│   │       ├── tiab-report.md
+│   │       ├── fulltext-report.md
+│   │       └── prisma-flowchart.md  # Auto-generated Mermaid + count table
+│   └── extraction/       # Data extraction phase
+│       ├── instructions.md   # Per-column extraction spec (agent-authored + reviewed)
+│       ├── template.xlsx     # 2-row template (row 1 = headers, row 2 = instructions)
+│       ├── articles/         # Source MDs (fed by screening or wiki/sources/)
+│       ├── output/
+│       │   ├── extraction-detailed.xlsx   # Verbatim + units + source location
+│       │   └── extraction-coded.xlsx      # Strict per-instruction, R-ready
+│       └── biblio/
+│           ├── side/             # Background refs, intro sources (not extracted)
+│           ├── raw/              # PDF copies of included articles (cp, never mv)
+│           └── markdown/         # MD copies from wiki/sources/ (cp, never mv)
 graph/
 ├── graph.json        # Persistent node/edge data (SHA256-cached)
 └── graph.html        # Interactive vis.js visualization
@@ -686,27 +700,64 @@ You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ---
 
-### Systematic review data extraction
+### Systematic review — screening + extraction
 
-Extraction projects live under `project-review/<name>/` at the repo
-root — **separate from the Obsidian wiki**, self-contained per review:
+Review projects live under `project-review/<name>/` — **separate
+from the Obsidian wiki**, self-contained per review, organized in
+two sequential phases:
 
 ```
 project-review/mibci/
-├── contexte.md      # Review type, objective, research question, outcomes, style
-├── instructions.md  # Per-column extraction spec (agent-authored from Phase 1 debrief)
-├── template.xlsx    # 2-row template (variable name + instruction)
-├── articles/        # Source MD copies — or empty, reads straight from wiki/sources/
-└── output/
-    ├── extraction-detailed.xlsx   # Verbatim + units + source location
-    └── extraction-coded.xlsx      # Strict per-instruction (R-ready)
+├── contexte.md          # Shared scope (PICO, objective, question, outcomes)
+├── screening/           # PRISMA 2020 — pass 1 (T/A) + pass 2 (full text)
+│   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
+│   ├── identified/            # User drops CSV exports (pubmed.csv, scopus.csv, …)
+│   ├── tiab-decisions.csv     # Per-record decisions from pass 1
+│   ├── fulltext-decisions.csv # Per-article decisions from pass 2 (with verbatim excerpts)
+│   ├── 1st-pass/{raw,markdown}/   # PDFs auto-fetched + converted for pass 2
+│   └── reports/{tiab,fulltext,prisma-flowchart}.md  # Auto-generated
+└── extraction/          # Phase 2 — data extraction
+    ├── instructions.md  # Per-column extraction spec (agent-authored from Phase 1 debrief)
+    ├── template.xlsx    # 2-row template (variable name + instruction)
+    ├── articles/        # MDs of included articles (copied from screening or wiki)
+    └── output/
+        ├── extraction-detailed.xlsx   # Verbatim + units + source location
+        └── extraction-coded.xlsx      # Strict per-instruction (R-ready)
 ```
 
-**Two slash commands drive the workflow:**
+**Five slash commands drive the workflow:**
 
-1. **`/wiki-extract-init <name>`** — interactive bootstrap.
-   Creates the full skeleton (`articles/`, `output/`, `biblio/{screened,excluded,side,raw,markdown}`),
-   then walks you through:
+#### Phase 1 — PRISMA screening (optional)
+
+1. **`/wiki-screen-init <name>`** — interactive build of PICO +
+   inclusion / exclusion criteria → `screening/criteria.md`. Each
+   criterion gets a mnemonic tag (`wrong-population`, `not-RCT`,
+   `non-english`, …) consumed by the screener sub-agents in their
+   decision output.
+
+2. **`/wiki-screen-tiab <name>`** — pass 1, title/abstract.
+   - Dedupes CSV exports (DOI > PMID > fuzzy title/author/year)
+   - Fetches missing abstracts via PubMed → OpenAlex → Crossref cascade
+   - Delegates one decision per record to the `screener-tiab`
+     sub-agent (haiku — title + abstract only, never reads PDFs)
+   - Defaults to over-inclusion (`uncertain` → retrieve)
+   - Auto-fetches PDFs of included articles via Unpaywall
+   - Lists paywalled PDFs in `1st-pass/missing.md` for manual fetch
+   - Updates the PRISMA flowchart
+
+3. **`/wiki-screen-fulltext <name>`** — pass 2, full text.
+   - Reads each article's MD body via the `screener-fulltext`
+     sub-agent (sonnet — Methods + Results mandatory)
+   - Every full-text exclusion carries a **verbatim excerpt + source
+     location** (audit trail)
+   - Mandatory user audit gate (sample + all `uncertain`)
+   - Copies included articles into `extraction/articles/`
+
+#### Phase 2 — data extraction
+
+4. **`/wiki-extract-init <name>`** — interactive bootstrap.
+   Creates the full project skeleton (both `screening/` and
+   `extraction/`), then walks you through:
    - **contexte.md** (5 structured questions: review type, objective,
      research question, primary outcomes, style notes — plus 0–5
      targeted follow-ups; eligibility criteria section for inclusion/
@@ -721,15 +772,17 @@ project-review/mibci/
      closed ambiguity, missing units, inconsistent tokens, etc.), severity
      triage 🔴/🟠/🟡, resolves one by one before finalising
 
-2. **`/wiki-extract-table project-review/<name>/`** — runs extraction.
+5. **`/wiki-extract-table project-review/<name>/`** — runs extraction.
    - **Phase 1b** — article resolution: for each article, locates PDF
-     (`biblio/raw/`) and MD (`biblio/markdown/`) via the wiki; copies
-     both (never moves). Fuzzy PDF search when the filename doesn't
-     match the slug exactly.
+     (`extraction/biblio/raw/` or, if the project went through screening,
+     `screening/1st-pass/raw/`) and MD via the wiki; copies both (never
+     moves). Fuzzy PDF search when the filename doesn't match the slug
+     exactly.
    - **Phase 1c** — eligibility check: compares each article's
      characteristics against the review's eligibility criteria in
-     `contexte.md`; flags potential mismatches before extraction begins;
-     user decides `Y / exclure` (exclusions logged to `biblio/excluded.md`).
+     `screening/criteria.md` (or `contexte.md` if no screening was run);
+     flags potential mismatches before extraction begins; user decides
+     `Y / exclure`.
    - **Phase 2–3** — deterministic + LLM extraction; ambiguous cells
      tagged `À PRÉCISER — [verbatim]` without interrupting the batch.
    - **End-of-batch resolution**: ambiguous cells grouped by column;

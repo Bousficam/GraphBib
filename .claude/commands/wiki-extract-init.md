@@ -52,24 +52,47 @@ The command **refuses** to create a project anywhere else (inside
 
 ```
 project-review/<name>/
-├── contexte.md           # narrative scope — agent seeds, user fills
-├── instructions.md       # per-column spec — empty preamble, filled by Phase 1
-├── template.xlsx         # 2-row template (slug + instruction)
-├── articles/             # source MD files (linked or copied from wiki/sources/ later)
-├── output/               # extraction outputs land here (empty for now)
-└── biblio/
-    ├── screened.md       # all articles considered for inclusion (with decision)
-    ├── excluded.md       # articles finally excluded after full-text review (with reason)
-    ├── side/             # articles not extracted but useful for the review
-    │                     # (background refs, recommendations to cite, intro sources)
-    ├── raw/              # COPIES of PDF files of included articles (never moved)
-    └── markdown/         # COPIES of post-ingestion MD from wiki/sources/ (never moved)
+├── contexte.md             # narrative scope — SHARED by screening + extraction
+├── log.md                  # unified audit trail across both phases
+├── screening/              # PRISMA pass 1 + 2 (populated by /wiki-screen-* commands)
+│   ├── criteria.md         # PICO + IN/OUT criteria (built by /wiki-screen-init)
+│   ├── identified/         # user drops CSV exports here (pubmed.csv, scopus.csv, …)
+│   ├── 1st-pass/
+│   │   ├── raw/            # PDFs auto-fetched after T/A inclusion
+│   │   ├── markdown/       # converted for full-text reading
+│   │   └── missing.md      # paywalled — user to fetch manually
+│   └── reports/            # tiab / fulltext / prisma-flowchart
+└── extraction/             # phase 2 — data extraction (this command's main focus)
+    ├── instructions.md     # per-column spec — empty preamble, filled by Phase 1
+    ├── template.xlsx       # 2-row template (slug + instruction)
+    ├── articles/           # source MDs (fed by screening or linked from wiki/sources/)
+    ├── output/             # extraction outputs land here (empty for now)
+    └── biblio/
+        ├── side/           # background refs (intro/discussion citations), NOT extracted
+        ├── raw/            # COPIES of included PDFs (portable project artifact)
+        └── markdown/       # COPIES of post-ingestion MD from wiki/sources/
 ```
+
+The `screening/` skeleton is created empty (folders only). The PICO +
+criteria interactive build is delegated to `/wiki-screen-init <name>`
+so this command stays focused on the extraction phase setup.
 
 Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
 `dti-biomarkers`) — the agent does NOT append `-review` since the
 parent `project-review/` already conveys "this is a review project".
 Use kebab-case for multi-word names.
+
+**Backward compatibility**: projects bootstrapped before the
+screening phase (flat layout — template at the project root) keep
+working — `tools/extract_data.py` and `/wiki-extract-table` detect
+the layout automatically. Run `mv` manually if you want to migrate
+an old project into the phased layout:
+
+```bash
+cd project-review/<name>
+mkdir -p extraction
+mv instructions.md template.xlsx articles output biblio extraction/
+```
 
 # Procedure
 
@@ -89,76 +112,97 @@ Show the plan and ask before creating:
 
 ```
 Will create: ./project-review/<name>/
-  ├── contexte.md        (seeded with extraction-relevant prompts)
-  ├── instructions.md    (empty preamble)
-  ├── template.xlsx      (M columns × N rows)
-  │     M = 27 (default SR set) | <count from --columns>
-  │     N = 0 (manual) | <count from --from-source cites>
-  ├── articles/          (empty — source MDs linked/copied here)
-  ├── output/            (empty — extraction outputs land here)
-  └── biblio/
-      ├── screened.md    (table: all articles considered + decision)
-      ├── excluded.md    (table: excluded articles + reason + criterion)
-      ├── side/          (empty — background refs, intro sources, reco to cite)
-      ├── raw/           (empty — PDF copies of included articles, never moved)
-      └── markdown/      (empty — MD copies from wiki/sources/, never moved)
+  ├── contexte.md                          (seeded — shared by both phases)
+  ├── log.md                               (empty audit trail)
+  ├── screening/                           (PRISMA pass 1 + 2 skeleton)
+  │   ├── criteria.md                      (placeholder — built by /wiki-screen-init)
+  │   ├── identified/                      (drop your CSV exports here)
+  │   ├── 1st-pass/{raw,markdown}/         (filled after pass 1)
+  │   └── reports/                         (auto-generated reports + PRISMA flowchart)
+  └── extraction/                          (data-extraction phase)
+      ├── instructions.md                  (empty preamble)
+      ├── template.xlsx                    (M columns × N rows)
+      │     M = 27 (default SR set) | <count from --columns>
+      │     N = 0 (manual) | <count from --from-source cites>
+      ├── articles/                        (empty — fed by screening or wiki/sources/)
+      ├── output/                          (empty — extraction outputs)
+      └── biblio/
+          ├── side/                        (empty — background / intro refs)
+          ├── raw/                         (empty — PDF copies of included articles)
+          └── markdown/                    (empty — MD copies from wiki/sources/)
 Proceed? [Y/n]
 ```
 
 If `project-review/<name>/` already exists and is non-empty:
-- If any of `contexte.md`, `instructions.md`, `template.{xlsx,csv}` exist
-  → REFUSE. Ask user to pick a different name or `rm -rf` themselves
-  before re-running (don't overwrite their work).
+- If `contexte.md`, `extraction/instructions.md`, or
+  `extraction/template.{xlsx,csv}` exist → REFUSE. Ask user to pick a
+  different name or remove the folder themselves (don't overwrite
+  their work).
 - If folder exists but empty → proceed.
 
 ## Step 2 — Create the folder structure
 
 ```bash
-mkdir -p project-review/<name>/articles \
-         project-review/<name>/output \
-         project-review/<name>/biblio/side \
-         project-review/<name>/biblio/raw \
-         project-review/<name>/biblio/markdown
+mkdir -p project-review/<name>/screening/identified \
+         project-review/<name>/screening/1st-pass/raw \
+         project-review/<name>/screening/1st-pass/markdown \
+         project-review/<name>/screening/reports \
+         project-review/<name>/extraction/articles \
+         project-review/<name>/extraction/output \
+         project-review/<name>/extraction/biblio/side \
+         project-review/<name>/extraction/biblio/raw \
+         project-review/<name>/extraction/biblio/markdown
 ```
 
-Then seed the two biblio tracking files:
-
-**`biblio/screened.md`** — list of all articles considered, with their
-inclusion decision:
+Seed the placeholder `screening/criteria.md`:
 
 ```markdown
-# Screened articles — <project-name>
+# Eligibility criteria — <project-name>
 
-> One entry per article considered for inclusion.
-> Status: ✅ included | ❌ excluded (reason) | ⏳ pending
-
-| Slug / DOI | Title | Status | Note |
-|---|---|---|---|
+> Placeholder. Run /wiki-screen-init <project-name> to populate
+> interactively (PICO + inclusion + exclusion criteria with mnemonic
+> tags consumed by the screener-tiab and screener-fulltext sub-agents).
+>
+> Skip this file if you already have a fixed list of slugs to extract
+> and don't need a PRISMA screening pass — go straight to
+> /wiki-extract-table.
 ```
 
-**`biblio/excluded.md`** — articles excluded after full-text review,
-with the exclusion reason mapped to the eligibility criteria:
+Seed an empty `log.md`:
 
 ```markdown
-# Excluded articles — <project-name>
+# Project log — <project-name>
 
-> Articles excluded after full-text review. Reason must map to an
-> eligibility criterion defined in contexte.md.
-
-| Slug / DOI | Title | Exclusion reason | Criterion |
-|---|---|---|---|
+Append-only chronological record of every project operation
+(screening pass 1, pass 2, extraction phases, manual edits).
+Format: `## [YYYY-MM-DD] <operation> | <summary>`
 ```
 
-The `biblio/side/` folder is left empty — the user adds PDFs or MDs
-manually for background references, recommendations to cite, or
-articles useful for the review introduction but not extracted.
+Seed `screening/1st-pass/missing.md` (empty table — `/wiki-screen-tiab`
+fills it for articles whose PDFs couldn't be auto-fetched):
+
+```markdown
+# Articles included at T/A but not retrievable
+
+> Filled by `/wiki-screen-tiab` after the auto-fetch pass.
+> Drop the PDF manually into `screening/1st-pass/raw/<slug>.pdf`
+> when you locate it; `/wiki-screen-fulltext` picks it up.
+
+| Slug | DOI / PMID | Title | Where to try | User note |
+|---|---|---|---|---|
+```
 
 The container `project-review/` is auto-created if it doesn't exist
 yet (first project bootstrap).
 
+The `extraction/biblio/side/` folder is left empty — the user adds
+PDFs or MDs manually for background references and intro sources
+(not extracted but cited).
+
 ## Step 3 — Seed contexte.md
 
-Write `project-review/<name>/contexte.md` with a **minimal** guided template —
+Write `project-review/<name>/contexte.md` (root level — shared by
+screening and extraction) with a **minimal** guided template —
 only what the extraction agent will actually consume. Inclusion /
 exclusion criteria, date ranges, and language filters belong to the
 **pre-extraction** screening phase (which papers to include in the
@@ -246,7 +290,7 @@ Write `project-review/<name>/instructions.md`:
 ```bash
 python tools/extract_data.py \
     --from-source <SR-slug> \
-    -o project-review/<name>/template.xlsx \
+    -o project-review/<name>/extraction/template.xlsx \
     --no-spec
 ```
 
@@ -260,7 +304,7 @@ Pass `--columns` if provided.
 Create an empty template with just headers + empty row 2:
 
 ```python
-python tools/extract_data.py --from-source __empty__ -o project-review/<name>/template.xlsx --no-spec --columns "<cols>"
+python tools/extract_data.py --from-source __empty__ -o project-review/<name>/extraction/template.xlsx --no-spec --columns "<cols>"
 ```
 
 If that doesn't work (since `__empty__` isn't a real slug), write the
@@ -276,7 +320,7 @@ wb = Workbook()
 ws = wb.active
 ws.append(cols)        # row 1: variable names
 ws.append([""] * len(cols))  # row 2: empty instructions (Phase 1 will fill)
-wb.save("project-review/<name>/template.xlsx")
+wb.save("project-review/<name>/extraction/template.xlsx")
 PY
 ```
 
@@ -558,11 +602,11 @@ Move to the next column. Continue until all columns done.
 ### Step 8c — Persist to both files
 
 Write the instructions into:
-- `template.xlsx` row 2 (terse, machine-readable — exactly what the
-  user typed)
-- `instructions.md` (long-form, with the column name as `## <name>`
-  heading, the row-2 instruction, plus any clarifying detail the
-  user added during 8b)
+- `extraction/template.xlsx` row 2 (terse, machine-readable — exactly
+  what the user typed)
+- `extraction/instructions.md` (long-form, with the column name as
+  `## <name>` heading, the row-2 instruction, plus any clarifying
+  detail the user added during 8b)
 
 Confirm with a summary:
 
@@ -629,8 +673,9 @@ Fix them one by one? [Y / skip all 🟡 / skip all]
 - `skip all` → log unresolved issues in `instructions.md` as a
   `## ⚠️ Unresolved review flags` section and proceed to Step 9
 
-For each resolved issue, **update both `template.xlsx` row 2 and
-`instructions.md`** in-place. Confirm once at the end:
+For each resolved issue, **update both `extraction/template.xlsx`
+row 2 and `extraction/instructions.md`** in-place. Confirm once at
+the end:
 
 ```
 ✓ N issues resolved. Template and instructions updated.
@@ -644,46 +689,56 @@ Print:
 ```
 ✓ Project ready at ./project-review/<name>/
 
-To run the extraction:
+The project has TWO phases — both optional, you can use either or both:
+
+Phase 1 (optional) — PRISMA screening
+  /wiki-screen-init     <name>         # build PICO + IN/OUT criteria
+  (drop CSV exports in screening/identified/)
+  /wiki-screen-tiab     <name>         # pass 1 — title/abstract
+  (manually fetch paywalled PDFs into screening/1st-pass/raw/)
+  /wiki-screen-fulltext <name>         # pass 2 — full text
+  → included articles are auto-copied into extraction/articles/
+
+Phase 2 — Data extraction
   /wiki-extract-table project-review/<name>/
-
-  Phase 1 will re-check the instructions you just authored
+  Phase 1 of that command re-checks the instructions you just authored
   (catches empty / ambiguous columns), then Phase 2 + 3 produce
-  output/extraction-{detailed,coded}.xlsx.
+  extraction/output/extraction-{detailed,coded}.xlsx.
 
-To add sources to extract:
+To add sources to extract WITHOUT screening:
   - List the slugs in project-review/<name>/contexte.md under "Source list"
-  - Or copy / link the source MDs into project-review/<name>/articles/
+  - Or copy / link the source MDs into project-review/<name>/extraction/articles/
   - Or leave both empty and extract_data.py reads straight from wiki/sources/
 ```
 
 # Notes
 
-- The `articles/` folder is a **convenience** — the actual source MD
-  files live in `wiki/sources/<...>/<slug>.md` and `extract_data.py`
-  finds them there via `load_sources()`. Copying / linking to
-  `articles/` is useful only if the user wants a portable project
-  folder (e.g. to share with a collaborator who doesn't have the full
-  wiki cloned). For solo workflows, leave `articles/` empty —
-  extraction reads straight from `wiki/sources/`.
+- The `extraction/articles/` folder is a **convenience** — the actual
+  source MD files live in `wiki/sources/<...>/<slug>.md` and
+  `extract_data.py` finds them there via `load_sources()`. Copying /
+  linking to `articles/` is useful only if the user wants a portable
+  project folder (e.g. to share with a collaborator who doesn't have
+  the full wiki cloned), OR when `/wiki-screen-fulltext` populates
+  it automatically with included articles. For solo, no-screening
+  workflows, leave `articles/` empty — extraction reads straight
+  from `wiki/sources/`.
 
-- `output/` is created empty. The slash command `/wiki-extract-table`
-  writes there.
+- `extraction/output/` is created empty. The slash command
+  `/wiki-extract-table` writes there.
 
 - **This command does NOT touch the wiki.** It only creates files
-  under `project-review/<name>/` at the repo root. Removing the project
-  folder removes all artifacts; the wiki is unaffected.
+  under `project-review/<name>/` at the repo root. Removing the
+  project folder removes all artifacts; the wiki is unaffected.
 
 - Each review lives in its OWN sibling folder. You can have many
-  active reviews (`mibci-review/`, `tms-dose-response-review/`,
-  `dti-biomarkers-review/`) — they don't interact, share no state,
-  and each has its own `contexte.md` / `instructions.md` /
-  `template.xlsx`.
+  active reviews (`mibci/`, `tms-dose-response/`, `dti-biomarkers/`)
+  — they don't interact, share no state, and each has its own
+  `contexte.md` / `screening/` / `extraction/`.
 
 - The project folder is intentionally NOT part of any Obsidian vault.
   Open `template.xlsx` in Excel / LibreOffice / Numbers; open
-  `contexte.md` / `instructions.md` in any text editor. Obsidian
-  stays focused on the wiki.
+  `contexte.md` / `instructions.md` / `criteria.md` in any text
+  editor. Obsidian stays focused on the wiki.
 
 # Hard constraints
 
@@ -693,14 +748,15 @@ To add sources to extract:
   a slash in it (e.g. `project-review/foo` or `wiki/bar`), strip
   everything except the basename and use that as `<name>`. If the
   resulting name is empty or invalid, refuse and ask.
-- **NEVER overwrite an existing `contexte.md`, `instructions.md`, or
-  `template.{xlsx,csv}`** inside the target sub-folder. Ask the user
-  to remove `project-review/<name>/` manually if they want a fresh
-  project.
+- **NEVER overwrite an existing `contexte.md`,
+  `extraction/instructions.md`, or `extraction/template.{xlsx,csv}`**
+  inside the target sub-folder. Ask the user to remove
+  `project-review/<name>/` manually if they want a fresh project.
 - **NEVER use a project name that conflicts with a reserved name**
   (`articles`, `output`, `contexte`, `instructions`, `template`,
-  `log`) — these are sub-artifact names inside each project. Refuse
-  and ask for a different name.
+  `log`, `screening`, `extraction`, `biblio`, `criteria`) — these
+  are sub-artifact names inside each project. Refuse and ask for a
+  different name.
 - **NEVER call `extract_data.py --from-source` with a slug not present
   in `wiki/sources/`.** Verify first; if missing, suggest
   `/wiki-batch-ingest` first to ingest the SR.

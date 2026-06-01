@@ -17,18 +17,30 @@ is its own sub-folder, **OUTSIDE the wiki / Obsidian vault**:
 GraphBib/                            ← repo root
 ├── wiki/                            ← Obsidian vault — UNRELATED to this command
 ├── raw/, docs/, tools/, …           ← agent infrastructure
-└── project-review/                  ← container for all extraction projects
+└── project-review/                  ← container for all review projects
     ├── mibci/                       ← THIS COMMAND operates on a sub-folder
-    │   ├── contexte.md              #   project scope (extraction-relevant only)
-    │   ├── instructions.md          #   per-column spec (Phase 1 fills this)
-    │   ├── template.xlsx            #   2-row template (slug + variable + instruction)
-    │   ├── articles/                #   source MD copies (or empty — uses wiki/sources/)
-    │   └── output/
-    │       ├── extraction-detailed.xlsx  # verbatim + units (audit)
-    │       └── extraction-coded.xlsx     # strict per-instruction (publication-ready)
+    │   ├── contexte.md              #   shared scope (screening + extraction)
+    │   ├── screening/               #   PRISMA screening — driven by /wiki-screen-* (not this cmd)
+    │   │   ├── criteria.md
+    │   │   ├── identified/, 1st-pass/, reports/
+    │   │   ├── tiab-decisions.csv
+    │   │   └── fulltext-decisions.csv
+    │   └── extraction/              ← THIS COMMAND reads/writes here
+    │       ├── instructions.md      #   per-column spec (Phase 1 fills this)
+    │       ├── template.xlsx        #   2-row template (slug + variable + instruction)
+    │       ├── articles/            #   source MDs (fed by screening or wiki/sources/)
+    │       └── output/
+    │           ├── extraction-detailed.xlsx  # verbatim + units (audit)
+    │           └── extraction-coded.xlsx     # strict per-instruction (publication-ready)
     ├── tms-dose-response/           ← project 2 — independent
     └── dti-biomarkers/              ← project N — independent
 ```
+
+**Backward compatibility**: projects bootstrapped before the
+screening phase used a **flat layout** (template at the project
+root, no `extraction/` sub-folder). `tools/extract_data.py` detects
+both layouts automatically — flat-layout projects keep working
+without migration.
 
 **The project folder is NOT part of any Obsidian vault.** `wiki/` is
 read by Obsidian; `project-review/*/` are pure file system, opened
@@ -37,8 +49,9 @@ in Excel / a text editor. The wiki is the agent's knowledge graph
 self-contained analytical artifact for ONE specific systematic review.
 
 Bootstrap a fresh project via `/wiki-extract-init <name>` (creates
-`project-review/<name>/` + interactive build of contexte.md +
-template + instructions.md).
+`project-review/<name>/` with both `screening/` and `extraction/`
+sub-folders + interactive build of contexte.md + template +
+instructions.md).
 
 When `$ARGUMENTS` is a folder under `project-review/`, this is the
 assumed layout. When it's a single `.xlsx`/`.csv`, the legacy
@@ -74,27 +87,37 @@ Row 2 cell content drives extraction:
 
 ## Phase 0 — Bootstrap or locate the project
 
-**A. `$ARGUMENTS` is a folder path** — use as project root. Confirm it
-contains `template.xlsx` (or .csv). If `contexte.md` exists, read it
-to ground domain assumptions. If `instructions.md` exists, treat it
-as the source of truth for column instructions (may override row 2 of
-the template after a mismatch check).
+**A. `$ARGUMENTS` is a folder path** — use as project root. The path
+resolver in `tools/extract_data.py:resolve_project_paths` auto-detects
+which layout is in use:
+
+- **Phased layout** (preferred, new projects): looks for
+  `extraction/template.{xlsx,csv}`. `contexte.md` is read at the
+  project root (shared by screening + extraction).
+  `extraction/instructions.md` is the source of truth for column
+  instructions.
+- **Flat layout** (legacy, pre-screening projects): looks for
+  `template.{xlsx,csv}` at the project root.
+
+If neither is found, the command refuses.
 
 **B. `$ARGUMENTS` is a template file** — legacy single-file mode. The
 template path is the spec; outputs land alongside; no
 `contexte.md` / `instructions.md` involvement.
 
 **C. `$ARGUMENTS` starts with `--from-source <SR-slug>`** — bootstrap
-a new project folder:
+a new (phased) project folder:
 
 ```bash
-mkdir -p <SR-slug>-review/{articles,output}
-python tools/extract_data.py --from-source <SR-slug> -o <SR-slug>-review/template.xlsx --no-spec
+mkdir -p project-review/<SR-slug>/extraction/{articles,output}
+mkdir -p project-review/<SR-slug>/screening/{identified,1st-pass/raw,1st-pass/markdown,reports}
+python tools/extract_data.py --from-source <SR-slug> \
+    -o project-review/<SR-slug>/extraction/template.xlsx --no-spec
 ```
 
 Then prompt the user to fill row 2 (or skip and let Phase 1 handle
 empty instructions interactively), and re-invoke
-`/wiki-extract-table <SR-slug>-review/`.
+`/wiki-extract-table project-review/<SR-slug>/`.
 
 ## Phase 1 — Comprehension debrief (the gate)
 
@@ -256,30 +279,40 @@ Present one column at a time. Wait for answer before next column.
 Before eligibility check or extraction, **locate and copy** the source
 files for each article in the source list. Never move files — always copy.
 
+For brevity below, `<biblio>` denotes:
+- `extraction/biblio/` in the phased layout
+- `biblio/`            in the flat legacy layout
+
+The path resolver picks the right one automatically.
+
 ### Resolution order (per article)
 
 **Step 1 — PDF**
-1. Look for PDF in `biblio/raw/<slug>.pdf` — already copied, nothing to do.
-2. If absent, read `source_pdf:` from the wiki source page frontmatter.
-3. Try the exact path first. If the file doesn't exist at that path, do a
+1. Look for PDF in `<biblio>/raw/<slug>.pdf` — already copied, nothing to do.
+2. If the project has a screening phase and the PDF is there, copy from
+   `screening/1st-pass/raw/<slug>.pdf` instead (don't re-download).
+3. If absent, read `source_pdf:` from the wiki source page frontmatter.
+4. Try the exact path first. If the file doesn't exist at that path, do a
    **fuzzy search** in the same directory: `find <parent-dir> -iname "*<author>*<year>*"`.
    The PDF filename often differs from the slug (e.g. extra title words, typos).
-4. If found (exact or fuzzy), **copy** to `biblio/raw/<slug>.pdf`.
-5. If not found anywhere → note `PDF: not found` in `biblio/screened.md`.
+5. If found (exact or fuzzy), **copy** to `<biblio>/raw/<slug>.pdf`.
+6. If not found anywhere → note `PDF: not found` in the project log.
 
 **Step 2 — Markdown**
-1. Look for MD in `biblio/markdown/<slug>.md` — already copied, nothing to do.
-2. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
-3. If found, **copy** it to `biblio/markdown/<slug>.md`.
-4. If not found in wiki → look in `raw/papers/` for a matching MD file.
-5. If still not found → note `MD: not found` in `biblio/screened.md`.
+1. Look for MD in `<biblio>/markdown/<slug>.md` — already copied, nothing to do.
+2. If the project has a screening phase, prefer
+   `screening/1st-pass/markdown/<slug>.md`.
+3. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
+4. If found, **copy** it to `<biblio>/markdown/<slug>.md`.
+5. If not found in wiki → look in `raw/papers/` for a matching MD file.
+6. If still not found → note `MD: not found` in the project log.
 
-**NEVER move files.** Use `cp`, not `mv`. The originals in `wiki/sources/`
-and `raw/papers/` must remain untouched.
+**NEVER move files.** Use `cp`, not `mv`. The originals in `wiki/sources/`,
+`raw/papers/`, and `screening/1st-pass/` must remain untouched.
 
 ### After resolution
 
-Extraction reads from `biblio/markdown/<slug>.md` when available
+Extraction reads from `<biblio>/markdown/<slug>.md` when available
 (portable, self-contained). Falls back to `wiki/sources/<slug>.md`
 directly if the copy is missing.
 
@@ -330,8 +363,14 @@ Ask the user **immediately** (do not proceed to extract that article
 until the user answers):
 - **Y** → extract the article normally, note the flag in the log
 - **exclure** → skip extraction for this article entirely; append a row
-  to `biblio/excluded.md` with slug, title, exclusion reason, and the
-  criterion from `contexte.md` that was not met
+  to the project log AND, if a screening phase exists, to
+  `screening/fulltext-decisions.csv` with `decision=exclude`,
+  `tag=<criterion-tag-from-criteria.md>`, `excerpt=…`, `location=…`
+
+**Note**: when the project has a screening phase that already
+produced `screening/fulltext-decisions.csv`, this in-extraction
+eligibility check should rarely fire — the screening pass already
+filtered. Use it as a safety net for late corrections.
 
 ## Phase 2 — Deterministic extraction (free, 0 tokens)
 
