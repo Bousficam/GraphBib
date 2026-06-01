@@ -63,6 +63,7 @@ declaring an ingest complete.
 | Source organization | `docs/workflows/source-organization.md` |
 | Conversion pipeline (PDF → MD) | `docs/workflows/conversion.md` |
 | SR data extraction | `docs/workflows/data-extraction.md` |
+| PRISMA screening (T/A + full text) | `docs/workflows/screening.md` |
 | Suggest-readings (snowball + forward) | `docs/workflows/suggest-readings.md` |
 | Query / Review / Cite / Lint / Health / Graph | `docs/workflows/output-workflows.md` |
 | Source + page templates | `docs/templates/*.md` |
@@ -79,21 +80,29 @@ harness surfaces them).
 
 ## Sub-agents
 
-Twelve specialists in `.claude/agents/`. Delegate via `Agent` with
+Fourteen specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
+**Wiki side** — knowledge-graph building / maintenance:
 - `suggest-reading` — find what to read next (snowball + OpenAlex).
 - `fetch-reading` — download OA PDFs for a DOI list (Unpaywall).
 - `ingester` — ingest one source, all 16 steps incl. entity creation.
 - `source-extender` — deepen an already-ingested shallow source.
 - `concept-builder` — extend one concept page to chapter depth.
-- `extractor` — fill one cell of a SR data-extraction table.
 - `query-synthesizer` — answer a focused research question.
 - `reviewer` — generate a structured literature review.
 - `lint` — audit (deterministic + cached semantic).
 - `librarian` — act on lint findings, auto-fix or delegate.
 - `source-remover` — clean removal + every cross-reference.
 - `deduplicator` — judge redundant concept/method pages, merge or extract.
+
+**Extractor side** — literature-review screening + data extraction:
+- `screener-tiab` — judge ONE article at title/abstract vs PRISMA
+  criteria (haiku, never reads PDFs).
+- `screener-fulltext` — judge ONE article at full text vs PRISMA
+  criteria (sonnet, returns verbatim excerpt + source location for
+  every exclusion).
+- `extractor` — fill ONE cell of a SR data-extraction table.
 
 Parent stays orchestrator; sub-agents do the focused work.
 
