@@ -2,15 +2,73 @@
 
 Kept tiny on purpose: frontmatter parsing, source loading, regex constants.
 Avoid heavy imports here so analyzer scripts stay fast to import.
+
+Multi-vault resolution
+----------------------
+
+`WIKI_DIR` resolves to the active vault, picking by this priority:
+
+  1. $WIKI_VAULT env var       → REPO_ROOT/wiki/$WIKI_VAULT
+  2. Single sub-vault detected → REPO_ROOT/wiki/<the-only-vault>/
+     (a sub-folder is a vault iff it contains `sources/`)
+  3. Legacy flat layout        → REPO_ROOT/wiki/
+     (when wiki/sources/ exists directly, no vault sub-folders)
+  4. Multiple sub-vaults, no env var → REPO_ROOT/wiki/ (mode = "ambiguous";
+     callers should detect this via ACTIVE_VAULT_MODE and prompt the user
+     to set $WIKI_VAULT)
+  5. Empty                     → REPO_ROOT/wiki/
 """
+import os
 import re
 from pathlib import Path
 
 import yaml
 
 REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
+WIKI_ROOT = REPO_ROOT / "wiki"
+
+
+def _detect_active_vault():
+    """Return (vault_dir, mode) where mode is one of:
+    'env', 'single', 'legacy', 'empty', 'ambiguous'.
+    """
+    env_vault = os.environ.get("WIKI_VAULT", "").strip()
+    if env_vault:
+        return WIKI_ROOT / env_vault, "env"
+    if not WIKI_ROOT.is_dir():
+        return WIKI_ROOT, "empty"
+    if (WIKI_ROOT / "sources").is_dir():
+        return WIKI_ROOT, "legacy"
+    vaults = [d for d in WIKI_ROOT.iterdir()
+              if d.is_dir() and not d.name.startswith(".")
+              and (d / "sources").is_dir()]
+    if len(vaults) == 1:
+        return vaults[0], "single"
+    if len(vaults) > 1:
+        return WIKI_ROOT, "ambiguous"
+    return WIKI_ROOT, "empty"
+
+
+WIKI_DIR, ACTIVE_VAULT_MODE = _detect_active_vault()
 SRC_DIR = WIKI_DIR / "sources"
+
+
+def active_vault_name():
+    """Slug of the currently-resolved vault, or None for legacy / empty / ambiguous."""
+    if ACTIVE_VAULT_MODE in ("env", "single") and WIKI_DIR != WIKI_ROOT:
+        return WIKI_DIR.name
+    return None
+
+
+def list_vaults():
+    """All sub-folders of wiki/ that look like vaults (contain sources/)."""
+    if not WIKI_ROOT.is_dir():
+        return []
+    return sorted(
+        d.name for d in WIKI_ROOT.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and (d / "sources").is_dir()
+    )
+
 
 WIKILINK_RE = re.compile(r"\[\[([A-Za-z0-9\-_/.]+)\]\]")
 PAGE_REF_RE = re.compile(r"\(p\.\s*([0-9?]+)\)")
