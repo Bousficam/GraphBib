@@ -20,7 +20,7 @@ GraphBib/                            ← repo root
 └── project-review/                  ← container for all review projects
     ├── mibci/                       ← THIS COMMAND operates on a sub-folder
     │   ├── contexte.md              #   shared scope (screening + extraction)
-    │   ├── screening/               #   PRISMA screening — driven by /wiki-screen-* (not this cmd)
+    │   ├── screening/               #   PRISMA screening — driven by /extractor-screen-* (not this cmd)
     │   │   ├── criteria.md
     │   │   ├── identified/, 1st-pass/, reports/
     │   │   ├── tiab-decisions.csv
@@ -48,7 +48,7 @@ in Excel / a text editor. The wiki is the agent's knowledge graph
 (persistent, shared across projects); each project sub-folder is a
 self-contained analytical artifact for ONE specific systematic review.
 
-Bootstrap a fresh project via `/wiki-extract-init <name>` (creates
+Bootstrap a fresh project via `/extractor-init <name>` (creates
 `project-review/<name>/` with both `screening/` and `extraction/`
 sub-folders + interactive build of contexte.md + template +
 instructions.md).
@@ -117,7 +117,7 @@ python tools/extract_data.py --from-source <SR-slug> \
 
 Then prompt the user to fill row 2 (or skip and let Phase 1 handle
 empty instructions interactively), and re-invoke
-`/wiki-extract-table project-review/<SR-slug>/`.
+`/extractor-table project-review/<SR-slug>/`.
 
 ## Phase 1 — Comprehension debrief (the gate)
 

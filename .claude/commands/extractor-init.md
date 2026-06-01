@@ -1,5 +1,5 @@
 ---
-description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, outcomes, style notes — with dynamic follow-ups for ambiguous answers, e.g. asking about population frame only when the review is clinical), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /wiki-extract-table which runs the extraction.
+description: Bootstrap and interactively build a literature-review extraction project under project-review/. Creates the folder skeleton (contexte.md, instructions.md, template, articles/, output/), then walks the user through filling contexte.md (review type, objective, research question, outcomes, style notes — with dynamic follow-ups for ambiguous answers, e.g. asking about population frame only when the review is clinical), co-designing the template (if blank), and authoring column-by-column instructions. Pairs with /extractor-table which runs the extraction.
 argument-hint: "<project-name>  [--from-source <SR-slug>]  [--columns col1,col2,...]  [--skeleton-only]"
 ---
 
@@ -34,13 +34,13 @@ GraphBib/                        ← repo root
 ├── raw/                         ← source MDs / PDFs
 ├── docs/, tools/, pdf2md/       ← agent infrastructure
 └── project-review/              ← container for all extraction projects
-    ├── mibci/                   ← project 1 (created by /wiki-extract-init mibci)
+    ├── mibci/                   ← project 1 (created by /extractor-init mibci)
     ├── tms-dose-response/       ← project 2
     └── dti-biomarkers/          ← project N
 ```
 
 The container (`project-review/`) is created on first run if missing.
-Each new `/wiki-extract-init <name>` creates a sub-folder
+Each new `/extractor-init <name>` creates a sub-folder
 `project-review/<name>/` — keeps the repo root clean, groups all
 extraction work under one parent.
 
@@ -58,8 +58,8 @@ project-review/<name>/
 │   ├── notes.md            # domain primer read by screener-tiab/fulltext + extractor
 │   ├── raw/                # user drops context PDFs here (seminal works, prior reviews)
 │   └── markdown/           # converted MDs (or user-dropped MDs)
-├── screening/              # PRISMA pass 1 + 2 (populated by /wiki-screen-* commands)
-│   ├── criteria.md         # PICO + IN/OUT criteria (built by /wiki-screen-init)
+├── screening/              # PRISMA pass 1 + 2 (populated by /extractor-screen-* commands)
+│   ├── criteria.md         # PICO + IN/OUT criteria (built by /extractor-screen-init)
 │   ├── identified/         # user drops CSV exports here (pubmed.csv, scopus.csv, …)
 │   ├── 1st-pass/
 │   │   ├── raw/            # PDFs auto-fetched after T/A inclusion
@@ -91,7 +91,7 @@ Two distinct context concepts:
 
 The `screening/` and `extraction/` skeletons are created empty
 (folders only). The PICO + criteria interactive build is delegated
-to `/wiki-screen-init <name>` so this command stays focused on the
+to `/extractor-screen-init <name>` so this command stays focused on the
 extraction phase setup.
 
 Naming: the user passes a SHORT name (`mibci`, `tms-dose`,
@@ -101,7 +101,7 @@ Use kebab-case for multi-word names.
 
 **Backward compatibility**: projects bootstrapped before the
 screening phase (flat layout — template at the project root) keep
-working — `tools/extract_data.py` and `/wiki-extract-table` detect
+working — `tools/extract_data.py` and `/extractor-table` detect
 the layout automatically. Run `mv` manually if you want to migrate
 an old project into the phased layout:
 
@@ -123,7 +123,7 @@ Parse `$ARGUMENTS`:
   default is the 27-column SR set in `tools/extract_data.py`
 - `--skeleton-only` (optional) — skip the interactive build, just
   create the empty files. The user can run Phase 1 of
-  `/wiki-extract-table` later to clarify instructions.
+  `/extractor-table` later to clarify instructions.
 
 Show the plan and ask before creating:
 
@@ -136,7 +136,7 @@ Will create: ./project-review/<name>/
   │   ├── raw/                             (empty — drop seminal PDFs / prior reviews here)
   │   └── markdown/                        (empty — converted MDs)
   ├── screening/                           (PRISMA pass 1 + 2 skeleton)
-  │   ├── criteria.md                      (placeholder — built by /wiki-screen-init)
+  │   ├── criteria.md                      (placeholder — built by /extractor-screen-init)
   │   ├── identified/                      (drop your CSV exports here)
   │   ├── 1st-pass/{raw,markdown}/         (filled after pass 1)
   │   └── reports/                         (auto-generated reports + PRISMA flowchart)
@@ -235,13 +235,13 @@ Seed the placeholder `screening/criteria.md`:
 ```markdown
 # Eligibility criteria — <project-name>
 
-> Placeholder. Run /wiki-screen-init <project-name> to populate
+> Placeholder. Run /extractor-screen-init <project-name> to populate
 > interactively (PICO + inclusion + exclusion criteria with mnemonic
 > tags consumed by the screener-tiab and screener-fulltext sub-agents).
 >
 > Skip this file if you already have a fixed list of slugs to extract
 > and don't need a PRISMA screening pass — go straight to
-> /wiki-extract-table.
+> /extractor-table.
 ```
 
 Seed an empty `log.md`:
@@ -254,15 +254,15 @@ Append-only chronological record of every project operation
 Format: `## [YYYY-MM-DD] <operation> | <summary>`
 ```
 
-Seed `screening/1st-pass/missing.md` (empty table — `/wiki-screen-tiab`
+Seed `screening/1st-pass/missing.md` (empty table — `/extractor-screen-tiab`
 fills it for articles whose PDFs couldn't be auto-fetched):
 
 ```markdown
 # Articles included at T/A but not retrievable
 
-> Filled by `/wiki-screen-tiab` after the auto-fetch pass.
+> Filled by `/extractor-screen-tiab` after the auto-fetch pass.
 > Drop the PDF manually into `screening/1st-pass/raw/<slug>.pdf`
-> when you locate it; `/wiki-screen-fulltext` picks it up.
+> when you locate it; `/extractor-screen-fulltext` picks it up.
 
 | Slug | DOI / PMID | Title | Where to try | User note |
 |---|---|---|---|---|
@@ -288,7 +288,7 @@ focused on what disambiguates extraction calls:
 ```markdown
 # Project context — <project-name>
 
-> Fill me before running /wiki-extract-table. The extraction agent
+> Fill me before running /extractor-table. The extraction agent
 > reads this to calibrate extraction depth, disambiguate which
 > value to extract, sanity-check numerics, and apply your style
 > conventions.
@@ -352,11 +352,11 @@ Write `project-review/<name>/instructions.md`:
 ```markdown
 # Extraction instructions — <project-name>
 
-> Auto-populated by the `/wiki-extract-table` Phase 1 debrief.
+> Auto-populated by the `/extractor-table` Phase 1 debrief.
 > Each column gets a section with the row-2 terse instruction
 > plus narrative detail and edge cases.
 
-(Empty — run `/wiki-extract-table project-review/<name>/` to populate.)
+(Empty — run `/extractor-table project-review/<name>/` to populate.)
 ```
 
 ## Step 5 — Create the template
@@ -768,15 +768,15 @@ Print:
 The project has TWO phases — both optional, you can use either or both:
 
 Phase 1 (optional) — PRISMA screening
-  /wiki-screen-init     <name>         # build PICO + IN/OUT criteria
+  /extractor-screen-init     <name>         # build PICO + IN/OUT criteria
   (drop CSV exports in screening/identified/)
-  /wiki-screen-tiab     <name>         # pass 1 — title/abstract
+  /extractor-screen-tiab     <name>         # pass 1 — title/abstract
   (manually fetch paywalled PDFs into screening/1st-pass/raw/)
-  /wiki-screen-fulltext <name>         # pass 2 — full text
+  /extractor-screen-fulltext <name>         # pass 2 — full text
   → included articles are auto-copied into extraction/articles/
 
 Phase 2 — Data extraction
-  /wiki-extract-table project-review/<name>/
+  /extractor-table project-review/<name>/
   Phase 1 of that command re-checks the instructions you just authored
   (catches empty / ambiguous columns), then Phase 2 + 3 produce
   extraction/output/extraction-{detailed,coded}.xlsx.
@@ -794,13 +794,13 @@ To add sources to extract WITHOUT screening:
   `extract_data.py` finds them there via `load_sources()`. Copying /
   linking to `articles/` is useful only if the user wants a portable
   project folder (e.g. to share with a collaborator who doesn't have
-  the full wiki cloned), OR when `/wiki-screen-fulltext` populates
+  the full wiki cloned), OR when `/extractor-screen-fulltext` populates
   it automatically with included articles. For solo, no-screening
   workflows, leave `articles/` empty — extraction reads straight
   from `wiki/sources/`.
 
 - `extraction/output/` is created empty. The slash command
-  `/wiki-extract-table` writes there.
+  `/extractor-table` writes there.
 
 - **This command does NOT touch the wiki.** It only creates files
   under `project-review/<name>/` at the repo root. Removing the

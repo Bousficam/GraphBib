@@ -6,7 +6,7 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
 (the flowchart is auto-rendered from the decision CSVs).
 
 ```
-                          /wiki-screen-init <name>
+                          /extractor-screen-init <name>
                                    │
                                    ▼
               screening/criteria.md  (PICO + IN/OUT criteria)
@@ -15,7 +15,7 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
        user authors primer     →   background/notes.md (optional)
                                    │
                                    ▼
-                       /wiki-screen-tiab <name>
+                       /extractor-screen-tiab <name>
             ┌──────────────────────┼──────────────────────┐
             │                      │                      │
         dedupe                fetch missing            screen T/A
@@ -37,7 +37,7 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
                   user fetches paywalled PDFs manually
                                               │
                                               ▼
-                       /wiki-screen-fulltext <name>
+                       /extractor-screen-fulltext <name>
                                               │
                                      screener-fulltext
                                   (reads background/notes.md
@@ -53,7 +53,7 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
        extraction/articles/<slug>.md         extraction/biblio/side/<category>/<slug>.md
                           │                                       │
                           ▼                                       │
-                       /wiki-extract-table  (existing pipeline)   │
+                       /extractor-table  (existing pipeline)   │
                           ◄───────────────────────────────────────┘
                        (side refs ready to cite in the review)
 ```
@@ -74,7 +74,7 @@ never hand-maintained.
   second pass (full text) with verbatim evidence per exclusion.
 
 Skip this workflow if you already have a fixed list of slugs to
-extract — go straight to `/wiki-extract-table`.
+extract — go straight to `/extractor-table`.
 
 ---
 
@@ -361,9 +361,9 @@ pre-organized for the writing phase.
 | Stage                  | What happens                                                                  |
 |------------------------|-------------------------------------------------------------------------------|
 | T/A pass (screener-tiab) | Flags side-useful excludes from abstract alone (speculative, conservative). |
-| `/wiki-screen-tiab` Phase 4b | Lists speculative T/A side flags in `extraction/biblio/side/<cat>/pending.md` (no copy — no body yet). |
+| `/extractor-screen-tiab` Phase 4b | Lists speculative T/A side flags in `extraction/biblio/side/<cat>/pending.md` (no copy — no body yet). |
 | Full-text pass (screener-fulltext) | Re-evaluates side-use from the body, with verbatim excerpt + location for audit. |
-| `/wiki-screen-fulltext` Phase 5b   | Copies the article MD (+ PDF if present) to `extraction/biblio/side/<cat>/<slug>.md` and appends a row to `extraction/biblio/side/<cat>/index.md`. |
+| `/extractor-screen-fulltext` Phase 5b   | Copies the article MD (+ PDF if present) to `extraction/biblio/side/<cat>/<slug>.md` and appends a row to `extraction/biblio/side/<cat>/index.md`. |
 | User audit gate              | `set-side <cat>` / `clear-side` override the screener's category.       |
 
 ### Conservative tagging
@@ -483,8 +483,8 @@ flowchart TD
 |---------------------------------------|-----------------|
 | `screen_dedupe.py`                    | Yes — overwrites `dedup.csv`, deterministic |
 | `screen_fetch_metadata.py`            | Yes — cached, only fetches missing |
-| `/wiki-screen-tiab` after edits to `criteria.md` | Requires `--reset-tiab` (explicit) — protects existing decisions |
-| `/wiki-screen-fulltext` re-run        | `--reset` discards prior decisions; default appends new ones for `--only <slug>` mode |
+| `/extractor-screen-tiab` after edits to `criteria.md` | Requires `--reset-tiab` (explicit) — protects existing decisions |
+| `/extractor-screen-fulltext` re-run        | `--reset` discards prior decisions; default appends new ones for `--only <slug>` mode |
 | `tools/screen_prisma.py`              | Yes — pure read-and-render |
 
 The two CSVs (`tiab-decisions.csv`, `fulltext-decisions.csv`) are the

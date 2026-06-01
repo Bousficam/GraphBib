@@ -226,8 +226,8 @@ Plain English works too:
 |---|---|---|---|---|
 | `/wiki-snowball` | `/wiki-convert` | `/wiki-init` | `/wiki-query` | `/wiki-status` |
 | `/wiki-discover` | | `/wiki-batch-ingest` | `/wiki-review` | `/wiki-maintain` |
-| | | `/wiki-deepen` | `/wiki-extract-init` | `/wiki-remove` |
-| | | | `/wiki-extract-table` | `/wiki-dedupe` |
+| | | `/wiki-deepen` | `/extractor-init` | `/wiki-remove` |
+| | | | `/extractor-table` | `/wiki-dedupe` |
 
 `/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
 `/wiki-maintain` runs lint then delegates fixes to the librarian
@@ -738,13 +738,13 @@ project-review/mibci/
 
 #### Phase 1 — PRISMA screening (optional)
 
-1. **`/wiki-screen-init <name>`** — interactive build of PICO +
+1. **`/extractor-screen-init <name>`** — interactive build of PICO +
    inclusion / exclusion criteria → `screening/criteria.md`. Each
    criterion gets a mnemonic tag (`wrong-population`, `not-RCT`,
    `non-english`, …) consumed by the screener sub-agents in their
    decision output.
 
-2. **`/wiki-screen-tiab <name>`** — pass 1, title/abstract.
+2. **`/extractor-screen-tiab <name>`** — pass 1, title/abstract.
    - Dedupes CSV exports (DOI > PMID > fuzzy title/author/year)
    - Fetches missing abstracts via PubMed → OpenAlex → Crossref cascade
    - Delegates one decision per record to the `screener-tiab`
@@ -759,7 +759,7 @@ project-review/mibci/
    - Lists paywalled PDFs in `1st-pass/missing.md` for manual fetch
    - Updates the PRISMA flowchart
 
-3. **`/wiki-screen-fulltext <name>`** — pass 2, full text.
+3. **`/extractor-screen-fulltext <name>`** — pass 2, full text.
    - Reads each article's MD body via the `screener-fulltext`
      sub-agent (sonnet — Methods + Results mandatory)
    - **Reads `background/notes.md`** when present (same primer as T/A)
@@ -776,7 +776,7 @@ project-review/mibci/
 
 #### Phase 2 — data extraction
 
-4. **`/wiki-extract-init <name>`** — interactive bootstrap.
+4. **`/extractor-init <name>`** — interactive bootstrap.
    Creates the full project skeleton (both `screening/` and
    `extraction/`), then walks you through:
    - **contexte.md** (5 structured questions: review type, objective,
@@ -793,7 +793,7 @@ project-review/mibci/
      closed ambiguity, missing units, inconsistent tokens, etc.), severity
      triage 🔴/🟠/🟡, resolves one by one before finalising
 
-5. **`/wiki-extract-table project-review/<name>/`** — runs extraction.
+5. **`/extractor-table project-review/<name>/`** — runs extraction.
    - **Phase 1b** — article resolution: for each article, locates PDF
      (`extraction/biblio/raw/` or, if the project went through screening,
      `screening/1st-pass/raw/`) and MD via the wiki; copies both (never

@@ -1,5 +1,5 @@
 ---
-description: Bootstrap the screening sub-folder of an existing extraction project and interactively build PICO + inclusion/exclusion criteria in `screening/criteria.md`. Creates the screening/ skeleton (criteria.md, identified/, 1st-pass/, reports/) if absent, then walks the user through PICO and criteria one element at a time. Pairs with `/wiki-screen-tiab` (PRISMA pass 1) and `/wiki-screen-fulltext` (PRISMA pass 2).
+description: Bootstrap the screening sub-folder of an existing extraction project and interactively build PICO + inclusion/exclusion criteria in `screening/criteria.md`. Creates the screening/ skeleton (criteria.md, identified/, 1st-pass/, reports/) if absent, then walks the user through PICO and criteria one element at a time. Pairs with `/extractor-screen-tiab` (PRISMA pass 1) and `/extractor-screen-fulltext` (PRISMA pass 2).
 argument-hint: "<project-name>  [--skeleton-only]"
 ---
 
@@ -29,7 +29,7 @@ project-review/<name>/
 ```
 
 If `project-review/<name>/` does not exist yet, refuse and tell the
-user to run `/wiki-extract-init <name>` first (which creates the
+user to run `/extractor-init <name>` first (which creates the
 full project including the empty `screening/` and `background/`
 folders).
 
@@ -57,8 +57,8 @@ Build path `project-review/<name>/` and check it exists. If not:
 
 ```
 ✗ project-review/<name>/ does not exist.
-  Run /wiki-extract-init <name> first to bootstrap the full project,
-  then re-run /wiki-screen-init <name>.
+  Run /extractor-init <name> first to bootstrap the full project,
+  then re-run /extractor-screen-init <name>.
 ```
 
 If `screening/criteria.md` already exists and is non-empty, ASK
@@ -81,16 +81,16 @@ mkdir -p project-review/<name>/screening/identified \
 ```
 
 Seed `screening/1st-pass/missing.md` (empty list — filled by
-`/wiki-screen-tiab` when fetch_oa fails):
+`/extractor-screen-tiab` when fetch_oa fails):
 
 ```markdown
 # Articles included at T/A but not retrievable
 
-> Filled by `/wiki-screen-tiab` after the auto-fetch pass. One row per
+> Filled by `/extractor-screen-tiab` after the auto-fetch pass. One row per
 > included article whose PDF could not be downloaded (paywall,
 > closed repository, dead link). Drop the PDF manually into
 > `screening/1st-pass/raw/<slug>.pdf` when you locate it; the
-> `/wiki-screen-fulltext` command will pick it up.
+> `/extractor-screen-fulltext` command will pick it up.
 
 | Slug | DOI / PMID | Title | Where to try | User note |
 |---|---|---|---|---|
@@ -208,7 +208,7 @@ Format:
 ```markdown
 # Eligibility criteria — <project-name>
 
-> Source of truth for `/wiki-screen-tiab` and `/wiki-screen-fulltext`.
+> Source of truth for `/extractor-screen-tiab` and `/extractor-screen-fulltext`.
 > Each criterion has a short tag — the screener sub-agents use those
 > tags as exclusion reasons in `tiab-decisions.csv` and
 > `fulltext-decisions.csv`.
@@ -298,19 +298,19 @@ Next steps:
    filename becomes the source_db tag in the dedup.
 
 2. Run the title/abstract screening pass:
-   /wiki-screen-tiab <name>
+   /extractor-screen-tiab <name>
    It will dedupe, fetch missing abstracts, judge each record against
    criteria.md (+ background/notes.md if non-empty), auto-fetch PDFs
    of inclusions, flag side-useful excludes, and write the report.
 
 3. Once you've finished fetching paywalled PDFs manually:
-   /wiki-screen-fulltext <name>
+   /extractor-screen-fulltext <name>
    It will judge each retrieved article's body against criteria.md,
    re-evaluate side flags on a more reliable basis (the body), and
    update the PRISMA flowchart.
 
 4. The included articles flow naturally into extraction via
-   /wiki-extract-table project-review/<name>/
+   /extractor-table project-review/<name>/
    Side-flagged excludes are pre-organized in
    extraction/biblio/side/{intro,discussion,method,reco,general}/
 ```

@@ -1164,7 +1164,7 @@ def main():
                          "outputs to <project>/output/extraction-{detailed,coded}.<ext>. "
                          "Implies --coded. Optional contexte.md / instructions.md "
                          "at the project root are read/written by the slash command "
-                         "(/wiki-extract-table), not by this script.")
+                         "(/extractor-table), not by this script.")
     args = ap.parse_args()
 
     project = None

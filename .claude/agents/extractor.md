@@ -20,7 +20,7 @@ when batch-filling a table.
 
 ## Input format — single-instruction (new 2-row template)
 
-In the new 2-row template workflow (`/wiki-extract-table`), the
+In the new 2-row template workflow (`/extractor-table`), the
 orchestrator passes a SINGLE `instruction` field rather than separate
 INSTRUCTIONS / TYPE / SCALE. You must infer the type / closure from
 the instruction's format:
