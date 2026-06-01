@@ -40,8 +40,8 @@ then **read the template file before writing**:
 | Methodological paper (introduces new method / protocol / pipeline) | `docs/templates/source-methodological-paper.md` |
 | Theoretical / conceptual / framework paper (no data) | `docs/templates/source-theoretical-paper.md` |
 | Thesis (PhD / MSc / HDR) | `docs/templates/source-thesis.md` |
-| Academic book / monograph / edited volume / handbook / textbook (`raw/books/*`) | `docs/templates/source-book.md` (parent); chapters of edited volumes use `source-academic-paper.md` with the `parent_book` / `book_editors` / `pages_in_book` extra frontmatter fields documented in `source-book.md` |
-| Lab notes / personal notes (`raw/notes/*`) | reuse `source-academic-paper.md`, omit fields that don't apply; or use `docs/templates/diary.md` / `docs/templates/meeting.md` |
+| Academic book / monograph / edited volume / handbook / textbook (`raw/<vault>/books/*`) | `docs/templates/source-book.md` (parent); chapters of edited volumes use `source-academic-paper.md` with the `parent_book` / `book_editors` / `pages_in_book` extra frontmatter fields documented in `source-book.md` |
+| Lab notes / personal notes (`raw/<vault>/notes/*`) | reuse `source-academic-paper.md`, omit fields that don't apply; or use `docs/templates/diary.md` / `docs/templates/meeting.md` |
 
 **Detection cues** when the type isn't explicit:
 

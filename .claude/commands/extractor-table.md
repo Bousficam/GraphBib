@@ -304,11 +304,11 @@ The path resolver picks the right one automatically.
    `screening/1st-pass/markdown/<slug>.md`.
 3. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
 4. If found, **copy** it to `<biblio>/markdown/<slug>.md`.
-5. If not found in wiki → look in `raw/papers/` for a matching MD file.
+5. If not found in wiki → look in `raw/<vault>/papers/` for a matching MD file.
 6. If still not found → note `MD: not found` in the project log.
 
 **NEVER move files.** Use `cp`, not `mv`. The originals in `wiki/sources/`,
-`raw/papers/`, and `screening/1st-pass/` must remain untouched.
+`raw/<vault>/papers/`, and `screening/1st-pass/` must remain untouched.
 
 ### After resolution
 

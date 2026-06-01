@@ -1,6 +1,6 @@
 # Thesis Template
 
-Used by default for sources in `raw/theses/*`. Theses have richer
+Used by default for sources in `raw/<vault>/theses/*`. Theses have richer
 metadata, multiple chapters, and serve as citation snowball sources.
 
 **For long theses (≥ 100 pages or > 8 chapters)**, use the **Long Document
@@ -23,7 +23,7 @@ title: "Thesis Title"
 type: source
 tags: [thesis, paper]
 date: YYYY-MM-DD            # ingest date
-source_file: raw/theses/<slug>.md
+source_file: raw/<vault>/theses/<slug>.md
 authors: ["First Last"]
 year: 2024
 degree: "PhD"               # PhD | MSc | MD | HDR | habilitation

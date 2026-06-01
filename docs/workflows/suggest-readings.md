@@ -39,9 +39,9 @@ python tools/suggest_readings.py --forward --top 30 \
 ```
 
 `fetch_oa.py` queries Unpaywall for each DOI, downloads the OA PDF
-when available to `raw/papers/<author-year>.pdf`, skips paywalled /
+when available to `raw/<vault>/papers/<author-year>.pdf`, skips paywalled /
 non-OA / already-downloaded entries. Status per DOI in
-`raw/papers/fetch_oa_report.json`. Set `UNPAYWALL_EMAIL=you@example.org`
+`raw/<vault>/papers/fetch_oa_report.json`. Set `UNPAYWALL_EMAIL=you@example.org`
 once (Unpaywall ToS).
 
 For end-to-end discovery (suggest → fetch → convert → ingest), use

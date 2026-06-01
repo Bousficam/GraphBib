@@ -8,7 +8,7 @@ Run the PDF → Markdown conversion pipeline on the given source directory.
 Arguments: $ARGUMENTS
 
 - The first argument is `SRC` — an absolute path to a directory containing PDFs (recurses into subdirectories).
-- The second argument, if provided, is `DST` — the output directory. If omitted, default to `raw/papers/` relative to the repo root.
+- The second argument, if provided, is `DST` — the output directory. If omitted, default to `raw/<vault>/papers/` relative to the repo root.
 
 Follow the **Conversion Workflow** defined in CLAUDE.md exactly. The four phases:
 

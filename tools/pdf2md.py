@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Convert PDF or arXiv sources to Markdown for the raw/ directory.
+Convert PDF or arXiv sources to Markdown for the raw/<vault>/ directory.
 
 Usage:
-    python tools/pdf2md.py <input> [--output raw/papers/output.md] [--backend auto]
+    python tools/pdf2md.py <input> [--output raw/<vault>/papers/output.md] [--backend auto]
 
 Inputs:
     arXiv ID      →  2401.12345
@@ -20,7 +20,11 @@ Examples:
     python tools/pdf2md.py 2401.12345
     python tools/pdf2md.py https://arxiv.org/abs/2401.12345
     python tools/pdf2md.py paper.pdf --backend marker
-    python tools/pdf2md.py paper.pdf -o raw/papers/my-paper.md
+    python tools/pdf2md.py paper.pdf -o raw/<vault>/papers/my-paper.md
+
+Pick an explicit vault with $WIKI_VAULT, otherwise the script
+auto-detects the single vault (or falls back to the legacy flat
+`raw/papers/` layout when no vault is set up).
 """
 
 import argparse
@@ -31,8 +35,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).parent.parent
-DEFAULT_OUTPUT_DIR = REPO_ROOT / "raw" / "papers"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, raw_subdir  # noqa: E402
+
+DEFAULT_OUTPUT_DIR = raw_subdir("papers")
 
 ARXIV_PATTERNS = [
     re.compile(r"^(\d{4}\.\d{4,5})(v\d+)?$"),                          # 2401.12345

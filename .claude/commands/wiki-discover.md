@@ -39,7 +39,7 @@ If the user picked tiers, extract the DOIs and delegate to
 
 ```
 Agent(subagent_type=fetch-reading,
-      prompt="Fetch these DOIs into raw/papers/: <list>")
+      prompt="Fetch these DOIs into raw/<vault>/papers/: <list>")
 ```
 
 The sub-agent calls Unpaywall, downloads OA PDFs, surfaces paywalled
@@ -54,10 +54,10 @@ If new PDFs are downloaded, ask: *"Run the conversion pipeline now?
 [Y/n]"*. If yes:
 
 ```bash
-python pdf2md/pdf2md_marker.py raw/papers raw/papers
-python pdf2md/pdf2md_fallback.py raw/papers raw/papers
-python pdf2md/enrich_frontmatter.py raw/papers
-python tools/parse_references.py --curate --all raw/papers
+python pdf2md/pdf2md_marker.py raw/<vault>/papers raw/<vault>/papers
+python pdf2md/pdf2md_fallback.py raw/<vault>/papers raw/<vault>/papers
+python pdf2md/enrich_frontmatter.py raw/<vault>/papers
+python tools/parse_references.py --curate --all raw/<vault>/papers
 ```
 
 (Optionally include Mistral OCR if marker had failures and the user
@@ -73,7 +73,7 @@ now? [Y/n]"*. If yes:
 Delegate to `/wiki-batch-ingest`:
 
 ```
-/wiki-batch-ingest raw/papers/
+/wiki-batch-ingest raw/<vault>/papers/
 ```
 
 This loops over the new sources via the `ingester` sub-agent, with

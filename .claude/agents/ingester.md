@@ -1,6 +1,6 @@
 ---
 name: ingester
-description: Specialized agent for ingesting ONE academic source (paper, thesis chapter, note) into the wiki. Use this when the user asks to ingest, add, or process a file from raw/papers/, raw/theses/, or raw/notes/. The agent reads the source, picks the right template by study_design, applies the 16-step Ingest Workflow strictly (especially the often-skipped steps for entities, concepts, and the self-critique gate), and produces all the wiki pages the source warrants.
+description: Specialized agent for ingesting ONE academic source (paper, thesis chapter, note) into the wiki. Use this when the user asks to ingest, add, or process a file from raw/<vault>/papers/, raw/<vault>/theses/, or raw/<vault>/notes/. The agent reads the source, picks the right template by study_design, applies the 16-step Ingest Workflow strictly (especially the often-skipped steps for entities, concepts, and the self-critique gate), and produces all the wiki pages the source warrants.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---

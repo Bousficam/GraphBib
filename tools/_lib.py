@@ -17,6 +17,21 @@ Multi-vault resolution
      callers should detect this via ACTIVE_VAULT_MODE and prompt the user
      to set $WIKI_VAULT)
   5. Empty                     → REPO_ROOT/wiki/
+
+`RAW_DIR` mirrors the wiki vault — the raw inputs for a vault live at
+`raw/<vault>/{papers,theses,books,notes}/`. Detection follows the same
+$WIKI_VAULT env var and falls back to the same auto-detection rules:
+
+  1. $WIKI_VAULT env var → REPO_ROOT/raw/$WIKI_VAULT
+  2. Single raw vault    → REPO_ROOT/raw/<the-only-vault>/
+     (a sub-folder is a raw vault iff it contains `papers/`)
+  3. Legacy flat layout  → REPO_ROOT/raw/
+     (when raw/papers/ exists directly, no vault sub-folders)
+  4. Ambiguous           → REPO_ROOT/raw/ (callers should error)
+  5. Empty               → REPO_ROOT/raw/
+
+Wiki and raw share the same vault name (they describe the same
+research domain — raw is the input, wiki is the ingested output).
 """
 import os
 import re
@@ -26,6 +41,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).parent.parent
 WIKI_ROOT = REPO_ROOT / "wiki"
+RAW_ROOT = REPO_ROOT / "raw"
 
 
 def _detect_active_vault():
@@ -49,8 +65,44 @@ def _detect_active_vault():
     return WIKI_ROOT, "empty"
 
 
+def _detect_active_raw():
+    """Return (raw_dir, mode) — same modes as `_detect_active_vault`.
+
+    Uses the same $WIKI_VAULT env var as the wiki side since raw and
+    wiki share the vault concept (raw = inputs, wiki = ingested
+    outputs of the same domain).
+    """
+    env_vault = os.environ.get("WIKI_VAULT", "").strip()
+    if env_vault:
+        return RAW_ROOT / env_vault, "env"
+    if not RAW_ROOT.is_dir():
+        return RAW_ROOT, "empty"
+    if (RAW_ROOT / "papers").is_dir():
+        return RAW_ROOT, "legacy"
+    vaults = [d for d in RAW_ROOT.iterdir()
+              if d.is_dir() and not d.name.startswith(".")
+              and (d / "papers").is_dir()]
+    if len(vaults) == 1:
+        return vaults[0], "single"
+    if len(vaults) > 1:
+        return RAW_ROOT, "ambiguous"
+    return RAW_ROOT, "empty"
+
+
 WIKI_DIR, ACTIVE_VAULT_MODE = _detect_active_vault()
 SRC_DIR = WIKI_DIR / "sources"
+
+RAW_DIR, ACTIVE_RAW_MODE = _detect_active_raw()
+
+
+def raw_subdir(name):
+    """Return RAW_DIR/<name> (e.g. raw_subdir('papers')).
+
+    The four canonical sub-folders are `papers`, `theses`, `books`,
+    `notes`. Callers should `.mkdir(parents=True, exist_ok=True)` when
+    writing.
+    """
+    return RAW_DIR / name
 
 
 def active_vault_name():
@@ -67,6 +119,16 @@ def list_vaults():
     return sorted(
         d.name for d in WIKI_ROOT.iterdir()
         if d.is_dir() and not d.name.startswith(".") and (d / "sources").is_dir()
+    )
+
+
+def list_raw_vaults():
+    """All sub-folders of raw/ that look like raw vaults (contain papers/)."""
+    if not RAW_ROOT.is_dir():
+        return []
+    return sorted(
+        d.name for d in RAW_ROOT.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and (d / "papers").is_dir()
     )
 
 

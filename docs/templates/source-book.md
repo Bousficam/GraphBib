@@ -1,6 +1,6 @@
 # Academic Book Template
 
-Used by default for sources in `raw/books/*` — academic monographs,
+Used by default for sources in `raw/<vault>/books/*` — academic monographs,
 edited volumes, handbooks, textbooks, scholarly conference
 proceedings published as books.
 
@@ -31,7 +31,7 @@ subtitle: ""                 # optional, often informative for academic books
 type: source
 tags: [book]                 # add [edited-volume], [handbook], [textbook], [monograph] as appropriate
 date: YYYY-MM-DD             # ingest date
-source_file: raw/books/<slug>.md
+source_file: raw/<vault>/books/<slug>.md
 
 # Authorship — mutually exclusive in usage
 authors: ["First Last"]      # for authored monographs / textbooks

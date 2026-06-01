@@ -20,10 +20,9 @@ from typing import Optional
 from pathlib import Path
 from datetime import date
 
-REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
-RAW_DIR = REPO_ROOT / "raw"
-SOURCES_DIR = WIKI_DIR / "sources"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, WIKI_DIR, RAW_DIR, SRC_DIR as SOURCES_DIR  # noqa: E402
+
 REFRESH_CACHE = REPO_ROOT / "graph" / ".refresh_cache.json"
 
 

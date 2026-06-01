@@ -26,7 +26,7 @@ and is properly placed. Your job is depth, not creation.
 
 1. The existing source page at `wiki/sources/.../<slug>.md`.
 2. The original source MD at `<source_file>` (read from the page's
-   `source_file:` frontmatter, or default to `raw/papers/<slug>.md`).
+   `source_file:` frontmatter, or default to `raw/<vault>/papers/<slug>.md`).
 3. `docs/rules/citation.md` — Indirect Citation Rule, provenance pattern.
 4. `docs/rules/depth-completeness.md` — IMRAD-specific completeness
    expectations + the self-critique gate.

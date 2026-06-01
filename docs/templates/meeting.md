@@ -1,6 +1,6 @@
 # Meeting Notes Template
 
-For meeting notes mixed into `raw/notes/`.
+For meeting notes mixed into `raw/<vault>/notes/`.
 
 ```markdown
 ---

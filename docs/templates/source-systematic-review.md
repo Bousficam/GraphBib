@@ -21,7 +21,7 @@ title: "Review Title"
 type: source
 tags: [systematic-review]   # or [meta-analysis] if pooling effects
 date: YYYY-MM-DD
-source_file: raw/papers/<slug>.md
+source_file: raw/<vault>/papers/<slug>.md
 authors: [...]
 year: 2024
 journal: "..."

@@ -1,7 +1,7 @@
 # Academic Paper Template
 
-Used by default for sources in `raw/papers/*`. Also used by chapter
-sub-sources (`raw/theses/<slug>/ch*.md`) per the Long Document Ingestion
+Used by default for sources in `raw/<vault>/papers/*`. Also used by chapter
+sub-sources (`raw/<vault>/theses/<slug>/ch*.md`) per the Long Document Ingestion
 workflow — chapters are journal-paper-sized units.
 
 The body follows the **IMRAD** structure (Introduction · Methods · Results
@@ -22,7 +22,7 @@ title: "Paper Title"
 type: source
 tags: [paper]
 date: YYYY-MM-DD            # ingest date
-source_file: raw/papers/<slug>.md
+source_file: raw/<vault>/papers/<slug>.md
 authors: ["First Last", "First Last"]
 year: 2024
 journal: "Journal Name"

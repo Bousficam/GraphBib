@@ -108,9 +108,17 @@ Parent stays orchestrator; sub-agents do the focused work.
 
 ---
 
-`raw/` is immutable. `wiki/<vault>/` is the output (multi-vault —
-each vault is a self-contained Obsidian-compatible knowledge graph
-for one research domain; auto-detected if only one vault exists,
-otherwise set `$WIKI_VAULT`). Backward-compat: legacy flat
-`wiki/sources/` layout still works as an implicit single vault.
-Wikilinks: `[[PageName]]`.
+`raw/<vault>/` is immutable (raw inputs for the vault).
+`wiki/<vault>/` is the ingested output. Both are multi-vault — each
+vault is a self-contained Obsidian-compatible knowledge graph for
+one research domain. They share the SAME vault name (raw is input,
+wiki is output of the same domain) and are resolved via the same
+`$WIKI_VAULT` env var (auto-detected when a single vault exists).
+Backward-compat: legacy flat `wiki/sources/` + `raw/papers/` layouts
+still work as an implicit single vault. Wikilinks: `[[PageName]]`.
+
+The `project-review/` orchestrator (Extractor side) is independent
+of the wiki side — see `docs/workflows/screening.md` and
+`docs/workflows/data-extraction.md`. It has its own vault scoping
+that the user controls explicitly; it is NOT created or read by
+`/wiki-init`.

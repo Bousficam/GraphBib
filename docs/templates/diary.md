@@ -1,6 +1,6 @@
 # Diary / Journal Template
 
-For diary entries mixed into `raw/notes/`.
+For diary entries mixed into `raw/<vault>/notes/`.
 
 ```markdown
 ---
