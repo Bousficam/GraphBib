@@ -16,17 +16,19 @@ raw/                  # Immutable source documents — never modified
 ├── theses/           # PhD/MSc theses (with citation snowball)
 ├── books/            # Academic books, edited volumes, handbooks (EPUB-friendly)
 └── notes/            # Lab reports, conference talks, personal notes
-wiki/                 # Owned entirely by the agent
-├── index.md          # Catalog of all pages — updated on every ingest
-├── log.md            # Append-only chronological record
-├── overview.md       # Living synthesis across all sources
-├── sources/          # One academic summary per ingested source
-├── entities/         # Authors, labs, institutions
-├── concepts/         # Theoretical concepts, structured as book chapters
-├── methods/          # Methodologies & instruments (EEG, TMS, DTI, FuglMeyer…)
-├── recommendations/  # Clinical/research recommendations grouped by evidence
-├── questions/        # Open research questions identified across the corpus
-└── syntheses/        # Saved query answers and literature reviews
+wiki/                 # Multi-vault knowledge graph (one Obsidian vault per research domain)
+├── <vault-name>/     # e.g. stroke-rehab/, cardiology/, nlp-research/
+│   ├── index.md      # Vault catalog — updated on every ingest
+│   ├── log.md        # Append-only chronological record
+│   ├── overview.md   # Living synthesis across this vault's sources
+│   ├── sources/      # One academic summary per ingested source
+│   ├── entities/     # Authors, labs, institutions
+│   ├── concepts/     # Theoretical concepts, structured as book chapters
+│   ├── methods/      # Methodologies & instruments
+│   ├── recommendations/  # Clinical/research recommendations grouped by evidence
+│   ├── questions/    # Open research questions identified across the corpus
+│   └── syntheses/    # Saved query answers and literature reviews
+└── …                 # Additional vault sub-folders for other domains
 project-review/       # Self-contained extraction projects (NOT in Obsidian)
 ├── <name>/           # One folder per systematic / scoping / narrative review
 │   ├── contexte.md       # Review type, objective, question, outcomes, eligibility criteria
@@ -74,13 +76,21 @@ Three steps inside the agent — **init the layout, add a source, ingest**.
 ### 1. Init — bootstrap the folder structure
 
 ```
-/wiki-init
+/wiki-init <vault-name>
 ```
 
-Creates `raw/{papers,theses,books,notes}/` for inputs and
-`wiki/{sources,concepts,methods,interventions,recommendations,
-questions,entities,syntheses}/` for outputs, plus seeds empty
-`index.md` / `log.md` / `overview.md`. Idempotent — safe to re-run.
+e.g. `/wiki-init stroke-rehab` or `/wiki-init cardiology`. Each
+**vault** is a self-contained Obsidian-compatible knowledge graph
+for one research domain — you can have many side-by-side under
+`wiki/`. The command creates `raw/{papers,theses,books,notes}/` once
+(shared across vaults) and `wiki/<vault-name>/{sources,concepts,
+methods,interventions,recommendations,questions,entities,
+syntheses}/`, plus seeds empty `index.md` / `log.md` /
+`overview.md` inside the new vault.
+
+When multiple vaults exist, set `$WIKI_VAULT=<name>` to tell the
+tools which one to operate on (single-vault wikis are auto-detected;
+legacy flat `wiki/sources/` layouts still work).
 
 ### 2. Add a source — drop a file into the right `raw/` folder
 

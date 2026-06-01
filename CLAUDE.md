@@ -99,4 +99,9 @@ Parent stays orchestrator; sub-agents do the focused work.
 
 ---
 
-`raw/` is immutable. `wiki/` is the output. Wikilinks: `[[PageName]]`.
+`raw/` is immutable. `wiki/<vault>/` is the output (multi-vault —
+each vault is a self-contained Obsidian-compatible knowledge graph
+for one research domain; auto-detected if only one vault exists,
+otherwise set `$WIKI_VAULT`). Backward-compat: legacy flat
+`wiki/sources/` layout still works as an implicit single vault.
+Wikilinks: `[[PageName]]`.
