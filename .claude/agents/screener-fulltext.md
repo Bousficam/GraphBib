@@ -150,6 +150,59 @@ For `include`, the reason is empty:
 include | | 
 ```
 
+# Metadata harvest for includes (NEW)
+
+When (and ONLY when) `decision = include`, also extract the
+**dataset-identifying metadata** that downstream overlap detection
+needs. These come from the body (Methods, Acknowledgements,
+Funding, sometimes a "Trial registration" line). The orchestrator
+will use them to flag suspected dataset reuse across the included
+set — two papers reporting overlapping cohorts must be detected so
+the review doesn't double-count the same patients.
+
+Append the metadata as an EXTRA pipe-separated field AFTER the
+`<side_use>` slot — the line becomes:
+
+```
+include | | | <metadata-json>
+```
+
+`<metadata-json>` is a SINGLE-LINE JSON object with these keys
+(any field that's truly absent from the body is left as `""` —
+never fabricated):
+
+```json
+{"sites":["<recruitment site or hospital, one per item>"],
+ "recruitment_start":"YYYY-MM",
+ "recruitment_end":"YYYY-MM",
+ "team":["<senior author or PI lastname>","<lab/center if named>"],
+ "n":"<total enrolled — integer as string, or range like \"24-28\"">,
+ "registration":"<trial registry id (NCT…, ChiCTR…, EudraCT…) or \"\">"}
+```
+
+Guidance per field:
+
+  - `sites` — list every distinct recruitment site or hospital named
+    in Methods §"Participants" or §"Recruitment". If the body says
+    "single-center study at University Hospital of X", list `["University Hospital of X"]`. If multicentric, list all named centers. Empty list `[]` when not stated.
+  - `recruitment_start` / `recruitment_end` — recruitment window
+    as YYYY-MM (or YYYY if only the year is given). Distinct from
+    publication year. Empty string when not stated.
+  - `team` — senior/last author lastname + named lab/center if
+    available. Used as a clustering signal (same group → same
+    cohort risk).
+  - `n` — total enrolled (intent-to-treat or randomized N).
+    When the body gives two numbers (enrolled vs analyzed), use
+    enrolled. Range allowed for studies reporting per-arm only.
+  - `registration` — clinical trial registry ID if reported. Two
+    papers with the SAME registration ID are by definition the
+    same study.
+
+The metadata is optional for legacy projects (orchestrators that
+don't expect the 4th field will ignore it). When you cannot
+extract any field, return `{}` — the empty object is valid and
+means "include, but I could not harvest metadata from the body".
+
 # Output format
 
 ONE line, no preamble, no JSON, no surrounding quotes:
@@ -186,6 +239,18 @@ when `<side_use>` is empty.
 
 ```
 include | | 
+```
+
+`include` with metadata harvest:
+
+```
+include | | | {"sites":["University Hospital of Tübingen"],"recruitment_start":"2014-03","recruitment_end":"2015-09","team":["Birbaumer","Wyss Center"],"n":"32","registration":"NCT02093924"}
+```
+
+`include` with empty metadata (body too sparse to harvest):
+
+```
+include | | | {}
 ```
 
 Single reason:

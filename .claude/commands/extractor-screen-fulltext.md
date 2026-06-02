@@ -92,10 +92,13 @@ Spawn `screener-fulltext` with:
   wrong-pdf-fetched | ` and the orchestrator surfaces the slug for
   manual re-fetch.
 
-The sub-agent returns ONE line:
+The sub-agent returns ONE line — either the standard 3-field
+format (for exclusions / uncertain) or the 4-field format with
+metadata harvest (for includes):
 
 ```
-<decision> | <reason> | <side_use>
+<decision> | <reason> | <side_use>                  ← exclude / uncertain
+<decision> | | | <metadata-json>                    ← include
 ```
 
 where:
@@ -109,14 +112,21 @@ where:
   category (`intro`, `discussion`, `method`, `reco`, `general`) OR
   the augmented form `<category>; "<quote>"; <location>` (preferred
   — auditable).
+- `<metadata-json>` (4th field, ONLY for `decision = include`) is
+  a single-line JSON object with keys `sites`, `recruitment_start`,
+  `recruitment_end`, `team`, `n`, `registration`. The screener-fulltext
+  agent harvests these from the article body so the overlap audit
+  in Phase 4b can flag suspected dataset reuse. Empty object `{}`
+  is valid (body too sparse to harvest).
 
 **Batch in parallel**: 3–5 sub-agents at a time (sonnet — heavier
 than the T/A pass).
 
 Parse each output strictly:
 
-1. Split on top-level `|` → must yield 3 fields (or 2 for the legacy
-   format; pad with empty `<side_use>`).
+1. Split on top-level `|` → 3 fields (exclude / uncertain) or 4
+   fields (include with metadata harvest). Legacy 2-field format
+   is padded with empty `<side_use>`.
 2. Validate `<decision>` ∈ {include, exclude, uncertain}.
 3. Validate `<side_use>` head (first `;`-separated token) ∈
    {empty, intro, discussion, method, reco, general}.
@@ -128,6 +138,11 @@ Parse each output strictly:
    populates `tag` / `excerpt` / `location` columns (primary motive
    for the PRISMA flowchart); the remaining triplets are
    concatenated back with ` ;; ` and stored in `reasons_secondary`.
+6. For `decision = include`, parse the 4th field (`<metadata-json>`)
+   as JSON. Store the raw JSON string in the `metadata_json`
+   column. If parsing fails OR the field is absent (legacy
+   3-field output), store `{}` and log a `warn` (the include is
+   still recorded, just without overlap-detection metadata).
 
 Append each result to `screening/fulltext-decisions.csv` with columns
 in this order — **slug first, then what the agent did (decision +
@@ -137,8 +152,14 @@ before the metadata):
 ```
 slug, decision, tag, excerpt, location, reasons_secondary,
 side_use, side_excerpt, side_location, screener_note,
+metadata_json,
 doi, pmid, title, timestamp
 ```
+
+The `metadata_json` column carries the harvested dataset
+descriptors for includes (sites / recruitment window / team / n /
+registration) as a single-line JSON string. Exclusions and
+uncertains leave the cell empty.
 
 Legacy CSVs written before this reorder are still parsed correctly
 (`csv.DictReader` keys off the header) — only newly-written rows
@@ -284,6 +305,73 @@ python tools/screen_prisma.py project-review/<vault>/<name>
 Now both passes are reflected in the chart: identified → after-dedup
 → T/A screened → reports sought → reports retrieved → reports
 assessed → included.
+
+## Phase 4b — Overlap audit (suspected dataset reuse)
+
+Two papers reporting the same trial / same cohort would
+double-count patients in the review. The screener-fulltext agent
+harvested dataset metadata (sites, recruitment window, team, n,
+trial registration) for every include — now we cluster.
+
+```bash
+python tools/screen_overlap.py project-review/<vault>/<name>
+```
+
+Writes:
+- `screening/reports/overlap-clusters.md` — suspected pairs
+  grouped by confidence (HIGH = same trial registration, MEDIUM =
+  same team + overlapping recruitment window + similar n, LOW =
+  shared site + overlapping window).
+- `screening/overlap-decisions.csv` — audit trail stub, filled
+  in by the user at the gate below.
+
+If no clusters were detected, print `✓ No overlap signals — N
+includes appear to come from distinct cohorts.` and skip to
+Phase 5.
+
+If clusters were detected, surface them to the user:
+
+```
+⚠ Overlap audit — K suspected pairs (Confidence: H high / M medium / L low)
+
+   HIGH (same trial registration):
+     a-2020 ↔ a-2021  evidence: NCT02093924
+     (titles + DOIs printed)
+
+   MEDIUM (same team + window overlap + similar n):
+     b-2020 ↔ b-2021  evidence: team=soekadar, window=88%, n=(24 vs 28)
+
+   LOW (shared site + window overlap):
+     c-2019 ↔ d-2019  evidence: sites=hospital x, window=59%
+
+For each cluster, decide:
+  [k1] keep-both    — distinct cohorts despite the signal (rare for HIGH)
+  [p1] pick-one     — one paper supersedes the other (keep the more recent
+                      or more complete report; the other is excluded with
+                      tag `overlapping-dataset`)
+  [m1] merge        — both papers report partial views of the same study;
+                      keep both for extraction but flag the dependency
+                      (one extraction row spans both papers)
+  [s1] skip         — defer the decision for later, keep both for now
+```
+
+For each pair, capture the user's choice in
+`screening/overlap-decisions.csv` (`user_action` column +
+optional `rationale`). Then apply the action:
+
+- `pick-one`: in `fulltext-decisions.csv`, flip the dropped slug
+  from `include` to `exclude` with `tag = overlapping-dataset` and
+  `excerpt = "Supersedes/duplicates <other-slug> (<evidence>)"`.
+  Re-run `python tools/screen_prisma.py ...` so the flowchart
+  reflects the new exclusion.
+- `merge`: keep both `include` rows but write a marker row in
+  `screening/dependent-articles.md` (create if absent) so the
+  extraction phase knows to read both as one study.
+- `keep-both` / `skip`: no CSV change; the audit trail still
+  records the user's decision.
+
+Log all actions under `## Overlap audit` of
+`screening/reports/fulltext-report.md`.
 
 ## Phase 5 — Stage included articles + side references
 
