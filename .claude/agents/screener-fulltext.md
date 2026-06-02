@@ -108,8 +108,11 @@ Otherwise, you must commit to `include` or `exclude`.
 # Reason format — must cite the article
 
 Unlike T/A screening, full-text exclusions MUST be supported by a
-verbatim excerpt + a source location (page or section). The reason
-field has three parts joined by `;`:
+verbatim excerpt + a source location (page or section). And —
+because the strict sieve must explain itself fully — **you list
+EVERY criterion that fires**, not just the first one.
+
+Each reason has three parts joined by `;`:
 
 ```
 <criterion-tag>; "<verbatim excerpt>"; <source location>
@@ -122,6 +125,24 @@ field has three parts joined by `;`:
   values exactly.
 - `<source location>` — `Methods §"Study design"`, `Table 1`,
   `p.3 §"Inclusion criteria"`, `Results §"Primary outcome"`.
+
+When multiple criteria fire, join the reasons with ` ;; ` (space
+semicolon semicolon space). **The FIRST reason is the primary
+PRISMA exclusion motive** (the one that goes into the flowchart);
+the rest are secondary and surface in the audit gate. Order the
+reasons from MOST to LEAST discriminating (the one most strongly
+violated first):
+
+```
+exclude | reason_primary ;; reason_secondary_1 ;; reason_secondary_2 | <side_use>
+```
+
+Rationale for listing all: at full text the reviewer must see the
+full picture of why the article was rejected — a paper that fails
+3 criteria is a different signal from one that barely misses one,
+and PRISMA Methods sections often report "ineligible on multiple
+grounds". The single-reason output of the T/A pass is fine because
+T/A is permissive; full text is strict and audit-grade.
 
 For `include`, the reason is empty:
 
@@ -167,20 +188,24 @@ when `<side_use>` is empty.
 include | | 
 ```
 
+Single reason:
+
 ```
 exclude | wrong-population; "We enrolled 24 patients with epilepsy refractory to medication"; Methods §"Participants" | 
 ```
 
+Multiple reasons (primary first, then secondaries joined by ` ;; `):
+
 ```
-exclude | not-RCT; "This was a prospective single-arm cohort study"; Methods §"Study design" | method; "Validated the FM-UE in chronic stroke (n=140)"; p.5
+exclude | wrong-population; "Healthy volunteers (n=20) tested for proof-of-concept"; Methods §"Participants" ;; not-RCT; "Single-arm pilot study"; Methods §"Study design" ;; n-too-small; "n=20 (below pre-screening threshold of 30)"; p.4 Table 1 | intro; "Canonical signal-decoding pipeline cited by 4 included studies"; Introduction §"Background"
+```
+
+```
+exclude | not-RCT; "This was a prospective single-arm cohort study"; Methods §"Study design" ;; wrong-outcome; "Primary endpoint was acceptability (Likert scale)"; Results §"Acceptability" | method; "Validated the FM-UE in chronic stroke (n=140)"; p.5
 ```
 
 ```
 exclude | wrong-outcome; "The primary outcome was cost per QALY"; p.4 §"Outcomes" | reco
-```
-
-```
-exclude | wrong-population; "Healthy volunteers (n=20) tested for proof-of-concept"; Methods §"Participants" | intro; "Provides the canonical MI-BCI signal-decoding pipeline cited by 4 included studies"; Introduction §"Background"
 ```
 
 ```
@@ -217,8 +242,18 @@ deciding `decision`, run Step 9 below to assess `<side_use>` if
    `exclude | <tag>; ... | <side_use>`
 8. **All inclusion met, no exclusion fired** → `include | | `
 
-When two criteria could both fire (e.g. wrong population AND wrong
-intervention), report the FIRST one in `criteria.md` order.
+When MULTIPLE criteria fire (e.g. wrong population AND wrong
+intervention AND wrong outcome), report ALL of them, joined by
+` ;; `, in this order:
+  1. The PRIMARY (most discriminating) reason first — typically
+     the criterion the article most blatantly fails. This is the
+     PRISMA flowchart motive.
+  2. Then any other criteria that also fired, from more to less
+     specific to the article's mismatch.
+
+Avoid duplication — if two criteria are basically restating the
+same mismatch, report only the more specific one. The audit gate
+will surface all reasons to the reviewer.
 
 ## Step 9 — Side-use assessment (only when `decision = exclude`)
 

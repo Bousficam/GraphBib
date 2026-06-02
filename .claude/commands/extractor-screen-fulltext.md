@@ -99,9 +99,12 @@ The sub-agent returns ONE line:
 ```
 
 where:
-- `<reason>` for exclusions has the shape
+- `<reason>` for exclusions is **one or more** triplets of the shape
   `<tag>; "<verbatim excerpt>"; <source location>` (mandatory — see
-  `.claude/agents/screener-fulltext.md`).
+  `.claude/agents/screener-fulltext.md`). Multiple triplets are
+  joined by ` ;; ` (space-semicolon-semicolon-space). The FIRST
+  triplet is the primary PRISMA exclusion motive; the rest are
+  secondary.
 - `<side_use>` is optional. When non-empty, it has either the bare
   category (`intro`, `discussion`, `method`, `reco`, `general`) OR
   the augmented form `<category>; "<quote>"; <location>` (preferred
@@ -119,8 +122,12 @@ Parse each output strictly:
    {empty, intro, discussion, method, reco, general}.
 4. If `<decision> ≠ exclude` AND `<side_use>` is non-empty, log as
    `error` (protocol violation).
-5. For exclusions, verify `<reason>` parses into 3 `;`-separated
-   parts (tag, excerpt, location). Otherwise log as `error`.
+5. For exclusions, split `<reason>` on ` ;; ` → list of triplets.
+   Each triplet must parse into 3 `;`-separated parts (tag,
+   excerpt, location). Otherwise log as `error`. The FIRST triplet
+   populates `tag` / `excerpt` / `location` columns (primary motive
+   for the PRISMA flowchart); the remaining triplets are
+   concatenated back with ` ;; ` and stored in `reasons_secondary`.
 
 Append each result to `screening/fulltext-decisions.csv` with columns
 in this order — **slug first, then what the agent did (decision +
@@ -128,18 +135,23 @@ evidence), then article context** (so audit gates show the verdict
 before the metadata):
 
 ```
-slug, decision, tag, excerpt, location,
+slug, decision, tag, excerpt, location, reasons_secondary,
 side_use, side_excerpt, side_location, screener_note,
 doi, pmid, title, timestamp
 ```
 
 Legacy CSVs written before this reorder are still parsed correctly
 (`csv.DictReader` keys off the header) — only newly-written rows
-follow the new order.
+follow the new order. Legacy decisions written before the
+multi-reason format have an empty `reasons_secondary` cell, which
+the audit gate displays as `—`.
 
-For `include`, the tag/excerpt/location columns are empty and
-side_* are empty. For `exclude`, tag/excerpt/location are mandatory;
-side_* are filled only when the screener flagged the article.
+For `include`, the tag/excerpt/location columns are empty,
+`reasons_secondary` is empty, and side_* are empty. For
+`exclude`, tag/excerpt/location are mandatory (primary motive);
+`reasons_secondary` is filled when the screener returned ≥ 2
+reasons; side_* are filled only when the screener flagged the
+article.
 
 For articles without a body (`not-retrieved`), record a row with
 `decision = not-assessed` and `tag = body-missing` — they will show
@@ -186,18 +198,19 @@ Default = `a`. For each audited row, display in this order
 
 ```
 <slug>
-  decision      : <decision>
-  tag           : <tag or "—">
-  excerpt       : "<verbatim excerpt or "—">"
-  location      : <location or "—">
-  side_use      : <side_use or "—">
-  side_excerpt  : "<side_excerpt or "—">"
-  side_location : <side_location or "—">
-  note          : <screener_note or "—">
+  decision           : <decision>
+  primary motive     : <tag or "—">
+    excerpt          : "<verbatim excerpt or "—">"
+    location         : <location or "—">
+  reasons_secondary  : <reasons_secondary or "—">   ← full ";;"-joined list
+  side_use           : <side_use or "—">
+    side_excerpt     : "<side_excerpt or "—">"
+    side_location    : <side_location or "—">
+  note               : <screener_note or "—">
   ─
-  doi           : <doi or "—">
-  pmid          : <pmid or "—">
-  title         : <title>
+  doi                : <doi or "—">
+  pmid               : <pmid or "—">
+  title              : <title>
 ```
 
 Then prompt:
@@ -232,16 +245,26 @@ keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / vi
 
 ## Exclusions by reason (with verbatim evidence)
 
+> PRISMA flowchart counts articles ONCE under their PRIMARY
+> exclusion motive. The "also fires on" annotation surfaces every
+> additional criterion the article violated — kept transparent for
+> audit, but not double-counted in the per-criterion totals.
+
 ### wrong-population (n = K)
 - **<slug-1>** — "<verbatim excerpt>" (Methods §"Participants")
+  - also fires on: `not-RCT`, `n-too-small`
 - **<slug-2>** — "<excerpt>" (Table 1)
 - …
 
 ### not-RCT (n = K)
 - **<slug-3>** — "<excerpt>" (Methods §"Study design")
+  - also fires on: `wrong-outcome`
 - …
 
-(One subsection per criterion tag, each with the per-article evidence.)
+(One subsection per criterion tag — each article appears under its
+PRIMARY motive only; secondary motives appear as a sub-bullet for
+transparency. Total count across subsections = total full-text
+exclusions, not the sum of individual criterion firings.)
 
 ## Manual overrides (from audit gate)
 

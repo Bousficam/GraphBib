@@ -50,7 +50,19 @@ def count_by_decision(path, col="decision"):
 
 
 def count_by_reason(path, decision_value="exclude"):
-    """Return [(reason, count), ...] sorted desc for excluded rows."""
+    """Return [(reason_tag, count), ...] sorted desc for excluded rows.
+
+    Schema-tolerant — the primary exclusion motive is stored under:
+      - `reason` for the T/A pass (one-string tag, the screener-tiab
+        returns just the criterion tag without verbatim evidence).
+      - `tag` for the full-text pass (the screener-fulltext splits
+        the triplet into tag / excerpt / location columns).
+    When BOTH columns exist (legacy fulltext CSV with a `reason`
+    column still around), `tag` wins.
+    The PRISMA flowchart counts the PRIMARY motive only — secondary
+    motives in `reasons_secondary` are surfaced in the report but
+    not double-counted here.
+    """
     if not path.exists():
         return []
     reasons = {}
@@ -59,8 +71,14 @@ def count_by_reason(path, decision_value="exclude"):
         for row in reader:
             if (row.get("decision") or "").strip().lower() != decision_value:
                 continue
-            r = (row.get("reason") or "").strip() or "(no reason given)"
-            reasons[r] = reasons.get(r, 0) + 1
+            primary = (row.get("tag") or "").strip() or (row.get("reason") or "").strip()
+            primary = primary or "(no reason given)"
+            # The legacy T/A format embedded the criterion tag at the
+            # start of a `<tag>; …` triplet — keep only the tag for
+            # counting.
+            if ";" in primary:
+                primary = primary.split(";", 1)[0].strip()
+            reasons[primary] = reasons.get(primary, 0) + 1
     return sorted(reasons.items(), key=lambda kv: -kv[1])
 
 
