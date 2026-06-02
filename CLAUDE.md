@@ -117,6 +117,16 @@ wiki is output of the same domain) and are resolved via the same
 Backward-compat: legacy flat `wiki/sources/` + `raw/papers/` layouts
 still work as an implicit single vault. Wikilinks: `[[PageName]]`.
 
+**Vault selection at session start.** When the repo holds ≥2 vaults
+and `$WIKI_VAULT` is unset, the `SessionStart` hook
+(`.claude/hooks/session_start_vault.py`) injects a notice listing the
+available vaults. Before running any wiki tool or `/wiki-*` command,
+ASK the user which vault to use, then persist the choice for the
+session by merging `{"env": {"WIKI_VAULT": "<choice>"}}` into
+`.claude/settings.local.json` (preserve the existing `permissions`
+block). This avoids re-asking on every tool call and is inherited by
+sub-agents.
+
 The `project-review/<vault>/<name>/` orchestrator (Extractor side)
 is independent of the wiki side — see `docs/workflows/screening.md`
 and `docs/workflows/data-extraction.md`. It has its own vault

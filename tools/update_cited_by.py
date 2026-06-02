@@ -16,8 +16,8 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).parent.parent
-SRC_DIR = REPO_ROOT / "wiki" / "sources"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, SRC_DIR  # noqa: E402
 
 CITED_BY_HEADER = "## Cited By"
 NEXT_SECTION_RE = re.compile(r"^## ", re.MULTILINE)

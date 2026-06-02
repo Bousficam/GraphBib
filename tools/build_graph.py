@@ -24,6 +24,7 @@ import json
 import hashlib
 import argparse
 import statistics
+import sys
 import webbrowser
 from pathlib import Path
 from datetime import date
@@ -38,8 +39,9 @@ except ImportError:
     HAS_NETWORKX = False
     print("Warning: networkx not installed. Community detection disabled. Run: pip install networkx")
 
-REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, WIKI_DIR  # noqa: E402
+
 GRAPH_DIR = REPO_ROOT / "graph"
 GRAPH_JSON = GRAPH_DIR / "graph.json"
 GRAPH_HTML = GRAPH_DIR / "graph.html"

@@ -39,8 +39,9 @@ from urllib.parse import quote
 
 import yaml
 
-REPO_ROOT = Path(__file__).parent.parent
-SRC_DIR = REPO_ROOT / "wiki" / "sources"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, SRC_DIR  # noqa: E402
+
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
 OPENALEX_CACHE_FILE = CACHE_DIR / "openalex_forward.json"
 

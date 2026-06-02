@@ -35,8 +35,9 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import date
 
-REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, WIKI_DIR  # noqa: E402
+
 LOG_FILE = WIKI_DIR / "log.md"
 INDEX_FILE = WIKI_DIR / "index.md"
 OVERVIEW_FILE = WIKI_DIR / "overview.md"
