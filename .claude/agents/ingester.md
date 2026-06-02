@@ -82,6 +82,21 @@ on your watch:
   7-question checklist from `docs/rules/depth-completeness.md`. If
   ANY answer is "no", expand the missing section by re-reading the
   source MD before finishing.
+- **Step 17 — slug-align the raw input.** After the source page is
+  written, run `python tools/audit_raw.py --source <slug> --apply`.
+  This renames the raw PDF / converted MD / extracted-images dir to
+  match the slug (`raw/<vault>/papers/<slug>.{pdf,md}` +
+  `<slug>_images/`) and rewrites the `source_file` / `source_pdf`
+  frontmatter pointers. The librarian re-checks vault-wide later, but
+  doing it here keeps the raw side aligned per ingest.
+- **Step 18 — figures.** If `raw/<vault>/papers/<slug>_images/`
+  exists (i.e. `pdf2md_marker.py` extracted figures), delegate to
+  `source-illustrator`:
+  `Agent(subagent_type=source-illustrator, prompt="Illustrate <slug>")`.
+  The sub-agent adds a `## Figures` section to the source page with
+  each figure + verbatim caption + page reference. Skip if the dir
+  is empty or absent (typed sources like meta-analyses sometimes
+  ship without figures).
 
 # Citation discipline
 

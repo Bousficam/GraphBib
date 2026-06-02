@@ -80,7 +80,7 @@ harness surfaces them).
 
 ## Sub-agents
 
-Fourteen specialists in `.claude/agents/`. Delegate via `Agent` with
+Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
 **Wiki side** — knowledge-graph building / maintenance:
@@ -88,7 +88,11 @@ Fourteen specialists in `.claude/agents/`. Delegate via `Agent` with
 - `fetch-reading` — download OA PDFs for a DOI list (Unpaywall).
 - `ingester` — ingest one source, all 16 steps incl. entity creation.
 - `source-extender` — deepen an already-ingested shallow source.
+- `source-illustrator` — populate `## Figures` on one source page
+  from images already extracted by `pdf2md_marker.py`.
 - `concept-builder` — extend one concept page to chapter depth.
+- `concept-illustrator` — insert relevant figures into one concept
+  page, sourced from its cited sources' `## Figures` sections.
 - `query-synthesizer` — answer a focused research question.
 - `reviewer` — generate a structured literature review.
 - `lint` — audit (deterministic + cached semantic).
