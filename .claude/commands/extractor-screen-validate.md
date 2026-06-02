@@ -1,9 +1,9 @@
 ---
-description: PRISMA pre-screening DOI gate — validates every DOI in screening/dedup.csv against Crossref, recovers missing DOIs via bibliographic search, cross-checks title + year, rehabilitates `anon-YYYY` slugs once a real DOI is recovered. Surfaces mismatches for user audit before /extractor-screen-tiab runs (so the title/abstract screener doesn't decide on a wrong paper). Cached + idempotent.
+description: PRISMA pre-screening DOI gate — validates every DOI in screening/dedup.xlsx against Crossref, recovers missing DOIs via bibliographic search, cross-checks title + year, rehabilitates `anon-YYYY` slugs once a real DOI is recovered. Surfaces mismatches for user audit before /extractor-screen-tiab runs (so the title/abstract screener doesn't decide on a wrong paper). Cached + idempotent.
 argument-hint: "[<vault>/]<project-name>  [--force]"
 ---
 
-Run the DOI hygiene gate on `screening/dedup.csv`.
+Run the DOI hygiene gate on `screening/dedup.xlsx`.
 
 Arguments: $ARGUMENTS
 
@@ -48,16 +48,16 @@ A bonus pass runs **slug rehab** for rows that came out of dedup as
 `anon-YYYY` (CSV had no parseable first author): once a DOI is
 recovered or validated, the slug is re-derived as `<family>-<year>`
 from Crossref's first-author family name. This pass is
-**automatically locked** if `tiab-decisions.csv` already exists —
+**automatically locked** if `tiab-decisions.xlsx` already exists —
 renaming slugs after screening would orphan decisions.
 
 # Outputs
 
 | File | Purpose |
 |---|---|
-| `screening/dedup.csv` | Now has columns `doi_status`, `doi_title_match`, `doi_year_match`, `slug_rehabilitated` populated. |
+| `screening/dedup.xlsx` | Now has columns `doi_status`, `doi_title_match`, `doi_year_match`, `slug_rehabilitated` populated. |
 | `screening/reports/doi-warnings.md` | Human-readable: every ERROR + WARN with the offending row. Skipped silently when no issues. |
-| `screening/slug-renames.csv` | `old_slug, new_slug, doi` triples for the rehab audit trail. Skipped silently when nothing was renamed. |
+| `screening/slug-renames.xlsx` | `old_slug, new_slug, doi` triples for the rehab audit trail. Skipped silently when nothing was renamed. |
 
 # Procedure
 
@@ -77,7 +77,7 @@ project-review/<vault>/<project>/        # phased layout
 project-review/<project>/                # legacy flat fallback
 ```
 
-Refuse if `screening/dedup.csv` doesn't exist (instruct user to run
+Refuse if `screening/dedup.xlsx` doesn't exist (instruct user to run
 `/extractor-screen-init` then `python tools/screen_dedupe.py
 <project>` first).
 
@@ -97,9 +97,9 @@ The tool prints a per-status summary to stdout:
     invalid: 3
     missing: 21
   Slug rehab   : ran (8 renamed)
-✓ Wrote         project-review/<vault>/<name>/screening/dedup.csv
+✓ Wrote         project-review/<vault>/<name>/screening/dedup.xlsx
 ⚠ DOI warnings  project-review/<vault>/<name>/screening/reports/doi-warnings.md  (3 errors, 21 warnings — audit before /extractor-screen-tiab)
-✓ Slug renames  project-review/<vault>/<name>/screening/slug-renames.csv (8 rows)
+✓ Slug renames  project-review/<vault>/<name>/screening/slug-renames.xlsx (8 rows)
 ```
 
 ## Step 3 — Surface the audit results to the user
@@ -143,22 +143,25 @@ Ask the user what to do BEFORE handing off to `/extractor-screen-tiab`:
    screener-tiab agent will auto-mark `uncertain` for every row
    with `doi_title_match=false`, surfacing them at the T/A audit
    gate for manual review.
-2. **Fix one row** — open the user's editor on `dedup.csv`, jump
+2. **Fix one row** — open the user's editor on `dedup.xlsx`, jump
    to a specific row, let the user paste the correct DOI. Re-run
    `python tools/screen_fetch_metadata.py <project-path>
    --validate-only --force` to re-validate just that row.
 3. **Drop the bad rows** — for ERROR-level rows the user is
-   confident are unrecoverable. Backup `dedup.csv` to
-   `dedup.before-doi-cleanup.csv`, then filter:
+   confident are unrecoverable. Backup `dedup.xlsx` to
+   `dedup.before-doi-cleanup.xlsx`, then filter via the shared
+   `tabular` helper (handles xlsx natively):
    ```bash
+   cp <project>/screening/dedup.xlsx <project>/screening/dedup.before-doi-cleanup.xlsx
    python -c "
-   import csv
-   with open('<project>/screening/dedup.csv') as f:
-       rows = list(csv.DictReader(f))
-   fields = list(rows[0].keys()) if rows else []
-   kept = [r for r in rows if r.get('doi_title_match') != 'false' and r.get('doi_status') != 'invalid']
-   with open('<project>/screening/dedup.csv', 'w', newline='') as f:
-       w = csv.DictWriter(f, fieldnames=fields); w.writeheader(); w.writerows(kept)
+   import sys
+   sys.path.insert(0, 'tools')
+   from tabular import read_records, write_records
+   fields, rows = read_records('<project>/screening/dedup.xlsx')
+   kept = [r for r in rows
+           if r.get('doi_title_match') != 'false'
+           and r.get('doi_status') != 'invalid']
+   write_records(kept, fields, '<project>/screening/dedup.xlsx')
    print(f'Kept {len(kept)} of {len(rows)}')
    "
    ```
@@ -206,10 +209,10 @@ After this gate:
 - Never modify `criteria.md`, `contexte.md`, or `background/notes.md`
   from this command. DOI hygiene is a metadata problem; criteria
   authorship stays with the user via `/extractor-screen-init`.
-- Never delete `dedup.csv` rows without explicit user confirmation
+- Never delete `dedup.xlsx` rows without explicit user confirmation
   in Step 4. Defaults to **non-destructive** (Accept).
-- Never run when `tiab-decisions.csv` already exists AND the user
+- Never run when `tiab-decisions.xlsx` already exists AND the user
   hasn't passed `--force`. Reason: slug rehab is locked once
   decisions exist (renaming would orphan them). If the user really
   wants to re-validate, instruct them to first archive the existing
-  decisions (`mv tiab-decisions.csv tiab-decisions.before-revalidate.csv`).
+  decisions (`mv tiab-decisions.xlsx tiab-decisions.before-revalidate.csv`).

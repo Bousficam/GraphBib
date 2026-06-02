@@ -290,8 +290,8 @@ Format:
 
 > Source of truth for `/extractor-screen-tiab` and `/extractor-screen-fulltext`.
 > Each criterion has a short tag — the screener sub-agents use those
-> tags as exclusion reasons in `tiab-decisions.csv` and
-> `fulltext-decisions.csv`.
+> tags as exclusion reasons in `tiab-decisions.xlsx` and
+> `fulltext-decisions.xlsx`.
 
 ## PICO
 

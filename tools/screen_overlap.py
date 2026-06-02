@@ -46,6 +46,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from tabular import read_records, write_records  # noqa: E402
+
 REPO_ROOT = Path(__file__).parent.parent
 
 
@@ -123,35 +126,39 @@ def normalize_token(s):
     return re.sub(r"[^a-z0-9]+", " ", str(s).lower()).strip()
 
 
-def load_includes(decisions_csv):
-    """Return list[dict] of include rows enriched with parsed metadata."""
-    if not decisions_csv.exists():
+def load_includes(decisions_path):
+    """Return list[dict] of include rows enriched with parsed metadata.
+
+    Reads xlsx (preferred) or csv (legacy fallback) — `read_records`
+    auto-detects format and falls back to a sibling .csv when the
+    .xlsx is missing.
+    """
+    if not decisions_path.exists():
         return []
+    _, records = read_records(decisions_path)
     rows = []
-    with open(decisions_csv, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            if (r.get("decision") or "").strip().lower() != "include":
-                continue
-            md_raw = (r.get("metadata_json") or "").strip()
-            md = {}
-            if md_raw:
-                try:
-                    md = json.loads(md_raw)
-                except json.JSONDecodeError:
-                    md = {}
-            rows.append({
-                "slug": r.get("slug", "?"),
-                "doi": r.get("doi", ""),
-                "title": r.get("title", "")[:120],
-                "sites": [normalize_token(s) for s in (md.get("sites") or []) if s],
-                "team": [normalize_token(t) for t in (md.get("team") or []) if t],
-                "n": (md.get("n") or "").strip(),
-                "registration": normalize_token(md.get("registration") or ""),
-                "recruitment_start": parse_yyyymm(md.get("recruitment_start") or ""),
-                "recruitment_end": parse_yyyymm(md.get("recruitment_end") or ""),
-                "_md_raw": md_raw,
-            })
+    for r in records:
+        if (str(r.get("decision") or "")).strip().lower() != "include":
+            continue
+        md_raw = (str(r.get("metadata_json") or "")).strip()
+        md = {}
+        if md_raw:
+            try:
+                md = json.loads(md_raw)
+            except json.JSONDecodeError:
+                md = {}
+        rows.append({
+            "slug": str(r.get("slug", "?")),
+            "doi": str(r.get("doi", "")),
+            "title": str(r.get("title", ""))[:120],
+            "sites": [normalize_token(s) for s in (md.get("sites") or []) if s],
+            "team": [normalize_token(t) for t in (md.get("team") or []) if t],
+            "n": (md.get("n") or "").strip(),
+            "registration": normalize_token(md.get("registration") or ""),
+            "recruitment_start": parse_yyyymm(md.get("recruitment_start") or ""),
+            "recruitment_end": parse_yyyymm(md.get("recruitment_end") or ""),
+            "_md_raw": md_raw,
+        })
     return rows
 
 
@@ -262,25 +269,25 @@ def write_clusters_md(clusters, out_path, n_includes):
 
 
 def write_decisions_stub(clusters, out_path):
-    """Empty audit-trail CSV. The orchestrator's audit gate fills it."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    """Audit-trail xlsx (or csv when out_path ends with .csv).
+
+    The orchestrator's Phase 4b audit gate fills `user_action` +
+    `rationale` + `timestamp` per pair as the user decides.
+    """
     cols = ["pair", "confidence", "signal", "evidence",
             "slug_a", "slug_b", "user_action", "rationale", "timestamp"]
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cols)
-        w.writeheader()
-        for c in clusters:
-            w.writerow({
-                "pair": f"{c['slug_a']}|{c['slug_b']}",
-                "confidence": c["confidence"],
-                "signal": c["signal"],
-                "evidence": c["evidence"],
-                "slug_a": c["slug_a"],
-                "slug_b": c["slug_b"],
-                "user_action": "",
-                "rationale": "",
-                "timestamp": "",
-            })
+    rows = [{
+        "pair": f"{c['slug_a']}|{c['slug_b']}",
+        "confidence": c["confidence"],
+        "signal": c["signal"],
+        "evidence": c["evidence"],
+        "slug_a": c["slug_a"],
+        "slug_b": c["slug_b"],
+        "user_action": "",
+        "rationale": "",
+        "timestamp": "",
+    } for c in clusters]
+    write_records(rows, cols, out_path)
 
 
 # ----------------------------------------------------------------------
@@ -292,9 +299,13 @@ def main():
     args = ap.parse_args()
 
     project = Path(args.project).resolve()
-    decisions = project / "screening" / "fulltext-decisions.csv"
-    if not decisions.exists():
-        sys.exit(f"error: {decisions} not found. Run /extractor-screen-fulltext first.")
+    # XLSX is primary; the read helper falls back to sibling .csv.
+    decisions_xlsx = project / "screening" / "fulltext-decisions.xlsx"
+    decisions_csv = project / "screening" / "fulltext-decisions.csv"
+    if not decisions_xlsx.exists() and not decisions_csv.exists():
+        sys.exit(f"error: neither fulltext-decisions.xlsx nor .csv found in "
+                 f"{project}/screening/. Run /extractor-screen-fulltext first.")
+    decisions = decisions_xlsx if decisions_xlsx.exists() else decisions_csv
 
     rows = load_includes(decisions)
     if not rows:
@@ -303,9 +314,9 @@ def main():
     clusters = cluster_includes(rows)
 
     md_path = project / "screening" / "reports" / "overlap-clusters.md"
-    csv_path = project / "screening" / "overlap-decisions.csv"
+    decisions_stub = project / "screening" / "overlap-decisions.xlsx"
     write_clusters_md(clusters, md_path, n_includes=len(rows))
-    write_decisions_stub(clusters, csv_path)
+    write_decisions_stub(clusters, decisions_stub)
 
     print(f"✓ Includes scanned : {len(rows)}")
     print(f"✓ Clusters         : {len(clusters)}")
@@ -316,7 +327,7 @@ def main():
         if bucket[k]:
             print(f"    {k}: {bucket[k]}")
     print(f"✓ Report           : {md_path.relative_to(project.parent)}")
-    print(f"✓ Audit trail stub : {csv_path.relative_to(project.parent)}")
+    print(f"✓ Audit trail stub : {decisions_stub.relative_to(project.parent)}")
     if clusters:
         print()
         print("Next: review the clusters at the Phase 4b audit gate of "

@@ -20,11 +20,11 @@ Three passes, each idempotent and cached:
      valid/recovered DOI. Uses `crossref_slug(doi)` → `<family>-<year>`,
      handles collisions, writes a `slug_renames.csv` audit trail.
 
-Pass 3 is **locked** once `tiab-decisions.csv` exists for the project
-— renaming slugs after screening has started would break the
-decision trail. The DOI healing pass still runs, only the slug
-rewrite is skipped (warnings are logged so the user can rename
-manually if they wish).
+Pass 3 is **locked** once `tiab-decisions.xlsx` (or its legacy
+.csv) exists for the project — renaming slugs after screening has
+started would break the decision trail. The DOI healing pass
+still runs; only the slug rewrite is skipped (warnings are logged
+so the user can rename manually if they wish).
 
 Cache is shared with all other GraphBib tools via
 `tools/.cache/crossref.json` (managed by `tools/crossref.py`).
@@ -73,6 +73,7 @@ from crossref import (  # noqa: E402
     save_cache,
     title_similarity,
 )
+from tabular import read_records, write_records  # noqa: E402
 
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
@@ -408,12 +409,9 @@ def write_slug_renames(renames, out_path):
         if out_path.exists():
             out_path.unlink()
         return False
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["old_slug", "new_slug", "doi"])
-        for row in renames:
-            w.writerow(row)
+    headers = ["old_slug", "new_slug", "doi"]
+    records = [{"old_slug": r[0], "new_slug": r[1], "doi": r[2]} for r in renames]
+    write_records(records, headers, out_path)
     return True
 
 
@@ -432,14 +430,15 @@ def main():
     args = ap.parse_args()
 
     project = Path(args.project).resolve()
-    dedup = project / "screening" / "dedup.csv"
-    if not dedup.exists():
-        sys.exit(f"error: {dedup} not found. Run screen_dedupe.py first.")
+    # XLSX is the primary format; the read helper auto-falls-back to
+    # the sibling .csv when only the legacy file is present.
+    dedup = project / "screening" / "dedup.xlsx"
+    if not dedup.exists() and not dedup.with_suffix(".csv").exists():
+        sys.exit(f"error: {dedup} (or sibling .csv) not found. Run screen_dedupe.py first.")
 
-    with open(dedup, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames or []
-        records = list(reader)
+    fieldnames, records = read_records(dedup)
+    if not records:
+        sys.exit(f"error: {dedup} is empty.")
 
     # Ensure new DOI hygiene columns exist in the header even on
     # legacy dedup.csv files (back-compat for projects that ran
@@ -492,20 +491,23 @@ def main():
     save_cache(cf_cache)
 
     # ── Pass 3 — slug rehab (gated on no existing decisions) ─────────────
+    # Slug rehab is LOCKED once T/A decisions have been written —
+    # renaming a slug after a decision references it would orphan
+    # the decision. Check both formats (xlsx + legacy csv).
+    tiab_xlsx = project / "screening" / "tiab-decisions.xlsx"
     tiab_csv = project / "screening" / "tiab-decisions.csv"
-    if tiab_csv.exists() and tiab_csv.stat().st_size > 0:
+    tiab_exists = (tiab_xlsx.exists() and tiab_xlsx.stat().st_size > 0) \
+        or (tiab_csv.exists() and tiab_csv.stat().st_size > 0)
+    if tiab_exists:
         renames = []
-        slug_rehab_status = "locked (tiab-decisions.csv exists)"
+        slug_rehab_status = "locked (tiab-decisions already exists)"
     else:
         renames = rehab_slugs(records, cf_cache)
         save_cache(cf_cache)
         slug_rehab_status = f"ran ({len(renames)} renamed)"
 
     # ── Write outputs ────────────────────────────────────────────────────
-    with open(dedup, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        w.writerows(records)
+    write_records(records, fieldnames, dedup)
 
     if not args.validate_only:
         log_path = project / "screening" / "reports" / "metadata-log.md"
@@ -519,7 +521,7 @@ def main():
     warnings_path = project / "screening" / "reports" / "doi-warnings.md"
     wrote_warnings = write_doi_warnings(doi_warnings, warnings_path)
 
-    renames_path = project / "screening" / "slug-renames.csv"
+    renames_path = project / "screening" / "slug-renames.xlsx"
     wrote_renames = write_slug_renames(renames, renames_path)
 
     # ── Console summary ──────────────────────────────────────────────────

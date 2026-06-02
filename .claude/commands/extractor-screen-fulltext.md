@@ -15,13 +15,13 @@ The T/A pass must have produced at least these artifacts:
 project-review/<vault>/<name>/
 └── screening/
     ├── criteria.md                           # MUST exist
-    ├── tiab-decisions.csv                    # MUST exist (from /extractor-screen-tiab)
+    ├── tiab-decisions.xlsx                    # MUST exist (from /extractor-screen-tiab)
     └── 1st-pass/
         ├── raw/<slug>.pdf                    # at least some PDFs
         └── markdown/<slug>.md                # auto-converted (or manually dropped)
 ```
 
-If `tiab-decisions.csv` is missing, refuse and tell the user to run
+If `tiab-decisions.xlsx` is missing, refuse and tell the user to run
 `/extractor-screen-tiab <name>` first.
 
 # Procedure
@@ -33,13 +33,13 @@ Parse `$ARGUMENTS`:
 - `--limit N` → cap delegations (smoke-test)
 - `--only <slug>` → screen just that one article (useful for re-judging
   after a manual PDF replacement)
-- `--reset` → discard `fulltext-decisions.csv` and start over (asks
+- `--reset` → discard `fulltext-decisions.xlsx` and start over (asks
   for confirmation)
 
 Read `screening/criteria.md`. If empty, refuse.
 
 Determine the candidate set:
-- Source = rows of `tiab-decisions.csv` with `decision` ∈ {include, uncertain}
+- Source = rows of `tiab-decisions.xlsx` with `decision` ∈ {include, uncertain}
 - Plus: any row the user manually flipped to `include` during the T/A
   audit (already on disk)
 - Minus: any article whose MD body is missing AND whose PDF is missing
@@ -84,7 +84,7 @@ Spawn `screener-fulltext` with:
 - the article's slug
 - the article MD path
   (`project-review/<vault>/<name>/screening/1st-pass/markdown/<slug>.md`)
-- the row's title and DOI hygiene flags from `dedup.csv`
+- the row's title and DOI hygiene flags from `dedup.xlsx`
   (`doi_status`, `doi_title_match`, `doi_year_match`). The
   sub-agent's DOI cross-check uses these to detect wrong-PDF
   situations: a flagged title mismatch + a body whose title clearly
@@ -144,7 +144,7 @@ Parse each output strictly:
    3-field output), store `{}` and log a `warn` (the include is
    still recorded, just without overlap-detection metadata).
 
-Append each result to `screening/fulltext-decisions.csv` with columns
+Append each result to `screening/fulltext-decisions.xlsx` with columns
 in this order — **slug first, then what the agent did (decision +
 evidence), then article context** (so audit gates show the verdict
 before the metadata):
@@ -161,11 +161,14 @@ descriptors for includes (sites / recruitment window / team / n /
 registration) as a single-line JSON string. Exclusions and
 uncertains leave the cell empty.
 
-Legacy CSVs written before this reorder are still parsed correctly
-(`csv.DictReader` keys off the header) — only newly-written rows
-follow the new order. Legacy decisions written before the
-multi-reason format have an empty `reasons_secondary` cell, which
-the audit gate displays as `—`.
+Use `tabular.append_record` from `tools/tabular.py` to append each
+row — it handles xlsx natively and creates the file with the
+styled header on the first call. Legacy CSVs written before this
+reorder are still parsed correctly (both `tabular.read_records`
+and pandas key off the header row, not column position) — only
+newly-written rows follow the new order. Legacy decisions written
+before the multi-reason format have an empty `reasons_secondary`
+cell, which the audit gate displays as `—`.
 
 For `include`, the tag/excerpt/location columns are empty,
 `reasons_secondary` is empty, and side_* are empty. For
@@ -242,7 +245,7 @@ keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / vi
 - `<category>` ∈ {intro, discussion, method, reco, general}
 - `view-body` opens the MD path so the user can verify against the
   excerpt
-- Flips and side edits are written to `fulltext-decisions.csv` and
+- Flips and side edits are written to `fulltext-decisions.xlsx` and
   logged under `## Manual overrides` in
   `screening/reports/fulltext-report.md`
 
@@ -322,7 +325,7 @@ Writes:
   grouped by confidence (HIGH = same trial registration, MEDIUM =
   same team + overlapping recruitment window + similar n, LOW =
   shared site + overlapping window).
-- `screening/overlap-decisions.csv` — audit trail stub, filled
+- `screening/overlap-decisions.xlsx` — audit trail stub, filled
   in by the user at the gate below.
 
 If no clusters were detected, print `✓ No overlap signals — N
@@ -356,10 +359,10 @@ For each cluster, decide:
 ```
 
 For each pair, capture the user's choice in
-`screening/overlap-decisions.csv` (`user_action` column +
+`screening/overlap-decisions.xlsx` (`user_action` column +
 optional `rationale`). Then apply the action:
 
-- `pick-one`: in `fulltext-decisions.csv`, flip the dropped slug
+- `pick-one`: in `fulltext-decisions.xlsx`, flip the dropped slug
   from `include` to `exclude` with `tag = overlapping-dataset` and
   `excerpt = "Supersedes/duplicates <other-slug> (<evidence>)"`.
   Re-run `python tools/screen_prisma.py ...` so the flowchart
@@ -377,7 +380,7 @@ Log all actions under `## Overlap audit` of
 
 ### 5a — Included → extraction/articles/
 
-For each row in `fulltext-decisions.csv` with `decision = include`:
+For each row in `fulltext-decisions.xlsx` with `decision = include`:
 - Copy `screening/1st-pass/markdown/<slug>.md` to
   `project-review/<vault>/<name>/extraction/articles/<slug>.md` (cp, never mv
   — the screening register stays intact).
@@ -386,7 +389,7 @@ For each row in `fulltext-decisions.csv` with `decision = include`:
 
 ### 5b — Side-flagged excludes → extraction/biblio/side/<category>/
 
-For each row in `fulltext-decisions.csv` with `decision = exclude`
+For each row in `fulltext-decisions.xlsx` with `decision = exclude`
 AND `side_use ≠ empty`:
 
 - Copy `screening/1st-pass/markdown/<slug>.md` to
@@ -440,7 +443,7 @@ Next step:
 
 - **NEVER screen an article whose T/A decision was `exclude`** — those
   articles are out by definition. If the user wants to re-judge one,
-  they must flip it to `include` in `tiab-decisions.csv` first
+  they must flip it to `include` in `tiab-decisions.xlsx` first
   (manually or via the T/A audit gate's flip option).
 - **NEVER use the abstract alone to decide at full text.** If the body
   is unavailable, the decision is `not-assessed` with
@@ -462,7 +465,7 @@ Next step:
   NOT fabricate context.
 - **NEVER auto-copy a side-flagged article if the audit gate
   rejected it** (`clear-side` action). Side staging in Phase 5b
-  reads the FINAL `fulltext-decisions.csv` after user overrides.
+  reads the FINAL `fulltext-decisions.xlsx` after user overrides.
 - **NEVER assign a side category outside
   {intro, discussion, method, reco, general}**. The orchestrator
   rejects malformed categories as `error`.

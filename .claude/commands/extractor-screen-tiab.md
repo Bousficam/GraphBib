@@ -46,10 +46,10 @@ Print the plan:
 
 ```
 Will run:
-  1. Dedupe identified CSVs            → screening/dedup.csv
-  2. Fetch missing abstracts + heal DOIs → updates dedup.csv (cached)
+  1. Dedupe identified CSVs            → screening/dedup.xlsx
+  2. Fetch missing abstracts + heal DOIs → updates dedup.xlsx (cached)
                                           + screening/reports/doi-warnings.md
-  3. Screen each record (T/A only)     → screening/tiab-decisions.csv
+  3. Screen each record (T/A only)     → screening/tiab-decisions.xlsx
   4. Auto-fetch PDFs of inclusions     → screening/1st-pass/raw/
   5. Write report + update PRISMA      → screening/reports/
 Proceed? [Y/n]
@@ -57,7 +57,7 @@ Proceed? [Y/n]
 
 **Prerequisite — DOI hygiene gate (recommended).** If
 `screening/reports/doi-warnings.md` does not exist (Phase 2 has not
-yet flagged any DOI issues) AND `dedup.csv` is already populated
+yet flagged any DOI issues) AND `dedup.xlsx` is already populated
 with rows, suggest running `/extractor-screen-validate <project>`
 first — it surfaces wrong-paper DOIs and `anon-YYYY` slugs BEFORE
 the T/A pass commits decisions. If the user declines, proceed —
@@ -73,7 +73,7 @@ python tools/screen_dedupe.py project-review/<vault>/<name>
 ```
 
 Reports: records read, skipped (no ID / no title), unique after dedup.
-Writes `screening/dedup.csv` and `screening/reports/dedup-log.md`.
+Writes `screening/dedup.xlsx` and `screening/reports/dedup-log.md`.
 
 ## Phase 2 — Fetch missing abstracts
 
@@ -85,7 +85,7 @@ python tools/screen_fetch_metadata.py project-review/<vault>/<name>
 
 (or with `--force` when `--force-metadata` was passed)
 
-This populates the `abstract` column in `dedup.csv` from PubMed →
+This populates the `abstract` column in `dedup.xlsx` from PubMed →
 OpenAlex → Crossref, in that order. Cached in
 `tools/.cache/screen_metadata.json`. Records with no DOI and no PMID
 are left alone.
@@ -105,9 +105,9 @@ Abstract fetch:
 
 Read `screening/criteria.md` and (if present and non-empty)
 `background/notes.md` ONCE (passed as context to each delegation).
-Read `screening/dedup.csv`.
+Read `screening/dedup.xlsx`.
 
-For each row in `dedup.csv` (capped by `--limit` if given), spawn
+For each row in `dedup.xlsx` (capped by `--limit` if given), spawn
 `screener-tiab` with:
 - the project's `criteria.md` path
 - the project's `background/notes.md` path (or nothing if absent / empty)
@@ -137,7 +137,7 @@ parent agent gathers all errors at the end).
 **Batch in parallel** when sensible (5–10 sub-agents at a time) — the
 sub-agent is `haiku` and Read-only.
 
-Append each result to `screening/tiab-decisions.csv` with columns
+Append each result to `screening/tiab-decisions.xlsx` with columns
 in this order — **slug first, then what the agent did, then article
 context** (so a human can scan decisions without scrolling past
 metadata):
@@ -147,10 +147,14 @@ slug, decision, reason, side_use, screener_note,
 doi, pmid, title, year, journal, timestamp
 ```
 
-Where `decision` ∈ {include, exclude, uncertain, error}. Legacy
+Where `decision` ∈ {include, exclude, uncertain, error}. Use
+`tabular.append_record` from `tools/tabular.py` to append each
+row — it handles xlsx natively (load workbook, append, save) and
+creates the file with the styled header on the first call. Legacy
 CSVs written before this reorder are still parsed correctly
-(`csv.DictReader` keys off the header, not the position) — only
-newly-written rows follow the new order.
+(both `tabular.read_records` and pandas key off the header row,
+not column position) — only newly-written rows follow the new
+order.
 
 ## Phase 3b — User audit gate (mandatory)
 
@@ -215,7 +219,7 @@ keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side
 ```
 
 Where `<category>` ∈ {intro, discussion, method, reco, general}.
-Write all flips and side-edits to `tiab-decisions.csv` and log them
+Write all flips and side-edits to `tiab-decisions.xlsx` and log them
 at the end of `screening/reports/tiab-report.md` under
 `## Manual overrides`.
 
@@ -234,7 +238,7 @@ python tools/fetch_oa.py --from-stdin \
 
 (The existing `tools/fetch_oa.py` handles Unpaywall + Crossref
 download. Filename convention is `<first-author>-<year>.pdf` — the
-filenames will match `dedup.csv`'s `slug` for ~all cases.)
+filenames will match `dedup.xlsx`'s `slug` for ~all cases.)
 
 Reconcile the downloaded PDFs against the inclusion list. Anything
 that didn't download → write a row in
@@ -250,7 +254,7 @@ Print the count split: fetched / paywalled / failed.
 
 ## Phase 4b — Stage side-flagged articles into extraction/biblio/side/
 
-For each row in `tiab-decisions.csv` with `decision = exclude` AND
+For each row in `tiab-decisions.xlsx` with `decision = exclude` AND
 `side_use ≠ empty`:
 
 - If a PDF was successfully fetched in Phase 4 (it shouldn't be —
@@ -366,8 +370,8 @@ Next step:
 - **NEVER read PDFs in this command.** Pass 1 is T/A only. Even if a
   PDF is already in `1st-pass/raw/`, do not pass its content to the
   screener — pass only the row's title + abstract.
-- **NEVER auto-overwrite `dedup.csv` once decisions exist.** If
-  `tiab-decisions.csv` is non-empty, REFUSE to re-run dedup unless
+- **NEVER auto-overwrite `dedup.xlsx` once decisions exist.** If
+  `tiab-decisions.xlsx` is non-empty, REFUSE to re-run dedup unless
   the user passes `--reset-dedup` (which the user must type
   explicitly).
 - **NEVER skip the audit gate.** Phase 3b is mandatory. Auto-pilot
