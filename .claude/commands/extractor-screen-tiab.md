@@ -137,14 +137,20 @@ parent agent gathers all errors at the end).
 **Batch in parallel** when sensible (5–10 sub-agents at a time) — the
 sub-agent is `haiku` and Read-only.
 
-Append each result to `screening/tiab-decisions.csv` with columns:
+Append each result to `screening/tiab-decisions.csv` with columns
+in this order — **slug first, then what the agent did, then article
+context** (so a human can scan decisions without scrolling past
+metadata):
 
 ```
-slug, doi, pmid, title, year, journal, decision, reason, side_use,
-screener_note, timestamp
+slug, decision, reason, side_use, screener_note,
+doi, pmid, title, year, journal, timestamp
 ```
 
-Where `decision` ∈ {include, exclude, uncertain, error}.
+Where `decision` ∈ {include, exclude, uncertain, error}. Legacy
+CSVs written before this reorder are still parsed correctly
+(`csv.DictReader` keys off the header, not the position) — only
+newly-written rows follow the new order.
 
 ## Phase 3b — User audit gate (mandatory)
 
@@ -186,7 +192,23 @@ Options:
   [s]   Stop here — re-run later
 ```
 
-Default = `a` (sample audit). For each shown row, ask:
+Default = `a` (sample audit). For each shown row, display in this
+order (slug → decision → article info):
+
+```
+<slug>
+  decision : <decision>
+  reason   : <reason>
+  side_use : <side_use or "—">
+  note     : <screener_note or "—">
+  ─
+  doi      : <doi or "—">
+  pmid     : <pmid or "—">
+  title    : <title>
+  journal  : <journal> (<year>)
+```
+
+Then prompt:
 
 ```
 keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side
@@ -241,9 +263,9 @@ For each row in `tiab-decisions.csv` with `decision = exclude` AND
   to fetch / convert manually later. Format:
 
 ```markdown
-| Slug | DOI / PMID | Title | Why side (from T/A) |
-|---|---|---|---|
-| <slug> | <doi> | <title> | <reason from screener_note or empty> |
+| Slug | Side category | Why (T/A note) | DOI / PMID | Title |
+|---|---|---|---|---|
+| <slug> | <side_use> | <reason from screener_note or empty> | <doi> | <title> |
 ```
 
 The full-text pass (`/extractor-screen-fulltext`) will re-evaluate

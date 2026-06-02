@@ -122,12 +122,20 @@ Parse each output strictly:
 5. For exclusions, verify `<reason>` parses into 3 `;`-separated
    parts (tag, excerpt, location). Otherwise log as `error`.
 
-Append each result to `screening/fulltext-decisions.csv` with columns:
+Append each result to `screening/fulltext-decisions.csv` with columns
+in this order — **slug first, then what the agent did (decision +
+evidence), then article context** (so audit gates show the verdict
+before the metadata):
 
 ```
-slug, doi, pmid, title, decision, tag, excerpt, location, side_use,
-side_excerpt, side_location, screener_note, timestamp
+slug, decision, tag, excerpt, location,
+side_use, side_excerpt, side_location, screener_note,
+doi, pmid, title, timestamp
 ```
+
+Legacy CSVs written before this reorder are still parsed correctly
+(`csv.DictReader` keys off the header) — only newly-written rows
+follow the new order.
 
 For `include`, the tag/excerpt/location columns are empty and
 side_* are empty. For `exclude`, tag/excerpt/location are mandatory;
@@ -173,11 +181,30 @@ Options:
   [s]   Stop here — re-run later
 ```
 
-Default = `a`. For each audited row, show:
-- title, slug, decision, tag, excerpt, location, side_use,
-  side_excerpt, side_location
-- Then ask:
-  `keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / view-body`
+Default = `a`. For each audited row, display in this order
+(slug → decision + evidence → article info):
+
+```
+<slug>
+  decision      : <decision>
+  tag           : <tag or "—">
+  excerpt       : "<verbatim excerpt or "—">"
+  location      : <location or "—">
+  side_use      : <side_use or "—">
+  side_excerpt  : "<side_excerpt or "—">"
+  side_location : <side_location or "—">
+  note          : <screener_note or "—">
+  ─
+  doi           : <doi or "—">
+  pmid          : <pmid or "—">
+  title         : <title>
+```
+
+Then prompt:
+
+```
+keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / view-body
+```
 - `<category>` ∈ {intro, discussion, method, reco, general}
 - `view-body` opens the MD path so the user can verify against the
   excerpt
@@ -267,9 +294,9 @@ AND `side_use ≠ empty`:
 > /extractor-screen-fulltext; user can manually override the category at
 > the audit gate.
 
-| Slug | DOI / PMID | Title | Why side (verbatim) | Source location |
+| Slug | Why side (verbatim) | Source location | DOI / PMID | Title |
 |---|---|---|---|---|
-| <slug> | <doi> | <title> | <side_excerpt> | <side_location> |
+| <slug> | <side_excerpt> | <side_location> | <doi> | <title> |
 ```
 
 T/A-only side flags (rows with no body) are NOT copied here — they
