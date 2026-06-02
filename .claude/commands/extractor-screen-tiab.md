@@ -228,29 +228,63 @@ at the end of `screening/reports/tiab-report.md` under
 Skip if `--no-fetch`.
 
 Collect DOIs of `include` AND `uncertain` records (PRISMA: pass T/A
-includes to full text). Run:
+includes to full text). Run with the **full cascade + title
+verification + enriched missing.md** options:
 
 ```bash
 python tools/fetch_oa.py --from-stdin \
     --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
+    --with-titles project-review/<vault>/<name>/screening/dedup.xlsx \
+    --missing-md  project-review/<vault>/<name>/screening/1st-pass/missing.md \
     < <doi-list>
 ```
 
-(The existing `tools/fetch_oa.py` handles Unpaywall + Crossref
-download. Filename convention is `<first-author>-<year>.pdf` — the
-filenames will match `dedup.xlsx`'s `slug` for ~all cases.)
+What `fetch_oa.py` does on every DOI:
 
-Reconcile the downloaded PDFs against the inclusion list. Anything
-that didn't download → write a row in
-`screening/1st-pass/missing.md` with:
-- slug
-- DOI / PMID
-- title (truncated to 80 chars)
-- "Where to try" (suggested manual sources: institutional access,
-  ResearchGate, author email, Sci-Hub disclaimer per local law)
-- "User note" (empty)
+1. **Provider cascade** (stops at first success):
+   `unpaywall → openalex → europepmc → arxiv → biorxiv → core →
+   publisher-direct`. Each provider adds 10–20% of incremental
+   recall over Unpaywall alone (Europe PMC is biomedical-specific;
+   arXiv / bioRxiv cover preprints; CORE aggregates institutional
+   repos; publisher-direct uses URL patterns for PLOS / eLife /
+   MDPI / Frontiers / JMIR).
+2. **Sanity download** — file > 1 KB AND starts with `%PDF` header.
+3. **Title verification** — when pymupdf is installed AND
+   `--with-titles` was passed, extracts the first-page title from
+   the downloaded PDF and compares it to the row's `title` via
+   `crossref.title_similarity`. Sim < 0.5 → rejects the file
+   (deletes it, tries the next provider). Closes the wrong-paper
+   gap: a landing page disguised as a PDF, or a paper that turned
+   out to be a different study, gets discarded instead of
+   accepted silently.
 
-Print the count split: fetched / paywalled / failed.
+Filename convention is `<first-author>-<year>.pdf` — the filenames
+will match `dedup.xlsx`'s `slug` for ~all cases.
+
+After the run, `screening/1st-pass/missing.md` is auto-generated
+for every unsuccessful DOI with: title, first-author / journal /
+year (via Crossref), the list of providers we already tried, a
+ResearchGate search URL, and a ready-to-copy reprint-request email
+template. The user works down the file, finds the PDFs manually,
+and drops them into `screening/1st-pass/raw/<slug>.pdf`.
+
+`fetch_oa_report.json` (next to the PDFs) tracks per-DOI
+`attempts` so a future `--retry-failed` run knows which providers
+to skip. Use it any time:
+
+```bash
+# Re-try every previously-failed DOI without re-trying providers
+# that already returned a bad URL on the last run
+python tools/fetch_oa.py --output-dir <same dir> --retry-failed \
+    --with-titles <project>/screening/dedup.xlsx \
+    --missing-md  <project>/screening/1st-pass/missing.md
+```
+
+Print the count split to the user: fetched / paywalled /
+oa_no_pdf / not_available / verification_failed. Plus the
+provider-level success breakdown that `fetch_oa.py` prints — it
+tells you which aggregators carry the most weight for your
+corpus.
 
 ## Phase 4b — Stage side-flagged articles into extraction/biblio/side/
 

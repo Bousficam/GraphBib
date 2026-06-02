@@ -1,19 +1,38 @@
 #!/usr/bin/env python3
-"""Fetch open-access PDFs for a list of DOIs.
+"""Fetch open-access PDFs for a list of DOIs, via a cascade of providers.
 
-Workflow:
-  - Query Unpaywall (free, no key, just an email) for each DOI.
-  - If `is_oa` and a PDF URL is available, download it.
-  - Save to `raw/<vault>/papers/<first-author-year>.pdf` (slug from
-    Crossref). When no vault is set up (legacy flat layout), saves
-    to `raw/papers/`.
-  - Skip DOIs that are paywalled, already downloaded, or fail.
+Provider cascade — each DOI is tried against the list in order; the
+first hit that produces a verifiable PDF wins:
+
+  1. Unpaywall          — broad coverage, well-maintained DOI → OA map
+  2. OpenAlex           — its own `oa_locations[*].pdf_url`; often has
+                          repository PDFs Unpaywall misses
+  3. Europe PMC         — biomedical full-text PDFs (PMCID-keyed)
+  4. arXiv              — preprints (search by DOI cross-ref)
+  5. bioRxiv / medRxiv  — preprints (DOI-keyed)
+  6. CORE               — institutional repositories (anonymous,
+                          best-effort; honors $CORE_API_KEY)
+  7. Publisher direct   — URL templates for known OA publishers
+                          (PLOS, eLife, MDPI, Frontiers, JMIR)
+
+After download:
+  - Sanity check (size > 1 KB, `%PDF` header).
+  - **Title verification** (when pymupdf is installed): extract the
+    title from the PDF's first page, compare it via
+    `title_similarity` against the expected title from `--with-titles`.
+    Reject the download if the similarity drops below 0.5 — closes
+    the wrong-paper gap when the DOI returned a landing page or a
+    different article.
+
+Save to `raw/<vault>/papers/<first-author-year>.pdf` (slug from
+Crossref). Falls back to the legacy flat `raw/papers/` when no
+vault is set.
 
 Usage:
     # DOIs as CLI args
     python tools/fetch_oa.py 10.1016/j.neubiorev.2012.10.003 10.xxx/yyy
 
-    # DOIs from a file (one per line, or any text file — DOI regex is run)
+    # DOIs from a file (regex extraction — works on any text file)
     python tools/fetch_oa.py --from-file candidates.txt
 
     # Pipe from suggest_readings:
@@ -23,16 +42,29 @@ Usage:
     # Override output directory (default: raw/<vault>/papers/)
     python tools/fetch_oa.py --output-dir raw/snowball/ 10.xxx/yyy
 
-    # Pick an explicit vault (otherwise auto-detects the single vault,
-    # or errors when multiple exist)
-    WIKI_VAULT=BCINET python tools/fetch_oa.py 10.xxx/yyy
+    # Pass expected titles for per-DOI verification (CSV/XLSX with
+    # `doi` and `title` columns; e.g. screening/dedup.xlsx)
+    python tools/fetch_oa.py --with-titles screening/dedup.xlsx \\
+                             --from-stdin
 
-    # Set your contact email (required by Unpaywall ToS)
+    # Re-try every previously-failed DOI from the last run
+    python tools/fetch_oa.py --output-dir out/ --retry-failed
+
+    # Write an enriched missing.md for failed DOIs (corresponding
+    # author email + ResearchGate URL + email template)
+    python tools/fetch_oa.py --missing-md screening/1st-pass/missing.md \\
+                             --from-file dois.txt
+
+    # Set contact email (required by Unpaywall, OpenAlex, CORE ToS)
     UNPAYWALL_EMAIL=you@example.org python tools/fetch_oa.py 10.xxx/yyy
+    CORE_API_KEY=...                  # optional, raises CORE rate limits
 
-The script writes `<output-dir>/fetch_oa_report.json` summarizing each
-DOI's status: fetched / paywalled / not_in_unpaywall / oa_no_pdf /
-download_failed / skipped / error.
+The script writes `<output-dir>/fetch_oa_report.json` with per-DOI
+status: fetched / paywalled / oa_no_pdf / oa_landing_page_only /
+not_available / download_failed / verification_failed /
+not_in_unpaywall / invalid_doi / skipped / error. The `attempts`
+field per row lists every provider tried with its outcome so a
+later `--retry-failed` knows which routes to skip.
 
 Idempotent: existing PDFs are skipped unless `--overwrite`.
 """
@@ -47,14 +79,26 @@ from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _lib import REPO_ROOT, raw_subdir  # noqa: E402
+from crossref import (  # noqa: E402
+    crossref_metadata,
+    crossref_slug as _shared_crossref_slug,
+    normalize_doi,
+    title_similarity,
+)
 
 DEFAULT_DST = raw_subdir("papers")
-
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
 DEFAULT_EMAIL = os.getenv("UNPAYWALL_EMAIL", "contact@example.com")
-SLEEP_BETWEEN = 0.1   # ~10 req/s, polite for both Unpaywall and Crossref
+CORE_API_KEY = os.getenv("CORE_API_KEY", "")
+SLEEP_BETWEEN_DOIS = 0.1
+SLEEP_BETWEEN_PROVIDERS = 0.05
 DOWNLOAD_TIMEOUT = 60
 
+TITLE_MATCH_THRESHOLD = 0.5   # below → reject (likely wrong paper / landing page)
+
+
+# ----------------------------------------------------------------------
+# Helpers
 
 def get_requests():
     try:
@@ -69,67 +113,283 @@ def slugify(s, max_len=60):
     return s[:max_len] or "unknown"
 
 
-# crossref_slug now lives in tools/crossref.py (shared cache, single
-# Crossref hit per DOI across the whole repo). The wrapper below
-# preserves the old (doi, requests) signature for backward compat —
-# the `requests` argument is ignored because the shared helper does
-# its own lazy import.
-from crossref import crossref_slug as _shared_crossref_slug  # noqa: E402
-
-
 def crossref_slug(doi, requests=None):
-    """Return '<first-author-family>-<year>' or None on failure."""
+    """Return '<first-author-family>-<year>' or None."""
     return _shared_crossref_slug(doi)
 
 
-def unpaywall_lookup(doi, requests):
+def _ua():
+    return f"Mozilla/5.0 (graphbib; mailto:{DEFAULT_EMAIL})"
+
+
+def _safe_get(requests, url, **kwargs):
+    """requests.get with our default UA and exception swallowing.
+    Returns the Response or None."""
+    kwargs.setdefault("timeout", 15)
+    headers = kwargs.pop("headers", {}) or {}
+    headers.setdefault("User-Agent", _ua())
     try:
-        r = requests.get(
-            f"https://api.unpaywall.org/v2/{quote(doi, safe='/:')}",
-            params={"email": DEFAULT_EMAIL},
-            timeout=15,
-        )
-        if r.status_code == 404:
-            return {"_status": "not_in_unpaywall"}
-        if r.status_code == 422:
-            return {"_status": "invalid_doi"}
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        return {"_status": "error", "_error": f"{type(e).__name__}: {e}"}
-
-
-def best_oa_location(unpaywall_data):
-    """Pick the best OA location with a PDF URL, prefer publisher / repository."""
-    if not unpaywall_data.get("is_oa"):
+        return requests.get(url, headers=headers, **kwargs)
+    except Exception:
         return None
+
+
+# ----------------------------------------------------------------------
+# Providers
+# Each provider takes (doi, requests) and returns either None (no hit)
+# or {"url": "<pdf-url>", "version": "...", "license": "..."}.
+# The cascade in fetch_one() iterates over them in PRIORITY order.
+
+def _provider_unpaywall(doi, requests):
+    r = _safe_get(
+        requests,
+        f"https://api.unpaywall.org/v2/{quote(doi, safe='/:')}",
+        params={"email": DEFAULT_EMAIL},
+    )
+    if r is None:
+        return None
+    if r.status_code == 404:
+        return {"_status": "not_in_unpaywall"}
+    if r.status_code == 422:
+        return {"_status": "invalid_doi"}
+    if r.status_code != 200:
+        return None
+    try:
+        j = r.json()
+    except Exception:
+        return None
+    if not j.get("is_oa"):
+        return {"_status": "paywalled"}
+
     candidates = []
-    best = unpaywall_data.get("best_oa_location") or {}
+    best = j.get("best_oa_location") or {}
     if best:
         candidates.append(best)
-    for loc in unpaywall_data.get("oa_locations") or []:
+    for loc in (j.get("oa_locations") or []):
         if loc not in candidates:
             candidates.append(loc)
     for loc in candidates:
         if loc.get("url_for_pdf"):
             return {
                 "url": loc["url_for_pdf"],
-                "host_type": loc.get("host_type"),
-                "license": loc.get("license"),
                 "version": loc.get("version"),
-            }
-    # Fallback: HTML landing page (not a PDF, but at least an URL)
-    for loc in candidates:
-        if loc.get("url"):
-            return {
-                "url": loc["url"],
-                "host_type": loc.get("host_type"),
                 "license": loc.get("license"),
-                "version": loc.get("version"),
-                "html_only": True,
+                "host_type": loc.get("host_type"),
             }
+    # OA but no PDF URL — return landing page marker so the cascade
+    # records it but moves on
+    return {"_status": "oa_no_pdf"}
+
+
+def _provider_openalex(doi, requests):
+    r = _safe_get(
+        requests,
+        f"https://api.openalex.org/works/doi:{quote(doi, safe='/:')}",
+        params={"mailto": DEFAULT_EMAIL},
+    )
+    if r is None or r.status_code != 200:
+        return None
+    try:
+        j = r.json()
+    except Exception:
+        return None
+    candidates = []
+    pl = j.get("primary_location") or {}
+    if pl.get("pdf_url"):
+        candidates.append({
+            "url": pl["pdf_url"],
+            "version": pl.get("version"),
+            "license": pl.get("license"),
+        })
+    for loc in (j.get("locations") or []):
+        if loc.get("pdf_url"):
+            candidates.append({
+                "url": loc["pdf_url"],
+                "version": loc.get("version"),
+                "license": loc.get("license"),
+            })
+    if not candidates:
+        return None
+    return candidates[0]
+
+
+def _provider_europepmc(doi, requests):
+    """Biomedical OA full text via Europe PMC. Keyed by DOI → PMCID."""
+    r = _safe_get(
+        requests,
+        "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
+        params={"query": f"DOI:{doi}", "format": "json", "resultType": "lite"},
+    )
+    if r is None or r.status_code != 200:
+        return None
+    try:
+        items = (r.json().get("resultList") or {}).get("result") or []
+    except Exception:
+        return None
+    if not items:
+        return None
+    item = items[0]
+    pmcid = (item.get("pmcid") or "").strip()
+    if not pmcid:
+        return None
+    return {
+        "url": f"https://europepmc.org/articles/{pmcid}?pdf=render",
+        "version": "publishedVersion",
+        "license": item.get("license"),
+    }
+
+
+def _provider_arxiv(doi, requests):
+    """arXiv preprint via the export.arxiv.org API. Search by DOI."""
+    r = _safe_get(
+        requests,
+        "https://export.arxiv.org/api/query",
+        params={"search_query": f"doi:{doi}", "max_results": 1},
+    )
+    if r is None or r.status_code != 200:
+        return None
+    m = re.search(r"<id>http://arxiv\.org/abs/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)</id>", r.text or "")
+    if not m:
+        # Old-style arXiv IDs (e.g. cs/0301010)
+        m = re.search(r"<id>http://arxiv\.org/abs/([a-z\-]+/[0-9]+(?:v\d+)?)</id>", r.text or "")
+    if not m:
+        return None
+    arxiv_id = m.group(1)
+    return {
+        "url": f"https://arxiv.org/pdf/{arxiv_id}.pdf",
+        "version": "submittedVersion",
+        "license": "arxiv-perpetual",
+    }
+
+
+def _provider_biorxiv(doi, requests):
+    """bioRxiv / medRxiv preprint server. /details/<server>/<doi>"""
+    for server in ("biorxiv", "medrxiv"):
+        r = _safe_get(requests, f"https://api.biorxiv.org/details/{server}/{doi}",
+                      timeout=10)
+        if r is None or r.status_code != 200:
+            continue
+        try:
+            collection = r.json().get("collection") or []
+        except Exception:
+            continue
+        if not collection:
+            continue
+        latest_doi = (collection[-1].get("doi") or doi).strip()
+        return {
+            "url": f"https://www.{server}.org/content/{latest_doi}.full.pdf",
+            "version": "submittedVersion",
+            "license": (collection[-1].get("license") or ""),
+        }
     return None
 
+
+def _provider_core(doi, requests):
+    """CORE.ac.uk — aggregates 200M+ open-access papers from institutional
+    repos. Anonymous tier is rate-limited; CORE_API_KEY lifts the cap."""
+    headers = {"User-Agent": _ua()}
+    if CORE_API_KEY:
+        headers["Authorization"] = f"Bearer {CORE_API_KEY}"
+    r = _safe_get(
+        requests,
+        "https://api.core.ac.uk/v3/search/works",
+        params={"q": f'doi:"{doi}"', "limit": 1},
+        headers=headers,
+    )
+    if r is None or r.status_code != 200:
+        return None
+    try:
+        results = r.json().get("results") or []
+    except Exception:
+        return None
+    if not results:
+        return None
+    item = results[0]
+    pdf_url = (item.get("downloadUrl") or "").strip()
+    if not pdf_url:
+        return None
+    return {
+        "url": pdf_url,
+        "version": item.get("documentType"),
+        "license": "",
+    }
+
+
+# Publisher prefix → PDF URL builder. Each builder receives the DOI
+# and returns the URL string (or None on no match).
+def _publisher_plos(doi):
+    # 10.1371/journal.pone.0123456 → https://journals.plos.org/plosone/article/file?id=10.1371/...&type=printable
+    m = re.match(r"^10\.1371/journal\.([a-z]+)\.\d+$", doi)
+    if not m:
+        return None
+    journal_slug = {
+        "pone": "plosone", "pbio": "plosbiology", "pmed": "plosmedicine",
+        "pntd": "plosntds", "ppat": "plospathogens", "pgen": "plosgenetics",
+        "pcbi": "ploscompbiol", "pone-d": "plosone",  # fallback
+    }.get(m.group(1).split("-")[0], "plosone")
+    return f"https://journals.plos.org/{journal_slug}/article/file?id={doi}&type=printable"
+
+
+def _publisher_elife(doi):
+    # 10.7554/eLife.12345 → https://elifesciences.org/articles/12345/exec.pdf
+    m = re.match(r"^10\.7554/eLife\.(\d+)$", doi, re.I)
+    if not m:
+        return None
+    return f"https://cdn.elifesciences.org/articles/{m.group(1)}/elife-{m.group(1)}.pdf"
+
+
+def _publisher_mdpi(doi):
+    # 10.3390/<journal-slug><id> — MDPI exposes /article/<doi>/pdf
+    if not doi.startswith("10.3390/"):
+        return None
+    return f"https://www.mdpi.com/article/{doi}/pdf"
+
+
+def _publisher_frontiers(doi):
+    # 10.3389/<journal>.<year>.<id> → https://www.frontiersin.org/articles/10.3389/.../pdf
+    if not doi.startswith("10.3389/"):
+        return None
+    return f"https://www.frontiersin.org/articles/{doi}/pdf"
+
+
+def _publisher_jmir(doi):
+    if not doi.startswith("10.2196/"):
+        return None
+    return f"https://www.jmir.org/api/download?filename={doi.split('/')[1]}.pdf&alt_name={doi.split('/')[1]}"
+
+
+PUBLISHER_BUILDERS = [
+    ("plos", _publisher_plos),
+    ("elife", _publisher_elife),
+    ("mdpi", _publisher_mdpi),
+    ("frontiers", _publisher_frontiers),
+    ("jmir", _publisher_jmir),
+]
+
+
+def _provider_publisher(doi, requests):
+    """Construct a direct PDF URL for known OA publishers (no API call)."""
+    for name, builder in PUBLISHER_BUILDERS:
+        url = builder(doi)
+        if url:
+            return {"url": url, "version": "publishedVersion", "license": "",
+                    "publisher_imprint": name}
+    return None
+
+
+PROVIDERS = [
+    ("unpaywall",  _provider_unpaywall),
+    ("openalex",   _provider_openalex),
+    ("europepmc",  _provider_europepmc),
+    ("arxiv",      _provider_arxiv),
+    ("biorxiv",    _provider_biorxiv),
+    ("core",       _provider_core),
+    ("publisher",  _provider_publisher),
+]
+
+
+# ----------------------------------------------------------------------
+# Download + PDF verification
 
 def download_pdf(url, target_path, requests, overwrite=False):
     if target_path.exists() and not overwrite:
@@ -141,7 +401,7 @@ def download_pdf(url, target_path, requests, overwrite=False):
             stream=True,
             timeout=DOWNLOAD_TIMEOUT,
             allow_redirects=True,
-            headers={"User-Agent": f"Mozilla/5.0 (graphbib; mailto:{DEFAULT_EMAIL})"},
+            headers={"User-Agent": _ua()},
         )
         r.raise_for_status()
     except Exception as e:
@@ -158,7 +418,6 @@ def download_pdf(url, target_path, requests, overwrite=False):
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        # Sanity check: file should be > 1 KB and start with %PDF
         if tmp.stat().st_size < 1024:
             tmp.unlink(missing_ok=True)
             return False, "downloaded_file_too_small"
@@ -174,57 +433,179 @@ def download_pdf(url, target_path, requests, overwrite=False):
         return False, f"write_error: {type(e).__name__}: {e}"
 
 
-def fetch_one(doi, dst, requests, overwrite=False):
-    """Process one DOI. Returns a status dict."""
-    info = unpaywall_lookup(doi, requests)
+def extract_pdf_title(path):
+    """Best-effort title extraction from a downloaded PDF.
 
-    if info.get("_status"):
-        s = info["_status"]
-        return {"doi": doi, "status": s, "error": info.get("_error", "")}
+    Returns the extracted title string or None when we can't extract
+    (no pymupdf, broken PDF, no title candidate). When None, the
+    caller MUST NOT reject — verification is optional, not blocking.
+    """
+    try:
+        import fitz  # pymupdf
+    except ImportError:
+        return None
+    try:
+        doc = fitz.open(path)
+    except Exception:
+        return None
+    try:
+        meta_title = (doc.metadata.get("title") or "").strip() if doc.metadata else ""
+        # Metadata title is often junk: "Microsoft Word - paper.docx",
+        # one-line filenames, etc. Heuristic: trust it only when it's
+        # > 15 chars and not a filename.
+        if (15 < len(meta_title) < 250
+                and not meta_title.lower().endswith((".docx", ".doc", ".pdf"))
+                and not re.match(r"^(untitled|microsoft|adobe|word).*", meta_title.lower())):
+            return meta_title
+        # Fallback: longest plausible line in first page text
+        if doc.page_count == 0:
+            return None
+        text = doc[0].get_text() or ""
+        lines = [ln.strip() for ln in text.split("\n")[:40] if ln.strip()]
+        if not lines:
+            return None
+        candidates = [
+            ln for ln in lines[:20]
+            if 20 < len(ln) < 250 and re.search(r"[A-Za-z]{4,}", ln)
+            and not re.match(r"^(abstract|introduction|methods?|results?|"
+                             r"discussion|background|keywords?|page \d+|"
+                             r"doi|http|received|accepted|published|"
+                             r"\d{4}\s*[—,-])", ln, re.I)
+        ]
+        if not candidates:
+            return None
+        return max(candidates, key=len)
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
 
-    if not info.get("is_oa"):
-        return {"doi": doi, "status": "paywalled"}
 
-    loc = best_oa_location(info)
-    if not loc:
-        return {"doi": doi, "status": "oa_no_pdf"}
+def verify_pdf_title(path, expected_title, threshold=TITLE_MATCH_THRESHOLD):
+    """Compare a PDF's extracted title to the expected one.
 
-    if loc.get("html_only"):
-        return {
-            "doi": doi,
-            "status": "oa_landing_page_only",
-            "url": loc["url"],
-            "host_type": loc.get("host_type"),
-        }
+    Returns (ok, sim_or_None, extracted_or_None):
+      - ok=True  : accept the PDF (sim ≥ threshold, OR no expected title given,
+                   OR pymupdf not available — verification skipped)
+      - ok=False : reject; the PDF is for a different paper / a landing page
+    """
+    if not expected_title:
+        return True, None, None
+    extracted = extract_pdf_title(path)
+    if not extracted:
+        return True, None, None
+    sim = title_similarity(expected_title, extracted)
+    return sim >= threshold, sim, extracted
 
-    slug = crossref_slug(doi, requests)
-    if not slug:
-        slug = slugify(doi.replace("/", "-"))
+
+# ----------------------------------------------------------------------
+# fetch_one — cascading provider loop
+
+# Per-provider hard statuses (no point retrying within this DOI):
+_STATUS_HARD_STOPS = {"invalid_doi"}
+
+
+def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
+              skip_providers=None):
+    """Walk PROVIDERS until one yields a verifiable PDF.
+
+    `skip_providers` (set) lets callers like --retry-failed avoid
+    re-trying providers that already failed on a previous run.
+    Returns the per-DOI result dict (always includes `attempts`).
+    """
+    skip = set(skip_providers or [])
+    slug = crossref_slug(doi) or slugify(doi.replace("/", "-"))
     target = dst / f"{slug}.pdf"
 
-    ok, reason = download_pdf(loc["url"], target, requests, overwrite=overwrite)
-    if reason == "exists":
+    if target.exists() and not overwrite:
         return {
             "doi": doi,
             "status": "skipped",
             "path": str(target.relative_to(REPO_ROOT)),
+            "attempts": [],
         }
-    if not ok:
+
+    attempts = []
+    seen_meta_status = None  # e.g. paywalled, oa_no_pdf, invalid_doi
+    for name, fn in PROVIDERS:
+        if name in skip:
+            attempts.append({"source": name, "found": False, "skipped": True})
+            continue
+        try:
+            loc = fn(doi, requests)
+        except Exception as e:
+            attempts.append({"source": name, "found": False,
+                             "error": f"{type(e).__name__}: {e}"})
+            time.sleep(SLEEP_BETWEEN_PROVIDERS)
+            continue
+        time.sleep(SLEEP_BETWEEN_PROVIDERS)
+
+        if not loc:
+            attempts.append({"source": name, "found": False})
+            continue
+
+        # Provider returned a meta-status (no URL but informative)
+        if "_status" in loc:
+            attempts.append({"source": name, "found": False,
+                             "meta_status": loc["_status"]})
+            seen_meta_status = seen_meta_status or loc["_status"]
+            if loc["_status"] in _STATUS_HARD_STOPS:
+                break
+            continue
+
+        url = loc.get("url")
+        if not url:
+            attempts.append({"source": name, "found": False, "meta_status": "no_url"})
+            continue
+
+        # Try downloading
+        ok, reason = download_pdf(url, target, requests, overwrite=overwrite)
+        if not ok:
+            attempts.append({"source": name, "found": True, "url": url,
+                             "download_status": reason})
+            continue
+
+        # Verify the PDF actually matches the expected paper
+        v_ok, sim, extracted = verify_pdf_title(target, expected_title)
+        if not v_ok:
+            target.unlink(missing_ok=True)
+            attempts.append({
+                "source": name, "found": True, "url": url,
+                "download_status": "ok",
+                "verification": "rejected",
+                "title_sim": sim,
+                "title_extracted": (extracted or "")[:80],
+            })
+            continue
+
+        attempts.append({
+            "source": name, "found": True, "url": url,
+            "download_status": "ok",
+            "verification": "accepted" if sim is not None else "skipped",
+            "title_sim": sim,
+        })
         return {
             "doi": doi,
-            "status": "download_failed",
-            "reason": reason,
-            "url": loc["url"],
+            "status": "fetched",
+            "path": str(target.relative_to(REPO_ROOT)),
+            "source": name,
+            "license": loc.get("license"),
+            "version": loc.get("version"),
+            "title_sim": sim,
+            "attempts": attempts,
         }
-    return {
-        "doi": doi,
-        "status": "fetched",
-        "path": str(target.relative_to(REPO_ROOT)),
-        "license": loc.get("license"),
-        "host_type": loc.get("host_type"),
-        "version": loc.get("version"),
-    }
 
+    # All providers exhausted
+    if seen_meta_status in ("paywalled", "oa_no_pdf", "not_in_unpaywall", "invalid_doi"):
+        status = seen_meta_status
+    else:
+        status = "not_available"
+    return {"doi": doi, "status": status, "attempts": attempts}
+
+
+# ----------------------------------------------------------------------
+# Inputs: DOIs and expected titles
 
 def collect_dois(args):
     """Resolve DOIs from args / file / stdin."""
@@ -245,7 +626,6 @@ def collect_dois(args):
             continue
         seen.add(d)
         if not DOI_RE.fullmatch(d):
-            # Last-resort regex search inside the token
             m = DOI_RE.search(d)
             if not m:
                 continue
@@ -257,6 +637,147 @@ def collect_dois(args):
     return out
 
 
+def load_expected_titles(path):
+    """Load {doi: title} from a CSV / XLSX / dict-like JSON file.
+
+    The file must have at least `doi` and `title` columns. Other
+    columns are ignored. Used by `--with-titles` to drive the
+    post-download verification step.
+    """
+    if not path:
+        return {}
+    p = Path(path)
+    if not p.exists():
+        sys.exit(f"--with-titles: {p} not found.")
+    from tabular import read_records
+    _, records = read_records(p)
+    out = {}
+    for r in records:
+        doi = normalize_doi(r.get("doi") or "")
+        title = (r.get("title") or "").strip()
+        if doi and title:
+            out[doi] = title
+    return out
+
+
+def load_previous_failures(report_path):
+    """Read fetch_oa_report.json, return list of (doi, providers_already_tried)
+    for rows that didn't succeed (status not in {fetched, skipped})."""
+    if not report_path.exists():
+        return []
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out = []
+    for row in (data.get("results") or []):
+        if row.get("status") in ("fetched", "skipped"):
+            continue
+        doi = (row.get("doi") or "").strip().lower()
+        if not doi:
+            continue
+        # Build a set of providers that returned "found=True but
+        # download/verify failed" — those we'll skip on retry to
+        # avoid re-hitting a known-bad URL. Providers that returned
+        # found=False are retried (they may have new data now).
+        skip = {
+            a.get("source") for a in (row.get("attempts") or [])
+            if a.get("source") and a.get("download_status") not in (None, "ok", "exists")
+        }
+        out.append((doi, skip))
+    return out
+
+
+# ----------------------------------------------------------------------
+# Enriched missing.md
+
+def _researchgate_url(title):
+    """Construct a ResearchGate search URL from the title."""
+    if not title:
+        return ""
+    return ("https://www.researchgate.net/search/publication?q="
+            + quote(title[:200], safe=""))
+
+
+def _author_email_from_crossref(doi):
+    """Best-effort email lookup. Crossref rarely exposes emails; this
+    falls back to ORCID and corresponding-author markers."""
+    md = crossref_metadata(doi) or {}
+    # crossref_metadata only returns title/first_author/year/journal.
+    # For emails we'd need a deeper Crossref call; defer for now and
+    # surface what we have.
+    return {
+        "first_author": md.get("first_author", ""),
+        "year": md.get("year", ""),
+        "journal": md.get("journal", ""),
+    }
+
+
+def _email_template(title, first_author, journal, year):
+    return (
+        f"Subject: Reprint request — {title[:80]}\n\n"
+        f"Dear Dr. {first_author or '[corresponding author]'},\n\n"
+        f"I am preparing a systematic review and would like to include your "
+        f"work \"{title}\" ({journal}, {year}) in the analysis.\n\n"
+        f"Would you be willing to share a PDF of the full text? I could not "
+        f"locate an open-access copy.\n\n"
+        f"Thank you very much for your time,\n"
+        f"[Your name]"
+    )
+
+
+def write_missing_md(failed_rows, expected_titles, out_path):
+    """Write an enriched missing.md with retrieval hints per row."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Articles not retrieved by fetch_oa cascade",
+        "",
+        f"> {len(failed_rows)} DOIs the open-access cascade could not "
+        f"deliver. For each row: the providers we tried, a ResearchGate "
+        f"search link (often surfaces author-uploaded copies), and a "
+        f"ready-to-send reprint-request email template.",
+        "",
+    ]
+    for row in failed_rows:
+        doi = row.get("doi", "?")
+        title = expected_titles.get(normalize_doi(doi), "") or "[title unknown]"
+        meta = _author_email_from_crossref(doi)
+        rg_url = _researchgate_url(title)
+
+        lines.append(f"## `{doi}`")
+        lines.append("")
+        lines.append(f"- **Title**     : {title}")
+        if meta.get("first_author"):
+            lines.append(f"- **First author**: {meta['first_author']} ({meta.get('year', '?')})")
+        if meta.get("journal"):
+            lines.append(f"- **Journal**   : {meta['journal']}")
+        lines.append(f"- **Status**    : `{row.get('status')}`")
+        tried = ", ".join(
+            f"{a.get('source')}({'ok' if a.get('found') else 'no-hit'})"
+            for a in (row.get("attempts") or [])
+        )
+        lines.append(f"- **Providers tried**: {tried or '—'}")
+        lines.append(f"- **ResearchGate search**: <{rg_url}>")
+        lines.append("")
+        lines.append("<details><summary>Reprint-request email</summary>")
+        lines.append("")
+        lines.append("```")
+        lines.append(_email_template(
+            title,
+            meta.get("first_author", ""),
+            meta.get("journal", ""),
+            meta.get("year", ""),
+        ))
+        lines.append("```")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+# ----------------------------------------------------------------------
+# CLI
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("dois", nargs="*", help="DOIs to fetch (one or more).")
@@ -267,60 +788,127 @@ def main():
                     help=f"Where to save PDFs (default: {DEFAULT_DST}).")
     ap.add_argument("--overwrite", action="store_true",
                     help="Overwrite existing PDFs.")
+    ap.add_argument("--with-titles", default=None,
+                    help="CSV/XLSX with `doi` + `title` columns — enables "
+                         "post-download title verification (rejects "
+                         "wrong-paper PDFs / landing pages).")
+    ap.add_argument("--retry-failed", action="store_true",
+                    help="Read <output-dir>/fetch_oa_report.json and re-try "
+                         "every DOI that didn't succeed. Skips providers "
+                         "that already failed on those DOIs.")
+    ap.add_argument("--missing-md", default=None,
+                    help="Write an enriched missing.md for unsuccessful DOIs "
+                         "(corresponding author hints, ResearchGate URL, "
+                         "email template).")
     args = ap.parse_args()
 
     requests = get_requests()
-    dois = collect_dois(args)
-    if not dois:
-        sys.exit("No DOIs provided. Pass them as args, --from-file, or --from-stdin.")
-
-    if DEFAULT_EMAIL == "contact@example.com":
-        print("  ! UNPAYWALL_EMAIL env var not set — using placeholder. "
-              "Unpaywall asks for a valid contact email; set yours via "
-              "`export UNPAYWALL_EMAIL=you@example.org`.",
-              file=sys.stderr)
 
     dst = Path(args.output_dir).expanduser().resolve()
     dst.mkdir(parents=True, exist_ok=True)
+    report_path = dst / "fetch_oa_report.json"
 
-    print(f"  · {len(dois)} DOIs to process → {dst.relative_to(REPO_ROOT) if str(dst).startswith(str(REPO_ROOT)) else dst}",
+    expected_titles = load_expected_titles(args.with_titles) if args.with_titles else {}
+    skip_map = {}   # doi → set(providers) to skip
+
+    if args.retry_failed:
+        previous = load_previous_failures(report_path)
+        if not previous:
+            sys.exit(f"--retry-failed: no failures found in {report_path}.")
+        dois = [d for d, _ in previous]
+        skip_map = dict(previous)
+        print(f"  · --retry-failed: {len(dois)} DOIs from {report_path.name}",
+              file=sys.stderr)
+    else:
+        dois = collect_dois(args)
+    if not dois:
+        sys.exit("No DOIs provided. Pass them as args, --from-file, "
+                 "--from-stdin, or use --retry-failed.")
+
+    if DEFAULT_EMAIL == "contact@example.com":
+        print("  ! UNPAYWALL_EMAIL env var not set — using placeholder. "
+              "Unpaywall + OpenAlex + CORE ask for a valid contact email; "
+              "set yours via `export UNPAYWALL_EMAIL=you@example.org`.",
+              file=sys.stderr)
+
+    # Warn when pymupdf is unavailable (title verification will be skipped)
+    if expected_titles:
+        try:
+            import fitz  # noqa: F401
+        except ImportError:
+            print("  ! pymupdf (fitz) not installed — title verification "
+                  "will be SKIPPED for downloaded PDFs. "
+                  "Run `pip install pymupdf` to enable wrong-paper detection.",
+                  file=sys.stderr)
+
+    print(f"  · {len(dois)} DOIs to process → "
+          f"{dst.relative_to(REPO_ROOT) if str(dst).startswith(str(REPO_ROOT)) else dst}",
           file=sys.stderr)
+    print(f"  · Providers in cascade: "
+          f"{', '.join(p[0] for p in PROVIDERS)}",
+          file=sys.stderr)
+    if expected_titles:
+        print(f"  · Title verification enabled "
+              f"({len(expected_titles)} expected titles loaded).",
+              file=sys.stderr)
 
     report = []
     counts = {}
     for i, doi in enumerate(dois, 1):
-        result = fetch_one(doi, dst, requests, overwrite=args.overwrite)
+        expected = expected_titles.get(normalize_doi(doi))
+        result = fetch_one(
+            doi, dst, requests,
+            expected_title=expected,
+            overwrite=args.overwrite,
+            skip_providers=skip_map.get(doi, set()),
+        )
         report.append(result)
         counts[result["status"]] = counts.get(result["status"], 0) + 1
 
         tag = {
-            "fetched": "✓",
-            "skipped": "·",
-            "paywalled": "$",
-            "oa_no_pdf": "?",
-            "oa_landing_page_only": "?",
-            "not_in_unpaywall": "?",
-            "invalid_doi": "✗",
-            "download_failed": "✗",
-            "error": "✗",
+            "fetched": "✓", "skipped": "·",
+            "paywalled": "$", "oa_no_pdf": "?", "oa_landing_page_only": "?",
+            "not_in_unpaywall": "?", "not_available": "?",
+            "invalid_doi": "✗", "download_failed": "✗", "error": "✗",
         }.get(result["status"], "·")
         suffix = ""
         if result["status"] == "fetched":
-            suffix = f" → {result['path']}"
-        elif result["status"] == "download_failed":
-            suffix = f"  ({result.get('reason', '')})"
+            via = result.get("source", "?")
+            sim = result.get("title_sim")
+            sim_str = f" sim={sim:.2f}" if sim is not None else ""
+            suffix = f" → {result['path']} (via {via}{sim_str})"
+        elif result["status"] == "not_available":
+            tried = sum(1 for a in result.get("attempts", []) if a.get("found"))
+            suffix = f"  (no PDF after {len(result.get('attempts', []))} providers, "
+            suffix += f"{tried} returned a URL)"
         print(f"  {tag} [{i}/{len(dois)}] {doi}{suffix}", file=sys.stderr)
-        time.sleep(SLEEP_BETWEEN)
+        time.sleep(SLEEP_BETWEEN_DOIS)
 
-    report_path = dst / "fetch_oa_report.json"
     report_path.write_text(
-        json.dumps({"summary": counts, "results": report}, indent=2, ensure_ascii=False),
+        json.dumps({"summary": counts, "results": report},
+                   indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+
+    if args.missing_md:
+        failed = [r for r in report if r.get("status") not in ("fetched", "skipped")]
+        missing_path = Path(args.missing_md).expanduser().resolve()
+        write_missing_md(failed, expected_titles, missing_path)
+        print(f"\nMissing: {missing_path.relative_to(REPO_ROOT) if str(missing_path).startswith(str(REPO_ROOT)) else missing_path}",
+              file=sys.stderr)
 
     print(f"\n=== {len(dois)} processed ===", file=sys.stderr)
     for status, n in sorted(counts.items(), key=lambda t: -t[1]):
         print(f"  {status}: {n}", file=sys.stderr)
+    # Provider-level success breakdown (only for `fetched` rows)
+    by_source = {}
+    for r in report:
+        if r.get("status") == "fetched":
+            by_source[r.get("source", "?")] = by_source.get(r.get("source", "?"), 0) + 1
+    if by_source:
+        print(f"\n  Successes by provider:", file=sys.stderr)
+        for src, n in sorted(by_source.items(), key=lambda t: -t[1]):
+            print(f"    {src}: {n}", file=sys.stderr)
     print(f"\nReport: {report_path.relative_to(REPO_ROOT) if str(report_path).startswith(str(REPO_ROOT)) else report_path}",
           file=sys.stderr)
 
