@@ -46,13 +46,25 @@ Print the plan:
 
 ```
 Will run:
-  1. Dedupe identified CSVs            → screening/dedup.csv
-  2. Fetch missing abstracts           → updates dedup.csv (cached)
-  3. Screen each record (T/A only)     → screening/tiab-decisions.csv
+  1. Dedupe identified CSVs            → screening/dedup.xlsx
+  2. Fetch missing abstracts + heal DOIs → updates dedup.xlsx (cached)
+                                          + screening/reports/doi-warnings.md
+  3. Screen each record (T/A only)     → screening/tiab-decisions.xlsx
   4. Auto-fetch PDFs of inclusions     → screening/1st-pass/raw/
   5. Write report + update PRISMA      → screening/reports/
 Proceed? [Y/n]
 ```
+
+**Prerequisite — DOI hygiene gate (recommended).** If
+`screening/reports/doi-warnings.md` does not exist (Phase 2 has not
+yet flagged any DOI issues) AND `dedup.xlsx` is already populated
+with rows, suggest running `/extractor-screen-validate <project>`
+first — it surfaces wrong-paper DOIs and `anon-YYYY` slugs BEFORE
+the T/A pass commits decisions. If the user declines, proceed —
+Phase 2 below runs the same DOI healing under the hood, and the
+screener-tiab agent's Step 0 will still auto-mark `uncertain` for
+mismatches. The standalone validate command is faster (no abstract
+cascade) and surfaces issues in a dedicated audit gate.
 
 ## Phase 1 — Deduplicate
 
@@ -61,7 +73,7 @@ python tools/screen_dedupe.py project-review/<vault>/<name>
 ```
 
 Reports: records read, skipped (no ID / no title), unique after dedup.
-Writes `screening/dedup.csv` and `screening/reports/dedup-log.md`.
+Writes `screening/dedup.xlsx` and `screening/reports/dedup-log.md`.
 
 ## Phase 2 — Fetch missing abstracts
 
@@ -73,7 +85,7 @@ python tools/screen_fetch_metadata.py project-review/<vault>/<name>
 
 (or with `--force` when `--force-metadata` was passed)
 
-This populates the `abstract` column in `dedup.csv` from PubMed →
+This populates the `abstract` column in `dedup.xlsx` from PubMed →
 OpenAlex → Crossref, in that order. Cached in
 `tools/.cache/screen_metadata.json`. Records with no DOI and no PMID
 are left alone.
@@ -93,13 +105,19 @@ Abstract fetch:
 
 Read `screening/criteria.md` and (if present and non-empty)
 `background/notes.md` ONCE (passed as context to each delegation).
-Read `screening/dedup.csv`.
+Read `screening/dedup.xlsx`.
 
-For each row in `dedup.csv` (capped by `--limit` if given), spawn
+For each row in `dedup.xlsx` (capped by `--limit` if given), spawn
 `screener-tiab` with:
 - the project's `criteria.md` path
 - the project's `background/notes.md` path (or nothing if absent / empty)
 - the row's slug, title, abstract, year, journal, authors, doi, pmid
+- the row's DOI hygiene flags: `doi_status`, `doi_title_match`,
+  `doi_year_match` (when present — these columns are populated by
+  Phase 2 or by an explicit `/extractor-screen-validate` run). The
+  agent's Step 0 uses them to auto-mark `uncertain` when the DOI
+  resolves to a wrong-paper title — saves a full-text fetch on a
+  paper that isn't what the abstract claims it is.
 
 The sub-agent returns one line: `<decision> | <reason> | <side_use>`.
 Parse it strictly:
@@ -119,14 +137,24 @@ parent agent gathers all errors at the end).
 **Batch in parallel** when sensible (5–10 sub-agents at a time) — the
 sub-agent is `haiku` and Read-only.
 
-Append each result to `screening/tiab-decisions.csv` with columns:
+Append each result to `screening/tiab-decisions.xlsx` with columns
+in this order — **slug first, then what the agent did, then article
+context** (so a human can scan decisions without scrolling past
+metadata):
 
 ```
-slug, doi, pmid, title, year, journal, decision, reason, side_use,
-screener_note, timestamp
+slug, decision, reason, side_use, screener_note,
+doi, pmid, title, year, journal, timestamp
 ```
 
-Where `decision` ∈ {include, exclude, uncertain, error}.
+Where `decision` ∈ {include, exclude, uncertain, error}. Use
+`tabular.append_record` from `tools/tabular.py` to append each
+row — it handles xlsx natively (load workbook, append, save) and
+creates the file with the styled header on the first call. Legacy
+CSVs written before this reorder are still parsed correctly
+(both `tabular.read_records` and pandas key off the header row,
+not column position) — only newly-written rows follow the new
+order.
 
 ## Phase 3b — User audit gate (mandatory)
 
@@ -168,14 +196,30 @@ Options:
   [s]   Stop here — re-run later
 ```
 
-Default = `a` (sample audit). For each shown row, ask:
+Default = `a` (sample audit). For each shown row, display in this
+order (slug → decision → article info):
+
+```
+<slug>
+  decision : <decision>
+  reason   : <reason>
+  side_use : <side_use or "—">
+  note     : <screener_note or "—">
+  ─
+  doi      : <doi or "—">
+  pmid     : <pmid or "—">
+  title    : <title>
+  journal  : <journal> (<year>)
+```
+
+Then prompt:
 
 ```
 keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side
 ```
 
 Where `<category>` ∈ {intro, discussion, method, reco, general}.
-Write all flips and side-edits to `tiab-decisions.csv` and log them
+Write all flips and side-edits to `tiab-decisions.xlsx` and log them
 at the end of `screening/reports/tiab-report.md` under
 `## Manual overrides`.
 
@@ -184,33 +228,75 @@ at the end of `screening/reports/tiab-report.md` under
 Skip if `--no-fetch`.
 
 Collect DOIs of `include` AND `uncertain` records (PRISMA: pass T/A
-includes to full text). Run:
+includes to full text). Run with the **full cascade + title
+verification + enriched missing.md** options:
 
 ```bash
 python tools/fetch_oa.py --from-stdin \
     --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
+    --with-titles project-review/<vault>/<name>/screening/dedup.xlsx \
+    --missing-md  project-review/<vault>/<name>/screening/1st-pass/missing.md \
     < <doi-list>
 ```
 
-(The existing `tools/fetch_oa.py` handles Unpaywall + Crossref
-download. Filename convention is `<first-author>-<year>.pdf` — the
-filenames will match `dedup.csv`'s `slug` for ~all cases.)
+What `fetch_oa.py` does on every DOI:
 
-Reconcile the downloaded PDFs against the inclusion list. Anything
-that didn't download → write a row in
-`screening/1st-pass/missing.md` with:
-- slug
-- DOI / PMID
-- title (truncated to 80 chars)
-- "Where to try" (suggested manual sources: institutional access,
-  ResearchGate, author email, Sci-Hub disclaimer per local law)
-- "User note" (empty)
+1. **Provider cascade** (with version preference):
+   `unpaywall → openalex → semanticscholar → europepmc →
+   publisher-direct → arxiv → biorxiv → core`. Each provider adds
+   10–20% of incremental recall over Unpaywall alone (Semantic
+   Scholar catches author-uploaded PDFs including a large fraction
+   of ResearchGate-hosted copies — direct RG fetch is blocked by
+   Cloudflare; Europe PMC is biomedical-specific; arXiv / bioRxiv
+   cover preprints; CORE aggregates institutional repos;
+   publisher-direct uses URL patterns for PLOS / eLife / MDPI /
+   Frontiers / JMIR). Within each provider, ALL candidate URLs
+   are tried (OpenAlex often returns 3-5 per DOI from different
+   repos). The cascade commits as soon as a
+   `publishedVersion`/`acceptedVersion` PDF is found; preprint or
+   unknown-version hits are held as a fallback and only kept if
+   no later provider does better.
+2. **Sanity download** — file > 1 KB AND starts with `%PDF` header.
+3. **Title verification** — when pymupdf is installed AND
+   `--with-titles` was passed, extracts the first-page title from
+   the downloaded PDF and compares it to the row's `title` via
+   `crossref.title_similarity`. Sim < 0.5 → rejects the file
+   (deletes it, tries the next provider). Closes the wrong-paper
+   gap: a landing page disguised as a PDF, or a paper that turned
+   out to be a different study, gets discarded instead of
+   accepted silently.
 
-Print the count split: fetched / paywalled / failed.
+Filename convention is `<first-author>-<year>.pdf` — the filenames
+will match `dedup.xlsx`'s `slug` for ~all cases.
+
+After the run, `screening/1st-pass/missing.md` is auto-generated
+for every unsuccessful DOI with: title, first-author / journal /
+year (via Crossref), the list of providers we already tried, a
+ResearchGate search URL, and a ready-to-copy reprint-request email
+template. The user works down the file, finds the PDFs manually,
+and drops them into `screening/1st-pass/raw/<slug>.pdf`.
+
+`fetch_oa_report.json` (next to the PDFs) tracks per-DOI
+`attempts` so a future `--retry-failed` run knows which providers
+to skip. Use it any time:
+
+```bash
+# Re-try every previously-failed DOI without re-trying providers
+# that already returned a bad URL on the last run
+python tools/fetch_oa.py --output-dir <same dir> --retry-failed \
+    --with-titles <project>/screening/dedup.xlsx \
+    --missing-md  <project>/screening/1st-pass/missing.md
+```
+
+Print the count split to the user: fetched / paywalled /
+oa_no_pdf / not_available / verification_failed. Plus the
+provider-level success breakdown that `fetch_oa.py` prints — it
+tells you which aggregators carry the most weight for your
+corpus.
 
 ## Phase 4b — Stage side-flagged articles into extraction/biblio/side/
 
-For each row in `tiab-decisions.csv` with `decision = exclude` AND
+For each row in `tiab-decisions.xlsx` with `decision = exclude` AND
 `side_use ≠ empty`:
 
 - If a PDF was successfully fetched in Phase 4 (it shouldn't be —
@@ -223,9 +309,9 @@ For each row in `tiab-decisions.csv` with `decision = exclude` AND
   to fetch / convert manually later. Format:
 
 ```markdown
-| Slug | DOI / PMID | Title | Why side (from T/A) |
-|---|---|---|---|
-| <slug> | <doi> | <title> | <reason from screener_note or empty> |
+| Slug | Side category | Why (T/A note) | DOI / PMID | Title |
+|---|---|---|---|---|
+| <slug> | <side_use> | <reason from screener_note or empty> | <doi> | <title> |
 ```
 
 The full-text pass (`/extractor-screen-fulltext`) will re-evaluate
@@ -326,8 +412,8 @@ Next step:
 - **NEVER read PDFs in this command.** Pass 1 is T/A only. Even if a
   PDF is already in `1st-pass/raw/`, do not pass its content to the
   screener — pass only the row's title + abstract.
-- **NEVER auto-overwrite `dedup.csv` once decisions exist.** If
-  `tiab-decisions.csv` is non-empty, REFUSE to re-run dedup unless
+- **NEVER auto-overwrite `dedup.xlsx` once decisions exist.** If
+  `tiab-decisions.xlsx` is non-empty, REFUSE to re-run dedup unless
   the user passes `--reset-dedup` (which the user must type
   explicitly).
 - **NEVER skip the audit gate.** Phase 3b is mandatory. Auto-pilot

@@ -25,81 +25,116 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from tabular import read_records, write_records  # noqa: E402
 
-def count_csv_rows(path):
+
+def _resolve_table(base, name):
+    """Pick the active file for a table — xlsx first, csv fallback.
+
+    base/name should be the stem (no suffix). Returns the Path that
+    exists, preferring .xlsx. When neither exists, returns the .xlsx
+    path (so callers can check .exists() uniformly).
+    """
+    xlsx = base / f"{name}.xlsx"
+    csv_p = base / f"{name}.csv"
+    if xlsx.exists():
+        return xlsx
+    if csv_p.exists():
+        return csv_p
+    return xlsx
+
+
+def count_rows(path):
+    """Count data rows in xlsx/csv (excluding header). Returns 0 if absent."""
     if not path.exists():
         return 0
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        return max(0, sum(1 for _ in f) - 1)
+    _, records = read_records(path)
+    return len(records)
 
 
 def count_by_decision(path, col="decision"):
-    """Return {decision_value: count} for a CSV with a `decision` column."""
+    """Return {decision_value: count} for a table with a `decision` column."""
     if not path.exists():
         return {}
+    fieldnames, records = read_records(path)
+    if col not in fieldnames:
+        return {}
     out = {}
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        if col not in (reader.fieldnames or []):
-            return {}
-        for row in reader:
-            v = (row.get(col) or "").strip().lower()
-            if v:
-                out[v] = out.get(v, 0) + 1
+    for row in records:
+        v = (str(row.get(col) or "")).strip().lower()
+        if v:
+            out[v] = out.get(v, 0) + 1
     return out
 
 
 def count_by_reason(path, decision_value="exclude"):
-    """Return [(reason, count), ...] sorted desc for excluded rows."""
+    """Return [(reason_tag, count), ...] sorted desc for excluded rows.
+
+    Schema-tolerant — the primary exclusion motive is stored under:
+      - `reason` for the T/A pass (one-string tag, the screener-tiab
+        returns just the criterion tag without verbatim evidence).
+      - `tag` for the full-text pass (the screener-fulltext splits
+        the triplet into tag / excerpt / location columns).
+    When BOTH columns exist (legacy fulltext CSV with a `reason`
+    column still around), `tag` wins.
+    The PRISMA flowchart counts the PRIMARY motive only — secondary
+    motives in `reasons_secondary` are surfaced in the report but
+    not double-counted here.
+    """
     if not path.exists():
         return []
+    _, records = read_records(path)
     reasons = {}
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if (row.get("decision") or "").strip().lower() != decision_value:
-                continue
-            r = (row.get("reason") or "").strip() or "(no reason given)"
-            reasons[r] = reasons.get(r, 0) + 1
+    for row in records:
+        if (str(row.get("decision") or "")).strip().lower() != decision_value:
+            continue
+        primary = (str(row.get("tag") or "")).strip() or (str(row.get("reason") or "")).strip()
+        primary = primary or "(no reason given)"
+        if ";" in primary:
+            primary = primary.split(";", 1)[0].strip()
+        reasons[primary] = reasons.get(primary, 0) + 1
     return sorted(reasons.items(), key=lambda kv: -kv[1])
 
 
 def collect_counts(project: Path):
     identified_dir = project / "screening" / "identified"
-    dedup_csv = project / "screening" / "dedup.csv"
-    tiab_csv = project / "screening" / "tiab-decisions.csv"
-    pdf_dir = project / "screening" / "1st-pass" / "raw"
-    missing_md = project / "screening" / "1st-pass" / "missing.md"
-    ft_csv = project / "screening" / "fulltext-decisions.csv"
+    screening = project / "screening"
+    dedup = _resolve_table(screening, "dedup")
+    tiab = _resolve_table(screening, "tiab-decisions")
+    ft = _resolve_table(screening, "fulltext-decisions")
+    pdf_dir = screening / "1st-pass" / "raw"
+    missing_md = screening / "1st-pass" / "missing.md"
 
     per_db = {}
     if identified_dir.is_dir():
-        for p in sorted(identified_dir.glob("*.csv")):
-            per_db[p.stem] = count_csv_rows(p)
+        # Identified CSVs are user-supplied — accept .csv and .xlsx
+        for p in sorted(identified_dir.iterdir()):
+            if p.suffix.lower() in (".csv", ".xlsx") and not p.name.startswith("."):
+                per_db[p.stem] = count_rows(p)
     n_identified = sum(per_db.values())
-    n_dedup = count_csv_rows(dedup_csv)
+    n_dedup = count_rows(dedup)
     n_duplicates = n_identified - n_dedup if n_identified and n_dedup else 0
 
-    tiab = count_by_decision(tiab_csv)
-    n_tiab_screened = sum(tiab.values()) if tiab else n_dedup
-    n_tiab_excluded = tiab.get("exclude", 0)
-    n_tiab_included = tiab.get("include", 0) + tiab.get("uncertain", 0)
-    tiab_reasons = count_by_reason(tiab_csv)
+    tiab_counts = count_by_decision(tiab)
+    n_tiab_screened = sum(tiab_counts.values()) if tiab_counts else n_dedup
+    n_tiab_excluded = tiab_counts.get("exclude", 0)
+    n_tiab_included = tiab_counts.get("include", 0) + tiab_counts.get("uncertain", 0)
+    tiab_reasons = count_by_reason(tiab)
 
     n_pdf_retrieved = len(list(pdf_dir.glob("*.pdf"))) if pdf_dir.is_dir() else 0
     n_pdf_missing = 0
     if missing_md.exists():
-        # Count list items (lines starting with "- ")
         n_pdf_missing = sum(
             1 for line in missing_md.read_text(encoding="utf-8").splitlines()
             if re.match(r"^[-*]\s+", line) and "DOI" not in line[:10].upper()
         )
 
-    ft = count_by_decision(ft_csv)
-    n_ft_assessed = sum(ft.values())
-    n_ft_excluded = ft.get("exclude", 0)
-    n_included = ft.get("include", 0)
-    ft_reasons = count_by_reason(ft_csv)
+    ft_counts = count_by_decision(ft)
+    n_ft_assessed = sum(ft_counts.values())
+    n_ft_excluded = ft_counts.get("exclude", 0)
+    n_included = ft_counts.get("include", 0)
+    ft_reasons = count_by_reason(ft)
 
     return {
         "per_db": per_db,
@@ -204,7 +239,35 @@ def main():
     )
     out_path.write_text(body, encoding="utf-8")
 
+    # Counts also emitted as xlsx for reporting / publication. The
+    # markdown above stays — it's the human-readable view; the xlsx
+    # is the machine-friendly one (pivots, charts, etc.).
+    counts_xlsx = project / "screening" / "reports" / "prisma-counts.xlsx"
+    rows = [
+        {"phase": "Identified (total)",       "n": counts["identified"]},
+        {"phase": "Duplicates removed",       "n": counts["duplicates"]},
+        {"phase": "After dedup",              "n": counts["after_dedup"]},
+        {"phase": "T/A screened",             "n": counts["tiab_screened"]},
+        {"phase": "T/A excluded",             "n": counts["tiab_excluded"]},
+        {"phase": "T/A → full-text",          "n": counts["tiab_included"]},
+        {"phase": "Reports retrieved (PDF)",  "n": counts["ft_retrieved"]},
+        {"phase": "Reports not retrieved",    "n": counts["ft_missing"]},
+        {"phase": "Full text assessed",       "n": counts["ft_assessed"]},
+        {"phase": "Full text excluded",       "n": counts["ft_excluded"]},
+        {"phase": "Included in review",       "n": counts["included"]},
+    ]
+    # Per-database breakdown of the Identified phase
+    for db, n in sorted(counts.get("per_db", {}).items()):
+        rows.append({"phase": f"  — from {db}", "n": n})
+    # Exclusion reasons
+    for tag, n in counts.get("tiab_reasons", []):
+        rows.append({"phase": f"T/A exclude · {tag}", "n": n})
+    for tag, n in counts.get("ft_reasons", []):
+        rows.append({"phase": f"Full-text exclude · {tag}", "n": n})
+    write_records(rows, ["phase", "n"], counts_xlsx)
+
     print(f"✓ Wrote {out_path.relative_to(project.parent)}")
+    print(f"✓ Wrote {counts_xlsx.relative_to(project.parent)}")
     print(f"  Identified: {counts['identified']}  →  After dedup: {counts['after_dedup']}")
     print(f"  T/A screened: {counts['tiab_screened']}  →  included {counts['tiab_included']}, excluded {counts['tiab_excluded']}")
     print(f"  Full-text assessed: {counts['ft_assessed']}  →  included {counts['included']}, excluded {counts['ft_excluded']}")

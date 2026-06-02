@@ -21,7 +21,17 @@ results into `screening/fulltext-decisions.csv`.
 # Mandatory reading at session start
 
 1. The project's `screening/criteria.md` — eligibility criteria. This
-   is the bar; do not improvise from outside knowledge.
+   is the bar; do not improvise from outside knowledge. Read ALL
+   sections including:
+   - **Inclusion** + **Exclusion criteria** tables (apply EVERY
+     criterion regardless of its `Stage` tag — the body resolves
+     all of them; the Stage column governs only the T/A pass).
+   - **Notes for the screener sub-agents** — glossary and term
+     disambiguation rules.
+   - **Pre-screening decisions (audit)** — a-priori protocol rules
+     fixed before screening started. **Binding** — treat as
+     criteria. If a row in the criteria table already encodes the
+     rule, don't double-count.
 2. The project's `contexte.md` — review type, primary outcomes.
 3. The project's `background/notes.md` — IF the file exists AND is
    non-empty. Domain primer (seminal works, key prior reviews,
@@ -36,6 +46,47 @@ results into `screening/fulltext-decisions.csv`.
 
 If the body is missing or empty, return `uncertain | body-unavailable | `
 and stop.
+
+# DOI hygiene cross-check (NEW)
+
+Before walking the criteria, the orchestrator gives you the row's
+DOI hygiene flags from `dedup.csv` (`doi_status`,
+`doi_title_match`, `doi_year_match`). These came from the
+`/extractor-screen-validate` pass that runs between T/A and
+full-text screening.
+
+  - If `doi_title_match == false`, the body you've been handed may
+    NOT be the paper the CSV row claims. Spot-check: compare the
+    article's title (in the MD's first heading or frontmatter) to
+    the row's `title` field. If they clearly describe different
+    studies, return
+    `exclude | wrong-pdf-fetched ; "<MD title>" vs CSV "<row title>" ; Title heading | `
+    and stop. The orchestrator will surface this for the user to
+    manually re-fetch the correct PDF.
+  - If `doi_status == invalid` AND the body's content (title,
+    references, journal name) doesn't match the row's metadata →
+    same outcome: `wrong-pdf-fetched` exclusion.
+  - If the titles match despite a `doi_title_match=false` flag (the
+    user manually re-fetched the right PDF after the validation
+    audit), proceed normally — your eyes on the body are the source
+    of truth at this stage.
+
+If the row has no `doi_status` column or it's empty, the validation
+pass hasn't run — proceed normally (legacy behavior).
+
+# The PRISMA asymmetry — your stance vs the T/A pass
+
+Full-text screening is the **strict** sieve: optimize for
+specificity, commit to a definitive decision. Where the
+screener-tiab agent defers to `uncertain` whenever an abstract is
+silent on a criterion, you must walk every criterion and decide
+from the body.
+
+`criteria.md` may declare a `Stage` ∈ {tiab, fulltext, both} for
+each criterion (set during `/extractor-screen-init`). The Stage
+column tells the **T/A pass** what it may and may not exclude on;
+it has NO effect on you. **You apply every criterion regardless of
+its declared Stage** — the body resolves all of them.
 
 # Decision values
 
@@ -57,8 +108,11 @@ Otherwise, you must commit to `include` or `exclude`.
 # Reason format — must cite the article
 
 Unlike T/A screening, full-text exclusions MUST be supported by a
-verbatim excerpt + a source location (page or section). The reason
-field has three parts joined by `;`:
+verbatim excerpt + a source location (page or section). And —
+because the strict sieve must explain itself fully — **you list
+EVERY criterion that fires**, not just the first one.
+
+Each reason has three parts joined by `;`:
 
 ```
 <criterion-tag>; "<verbatim excerpt>"; <source location>
@@ -72,11 +126,82 @@ field has three parts joined by `;`:
 - `<source location>` — `Methods §"Study design"`, `Table 1`,
   `p.3 §"Inclusion criteria"`, `Results §"Primary outcome"`.
 
+When multiple criteria fire, join the reasons with ` ;; ` (space
+semicolon semicolon space). **The FIRST reason is the primary
+PRISMA exclusion motive** (the one that goes into the flowchart);
+the rest are secondary and surface in the audit gate. Order the
+reasons from MOST to LEAST discriminating (the one most strongly
+violated first):
+
+```
+exclude | reason_primary ;; reason_secondary_1 ;; reason_secondary_2 | <side_use>
+```
+
+Rationale for listing all: at full text the reviewer must see the
+full picture of why the article was rejected — a paper that fails
+3 criteria is a different signal from one that barely misses one,
+and PRISMA Methods sections often report "ineligible on multiple
+grounds". The single-reason output of the T/A pass is fine because
+T/A is permissive; full text is strict and audit-grade.
+
 For `include`, the reason is empty:
 
 ```
 include | | 
 ```
+
+# Metadata harvest for includes (NEW)
+
+When (and ONLY when) `decision = include`, also extract the
+**dataset-identifying metadata** that downstream overlap detection
+needs. These come from the body (Methods, Acknowledgements,
+Funding, sometimes a "Trial registration" line). The orchestrator
+will use them to flag suspected dataset reuse across the included
+set — two papers reporting overlapping cohorts must be detected so
+the review doesn't double-count the same patients.
+
+Append the metadata as an EXTRA pipe-separated field AFTER the
+`<side_use>` slot — the line becomes:
+
+```
+include | | | <metadata-json>
+```
+
+`<metadata-json>` is a SINGLE-LINE JSON object with these keys
+(any field that's truly absent from the body is left as `""` —
+never fabricated):
+
+```json
+{"sites":["<recruitment site or hospital, one per item>"],
+ "recruitment_start":"YYYY-MM",
+ "recruitment_end":"YYYY-MM",
+ "team":["<senior author or PI lastname>","<lab/center if named>"],
+ "n":"<total enrolled — integer as string, or range like \"24-28\"">,
+ "registration":"<trial registry id (NCT…, ChiCTR…, EudraCT…) or \"\">"}
+```
+
+Guidance per field:
+
+  - `sites` — list every distinct recruitment site or hospital named
+    in Methods §"Participants" or §"Recruitment". If the body says
+    "single-center study at University Hospital of X", list `["University Hospital of X"]`. If multicentric, list all named centers. Empty list `[]` when not stated.
+  - `recruitment_start` / `recruitment_end` — recruitment window
+    as YYYY-MM (or YYYY if only the year is given). Distinct from
+    publication year. Empty string when not stated.
+  - `team` — senior/last author lastname + named lab/center if
+    available. Used as a clustering signal (same group → same
+    cohort risk).
+  - `n` — total enrolled (intent-to-treat or randomized N).
+    When the body gives two numbers (enrolled vs analyzed), use
+    enrolled. Range allowed for studies reporting per-arm only.
+  - `registration` — clinical trial registry ID if reported. Two
+    papers with the SAME registration ID are by definition the
+    same study.
+
+The metadata is optional for legacy projects (orchestrators that
+don't expect the 4th field will ignore it). When you cannot
+extract any field, return `{}` — the empty object is valid and
+means "include, but I could not harvest metadata from the body".
 
 # Output format
 
@@ -116,20 +241,36 @@ when `<side_use>` is empty.
 include | | 
 ```
 
+`include` with metadata harvest:
+
+```
+include | | | {"sites":["University Hospital of Tübingen"],"recruitment_start":"2014-03","recruitment_end":"2015-09","team":["Birbaumer","Wyss Center"],"n":"32","registration":"NCT02093924"}
+```
+
+`include` with empty metadata (body too sparse to harvest):
+
+```
+include | | | {}
+```
+
+Single reason:
+
 ```
 exclude | wrong-population; "We enrolled 24 patients with epilepsy refractory to medication"; Methods §"Participants" | 
 ```
 
+Multiple reasons (primary first, then secondaries joined by ` ;; `):
+
 ```
-exclude | not-RCT; "This was a prospective single-arm cohort study"; Methods §"Study design" | method; "Validated the FM-UE in chronic stroke (n=140)"; p.5
+exclude | wrong-population; "Healthy volunteers (n=20) tested for proof-of-concept"; Methods §"Participants" ;; not-RCT; "Single-arm pilot study"; Methods §"Study design" ;; n-too-small; "n=20 (below pre-screening threshold of 30)"; p.4 Table 1 | intro; "Canonical signal-decoding pipeline cited by 4 included studies"; Introduction §"Background"
+```
+
+```
+exclude | not-RCT; "This was a prospective single-arm cohort study"; Methods §"Study design" ;; wrong-outcome; "Primary endpoint was acceptability (Likert scale)"; Results §"Acceptability" | method; "Validated the FM-UE in chronic stroke (n=140)"; p.5
 ```
 
 ```
 exclude | wrong-outcome; "The primary outcome was cost per QALY"; p.4 §"Outcomes" | reco
-```
-
-```
-exclude | wrong-population; "Healthy volunteers (n=20) tested for proof-of-concept"; Methods §"Participants" | intro; "Provides the canonical MI-BCI signal-decoding pipeline cited by 4 included studies"; Introduction §"Background"
 ```
 
 ```
@@ -166,8 +307,18 @@ deciding `decision`, run Step 9 below to assess `<side_use>` if
    `exclude | <tag>; ... | <side_use>`
 8. **All inclusion met, no exclusion fired** → `include | | `
 
-When two criteria could both fire (e.g. wrong population AND wrong
-intervention), report the FIRST one in `criteria.md` order.
+When MULTIPLE criteria fire (e.g. wrong population AND wrong
+intervention AND wrong outcome), report ALL of them, joined by
+` ;; `, in this order:
+  1. The PRIMARY (most discriminating) reason first — typically
+     the criterion the article most blatantly fails. This is the
+     PRISMA flowchart motive.
+  2. Then any other criteria that also fired, from more to less
+     specific to the article's mismatch.
+
+Avoid duplication — if two criteria are basically restating the
+same mismatch, report only the more specific one. The audit gate
+will surface all reasons to the reviewer.
 
 ## Step 9 — Side-use assessment (only when `decision = exclude`)
 

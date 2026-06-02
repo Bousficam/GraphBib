@@ -42,6 +42,9 @@ from collections import defaultdict
 from difflib import SequenceMatcher
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from tabular import write_records  # noqa: E402
+
 COL_ALIASES = {
     "title": {"title", "article_title", "articletitle", "ti", "primary_title"},
     "authors": {"authors", "author", "au", "author_names", "authornames"},
@@ -56,6 +59,14 @@ COL_ALIASES = {
 CANONICAL_COLS = [
     "slug", "doi", "pmid", "title", "authors", "first_author",
     "year", "journal", "abstract", "source_dbs", "merged_count", "merged_from",
+    # DOI hygiene columns — populated by screen_fetch_metadata.py
+    # (see /extractor-screen-validate). Always emitted so the schema is
+    # stable across runs; left empty when the validation pass hasn't
+    # run yet.
+    "doi_status",        # valid | recovered | invalid | unverifiable | missing
+    "doi_title_match",   # true | false | "" (when no DOI or no title)
+    "doi_year_match",    # true | false | ""
+    "slug_rehabilitated",  # true | "" (anon-YYYY → <family>-YYYY)
 ]
 
 
@@ -302,17 +313,16 @@ def assign_slugs(records):
 # ----------------------------------------------------------------------
 # Output
 
-def write_dedup_csv(records, out_path):
-    # Detect extra__ columns across records
+def write_dedup_table(records, out_path):
+    """Write dedup output as xlsx (or csv when out_path ends with .csv).
+
+    Schema: CANONICAL_COLS + any extra__* columns the source CSVs
+    contributed. Empty cells for new DOI-hygiene columns are filled
+    by screen_fetch_metadata.py on the next run.
+    """
     extra_keys = sorted({k for r in records for k in r if k.startswith("extra__")})
     fieldnames = CANONICAL_COLS + extra_keys
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        for r in records:
-            row = {k: r.get(k, "") for k in fieldnames}
-            w.writerow(row)
+    write_records(records, fieldnames, out_path)
 
 
 def write_log_md(log_entries, n_input, n_after, dropped_no_title, out_path):
@@ -380,8 +390,8 @@ def main():
     records.sort(key=lambda r: (r["first_author"], r["year"], r["title"]))
     assign_slugs(records)
 
-    dedup_csv = project / "screening" / "dedup.csv"
-    write_dedup_csv(records, dedup_csv)
+    dedup_xlsx = project / "screening" / "dedup.xlsx"
+    write_dedup_table(records, dedup_xlsx)
 
     log_md = project / "screening" / "reports" / "dedup-log.md"
     write_log_md(log_entries, n_input, len(records), dropped, log_md)
@@ -389,7 +399,7 @@ def main():
     print(f"✓ Read   {n_input:>5} records from {len(csvs)} CSV(s)")
     print(f"✓ Skipped{dropped:>5} (no title/DOI/PMID)")
     print(f"✓ Unique {len(records):>5} after dedup")
-    print(f"✓ Wrote  {dedup_csv.relative_to(project.parent)}")
+    print(f"✓ Wrote  {dedup_xlsx.relative_to(project.parent)}")
     print(f"✓ Wrote  {log_md.relative_to(project.parent)}")
 
 

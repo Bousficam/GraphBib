@@ -179,16 +179,44 @@ The orchestrator forces an audit pass before fetching PDFs:
 ```bash
 python tools/fetch_oa.py --from-stdin \
     --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
+    --with-titles project-review/<vault>/<name>/screening/dedup.xlsx \
+    --missing-md  project-review/<vault>/<name>/screening/1st-pass/missing.md \
     < <doi-list-of-includes>
 ```
 
-Uses Unpaywall under the hood. PDFs land at
-`screening/1st-pass/raw/<slug>.pdf`.
+Walks the OA provider cascade (Unpaywall → OpenAlex → Semantic
+Scholar → Europe PMC → publisher-direct → arXiv → bioRxiv/medRxiv →
+CORE) and stops at the first verified PDF whose version is
+`publishedVersion` or `acceptedVersion`. Preprint hits are held as
+a fallback and only committed if no later provider yields a better
+version. Within each provider, every candidate URL is tried
+(OpenAlex commonly returns 3-5 URLs per DOI). When `--with-titles`
+is passed AND pymupdf is installed, each downloaded PDF is checked:
+the title extracted from the first page is matched against the
+expected title from `dedup.xlsx`; sim < 0.5 rejects the file
+(handles wrong-paper PDFs and landing pages disguised as PDFs).
+PDFs land at `screening/1st-pass/raw/<slug>.pdf`.
 
-Paywalled / unavailable PDFs are appended to
-`screening/1st-pass/missing.md` (slug, DOI/PMID, title, suggested
-manual sources). The user finishes the retrieval manually before
-launching pass 2.
+Paywalled / unavailable PDFs are written to
+`screening/1st-pass/missing.md` with enrichment per row: the list
+of providers we tried, Crossref-resolved first author + journal +
+year, a ResearchGate search URL, and a ready-to-copy
+reprint-request email template. The user finishes the retrieval
+manually before launching pass 2.
+
+Re-trying failures after Crossref / aggregator updates is cheap:
+
+```bash
+python tools/fetch_oa.py \
+    --output-dir project-review/<vault>/<name>/screening/1st-pass/raw/ \
+    --with-titles project-review/<vault>/<name>/screening/dedup.xlsx \
+    --missing-md  project-review/<vault>/<name>/screening/1st-pass/missing.md \
+    --retry-failed
+```
+
+Re-runs only the DOIs that didn't succeed last time, and skips the
+providers that already returned bad URLs (tracked in the report's
+`attempts` array).
 
 ### Step 6 — Convert PDFs → MD (for pass 2 reading)
 
