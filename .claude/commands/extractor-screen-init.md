@@ -196,6 +196,53 @@ Q7 — Any other criterion the screening agent must apply?
    non-validated outcome scales")
 ```
 
+Wait. Then:
+
+### Q8 — Stage of testability (per criterion)
+
+PRISMA is two sieves with **opposite default behaviors**:
+- TITLE/ABSTRACT pass = permissive (sensitivity-first; "when in
+  doubt, keep").
+- FULL TEXT pass = strict (specificity-first; commit a definitive
+  decision with verbatim evidence).
+
+If a criterion needs detail that's typically NOT in an abstract
+(study procedure parameters, secondary outcomes, sample
+descriptors), evaluating it at T/A leads to **false exclusions**
+just because the abstract was silent. Each criterion must declare
+the EARLIEST stage at which it can be reliably checked.
+
+Walk through every criterion you defined in Q1–Q7 (PICO + design +
+hard filters + free-form). For each, ask the user:
+
+```
+Q8 — Stage for criterion `<tag>` ("<short text>")
+
+  tiab      Reliably checkable from title + abstract alone. The
+            screener-tiab agent can EXCLUDE on this criterion when
+            the abstract clearly mismatches.
+  fulltext  Needs Methods/Results detail. T/A silence is NEVER
+            grounds for exclusion — the screener-tiab agent
+            converts a fulltext-only criterion mismatch into
+            `uncertain` so the article reaches full-text review.
+  both      Visible in the abstract AND must be confirmed in the
+            body. The screener-tiab agent excludes only when the
+            abstract ACTIVELY contradicts the criterion; silence
+            defers to full text.
+
+Heuristic — when the abstract is SILENT on this criterion, the
+correct action is:
+  "I would still exclude"                         → tiab
+  "I would wait for the body"                     → fulltext
+  "I would wait unless abstract contradicts it"   → both
+
+Stage for `<tag>` ? [tiab / fulltext / both]
+```
+
+Repeat once per criterion. Default `both` when the user is
+hesitant — it's the most conservative middle ground. The output
+populates the `Stage` column of the criteria table.
+
 ## Step 4 — Persist `screening/criteria.md`
 
 Write the answers as structured Markdown. Each criterion gets a
@@ -224,30 +271,32 @@ Format:
 
 ## Inclusion criteria
 
-| Tag | Criterion |
-|---|---|
-| `eligible-design`        | <from Q5 — included designs> |
-| `eligible-population`    | <from Q1 — included population> |
-| `eligible-intervention`  | <from Q2 — included intervention> |
-| `eligible-comparator`    | <from Q3 — comparator requirement> |
-| `eligible-outcome`       | <from Q4 — required outcome> |
+| Tag | Stage | Criterion |
+|---|---|---|
+| `eligible-design`        | <from Q8> | <from Q5 — included designs> |
+| `eligible-population`    | <from Q8> | <from Q1 — included population> |
+| `eligible-intervention`  | <from Q8> | <from Q2 — included intervention> |
+| `eligible-comparator`    | <from Q8> | <from Q3 — comparator requirement> |
+| `eligible-outcome`       | <from Q8> | <from Q4 — required outcome> |
 
 ## Exclusion criteria
 
 (Listed in the ORDER the screener should evaluate. Tag = mnemonic
-label the screener uses in its decision output.)
+label the screener uses in its decision output. Stage = the
+earliest pass at which the criterion can be reliably checked —
+`tiab`, `fulltext`, or `both`; see Q8.)
 
-| # | Tag | Criterion | Verifiable from |
-|---|---|---|---|
-| 1 | `wrong-population`   | <verbatim — derived from Q1>     | Methods §Participants |
-| 2 | `not-<design>`       | <e.g. `not-RCT`, derived from Q5>| Methods §Study design |
-| 3 | `wrong-intervention` | <derived from Q2>                | Methods §Intervention |
-| 4 | `no-comparator`      | <derived from Q3, if applicable> | Methods §Study design |
-| 5 | `wrong-outcome`      | <derived from Q4>                | Methods §Outcomes / Results |
-| 6 | `non-english`        | <if applicable from Q6>          | metadata / first page |
-| 7 | `pre-<year>`         | <if applicable from Q6>          | metadata |
-| 8 | `wrong-pub-type`     | <e.g. conference abstract only>  | metadata / DOI prefix |
-| 9 | <free-form from Q7>  | <verbatim>                       | <where to look> |
+| # | Tag | Stage | Criterion | Verifiable from |
+|---|---|---|---|---|
+| 1 | `wrong-population`   | <from Q8> | <verbatim — derived from Q1>     | Methods §Participants |
+| 2 | `not-<design>`       | <from Q8> | <e.g. `not-RCT`, derived from Q5>| Methods §Study design |
+| 3 | `wrong-intervention` | <from Q8> | <derived from Q2>                | Methods §Intervention |
+| 4 | `no-comparator`      | <from Q8> | <derived from Q3, if applicable> | Methods §Study design |
+| 5 | `wrong-outcome`      | <from Q8> | <derived from Q4>                | Methods §Outcomes / Results |
+| 6 | `non-english`        | <from Q8> | <if applicable from Q6>          | metadata / first page |
+| 7 | `pre-<year>`         | <from Q8> | <if applicable from Q6>          | metadata |
+| 8 | `wrong-pub-type`     | <from Q8> | <e.g. conference abstract only>  | metadata / DOI prefix |
+| 9 | <free-form from Q7>  | <from Q8> | <verbatim>                       | <where to look> |
 
 ## Notes for the screener sub-agents
 

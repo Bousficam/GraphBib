@@ -132,14 +132,47 @@ uncertain | abstract-missing |
 uncertain | outcome-unclear |   # abstract reports "improvement" without naming a scale
 ```
 
+# The PRISMA asymmetry — read this before every decision
+
+T/A screening is the **permissive** sieve: optimize for
+sensitivity, default to KEEP. Your job is to reject **only what is
+manifestly off-topic from the abstract alone**. Everything else
+must reach the full-text pass, where the strict sieve sees the
+full Methods/Results and commits a definitive decision.
+
+The single most damaging error you can make is to exclude an
+article because the abstract was SILENT on a criterion that only
+the body can confirm (e.g. session count, closed-loop control,
+follow-up timing, comparator details, exact outcome timepoint).
+Silence → `uncertain`, not `exclude`.
+
+`criteria.md` declares a `Stage` for every criterion exactly to
+prevent this:
+
+  - `Stage = tiab`     → you CAN exclude on this criterion when the
+    abstract clearly contradicts it. (Hard filters like language,
+    publication year, publication type, animal-vs-human study,
+    obviously mismatched population.)
+  - `Stage = fulltext` → you CANNOT exclude on this criterion at
+    T/A. If the abstract is silent → `uncertain`. If the abstract
+    seems to mismatch but the language is non-definitive ("a
+    short intervention", "post-treatment evaluation") →
+    `uncertain`. Only the body settles it.
+  - `Stage = both`     → you CAN exclude only when the abstract
+    ACTIVELY contradicts the criterion (states the opposite). If
+    the abstract is silent or hedges → `uncertain`.
+
+When `criteria.md` has no `Stage` column (legacy projects), treat
+EVERY criterion as `both` — the safest default.
+
 # Decision rules — the algorithm
 
 For each candidate record, walk these checks IN ORDER and return at
 the first match. After deciding `decision`, also assess `<side_use>`
-if and only if `decision = exclude` (Step 10 below).
+if and only if `decision = exclude` (Step 11 below).
 
-**Step 0 — DOI hygiene gate (NEW).** Before reading the abstract,
-check the row's DOI hygiene flags (provided by
+**Step 0 — DOI hygiene gate.** Before reading the abstract, check
+the row's DOI hygiene flags (provided by
 `/extractor-screen-validate`, columns `doi_status` and
 `doi_title_match`):
 
@@ -158,27 +191,38 @@ check the row's DOI hygiene flags (provided by
 If the row has no `doi_status` column or the field is empty, the
 validation pass hasn't run — proceed normally (legacy behavior).
 
-1. **Empty abstract AND non-descriptive title** → `uncertain | abstract-missing | `
-2. **Inclusion: study design** — if `criteria.md` constrains design
-   (e.g. RCT only), and title/abstract clearly states a different
-   design → `exclude | <criterion-tag> | <side_use>`
-3. **Inclusion: population** — if population is mis-matched
-   (e.g. epilepsy when review is on stroke; pediatric when review is
-   adult-only) → `exclude | wrong-population | <side_use>`
-4. **Inclusion: intervention / exposure** — if the article studies a
-   different intervention class → `exclude | wrong-intervention | <side_use>`
-5. **Inclusion: outcome** — if the article doesn't measure any of the
-   eligible outcomes → `exclude | wrong-outcome | <side_use>`
-6. **Inclusion: setting / context** — if setting is out of scope
-   (in-vitro for an in-vivo review, animal for a human review) →
-   `exclude | wrong-setting | <side_use>`
-7. **Exclude: language / date / publication type** — if `criteria.md`
-   lists hard exclusions (non-English, pre-2010, conference abstract
-   only, editorial) → `exclude | <criterion-tag> | <side_use>`
-8. **All checks passed** → `include | | `
-9. **Any check is ambiguous from T/A alone** → `uncertain | <what-is-unclear> | `
+**Step 1 — Empty abstract AND non-descriptive title** →
+`uncertain | abstract-missing | `
 
-## Step 10 — Side-use assessment (only when `decision = exclude`)
+**Steps 2–9 — Walk each criterion in `criteria.md` order.** For
+each, decide based on its `Stage`:
+
+  - `Stage = tiab`:
+      - Abstract clearly mismatches → `exclude | <criterion-tag> | <side_use>`
+      - Abstract silent → if the criterion is a HARD filter
+        (language, date, pub_type) and metadata fields settle it,
+        decide from metadata; otherwise → `uncertain | <criterion-tag>-unclear | `
+  - `Stage = both`:
+      - Abstract ACTIVELY contradicts criterion → `exclude | <criterion-tag> | <side_use>`
+      - Abstract silent OR hedged → `uncertain | <criterion-tag>-needs-fulltext | `
+  - `Stage = fulltext`:
+      - Whatever the abstract says → DO NOT exclude. If the abstract
+        already suggests a likely mismatch, mark
+        `uncertain | <criterion-tag>-needs-fulltext | ` so the
+        full-text pass can confirm. If the abstract is silent →
+        `uncertain | <criterion-tag>-needs-fulltext | `.
+      - **Never `exclude` on a `fulltext` criterion at T/A**, even if
+        you are confident — biased exclusion at T/A is the worst
+        error a screener-tiab can make.
+
+The order of criteria evaluation matches `criteria.md` (line
+order). If MULTIPLE criteria could fire, report the FIRST one in
+the file.
+
+**Step 10 — All inclusion criteria met (or deferred), no T/A-level
+exclusion fired** → `include | | `
+
+## Step 11 — Side-use assessment (only when `decision = exclude`)
 
 Ask: even though this article is out of scope for extraction, would
 it be worth citing in the review somewhere? Pick **at most one**

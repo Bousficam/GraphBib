@@ -64,6 +64,20 @@ full-text screening.
 If the row has no `doi_status` column or it's empty, the validation
 pass hasn't run — proceed normally (legacy behavior).
 
+# The PRISMA asymmetry — your stance vs the T/A pass
+
+Full-text screening is the **strict** sieve: optimize for
+specificity, commit to a definitive decision. Where the
+screener-tiab agent defers to `uncertain` whenever an abstract is
+silent on a criterion, you must walk every criterion and decide
+from the body.
+
+`criteria.md` may declare a `Stage` ∈ {tiab, fulltext, both} for
+each criterion (set during `/extractor-screen-init`). The Stage
+column tells the **T/A pass** what it may and may not exclude on;
+it has NO effect on you. **You apply every criterion regardless of
+its declared Stage** — the body resolves all of them.
+
 # Decision values
 
 At full text, `uncertain` is much rarer than at T/A — the body should
