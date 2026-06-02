@@ -392,14 +392,21 @@ Optional but recommended — author a domain primer for the sub-agents:
 
 Next steps:
 
-1. Drop your identified-record CSVs into:
+1. Audit the criteria you just wrote — catches vague terms,
+   missing Stage tags, duplicate tags, subjective phrasing before
+   screening commits decisions against them:
+     /extractor-screen-validate-criteria <name>
+   Deterministic (no LLM, no network). Fixing one ambiguity here
+   saves you an audit gate over 1000 abstract decisions later.
+
+2. Drop your identified-record CSVs into:
    project-review/<vault>/<name>/screening/identified/
    Expected columns (case-insensitive, all optional except title):
      title, authors, year, doi, pmid, abstract, journal
    One CSV per source database (pubmed.csv, scopus.csv, …) — the
    filename becomes the source_db tag in the dedup.
 
-2. Run the title/abstract screening pass:
+3. Run the title/abstract screening pass:
    /extractor-screen-tiab <name>
    It will dedupe, fetch missing abstracts, judge each record against
    criteria.md (+ background/notes.md if non-empty), auto-fetch PDFs
