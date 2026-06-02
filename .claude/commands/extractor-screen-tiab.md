@@ -241,13 +241,21 @@ python tools/fetch_oa.py --from-stdin \
 
 What `fetch_oa.py` does on every DOI:
 
-1. **Provider cascade** (stops at first success):
-   `unpaywall → openalex → europepmc → arxiv → biorxiv → core →
-   publisher-direct`. Each provider adds 10–20% of incremental
-   recall over Unpaywall alone (Europe PMC is biomedical-specific;
-   arXiv / bioRxiv cover preprints; CORE aggregates institutional
-   repos; publisher-direct uses URL patterns for PLOS / eLife /
-   MDPI / Frontiers / JMIR).
+1. **Provider cascade** (with version preference):
+   `unpaywall → openalex → semanticscholar → europepmc →
+   publisher-direct → arxiv → biorxiv → core`. Each provider adds
+   10–20% of incremental recall over Unpaywall alone (Semantic
+   Scholar catches author-uploaded PDFs including a large fraction
+   of ResearchGate-hosted copies — direct RG fetch is blocked by
+   Cloudflare; Europe PMC is biomedical-specific; arXiv / bioRxiv
+   cover preprints; CORE aggregates institutional repos;
+   publisher-direct uses URL patterns for PLOS / eLife / MDPI /
+   Frontiers / JMIR). Within each provider, ALL candidate URLs
+   are tried (OpenAlex often returns 3-5 per DOI from different
+   repos). The cascade commits as soon as a
+   `publishedVersion`/`acceptedVersion` PDF is found; preprint or
+   unknown-version hits are held as a fallback and only kept if
+   no later provider does better.
 2. **Sanity download** — file > 1 KB AND starts with `%PDF` header.
 3. **Title verification** — when pymupdf is installed AND
    `--with-titles` was passed, extracts the first-page title from

@@ -184,10 +184,14 @@ python tools/fetch_oa.py --from-stdin \
     < <doi-list-of-includes>
 ```
 
-Walks the OA provider cascade (Unpaywall → OpenAlex → Europe PMC →
-arXiv → bioRxiv/medRxiv → CORE → publisher-direct URL patterns)
-and stops at the first verifiable PDF. When `--with-titles` is
-passed AND pymupdf is installed, each downloaded PDF is checked:
+Walks the OA provider cascade (Unpaywall → OpenAlex → Semantic
+Scholar → Europe PMC → publisher-direct → arXiv → bioRxiv/medRxiv →
+CORE) and stops at the first verified PDF whose version is
+`publishedVersion` or `acceptedVersion`. Preprint hits are held as
+a fallback and only committed if no later provider yields a better
+version. Within each provider, every candidate URL is tried
+(OpenAlex commonly returns 3-5 URLs per DOI). When `--with-titles`
+is passed AND pymupdf is installed, each downloaded PDF is checked:
 the title extracted from the first page is matched against the
 expected title from `dedup.xlsx`; sim < 0.5 rejects the file
 (handles wrong-paper PDFs and landing pages disguised as PDFs).

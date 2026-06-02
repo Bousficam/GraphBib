@@ -1,6 +1,6 @@
 ---
 name: fetch-reading
-description: Download open-access PDFs for a list of DOIs (typically from suggest-reading's Tier 1 output, a thesis's Notable References, or a source's cites: snowball candidates). Wraps tools/fetch_oa.py (multi-provider cascade — Unpaywall + OpenAlex + Europe PMC + arXiv + bioRxiv + CORE + publisher-direct) with judgment about which DOIs to fetch, where to save them, and what to do with the paywalled ones. Reports per-DOI status (downloaded / paywalled / error / already-on-disk) and hands off to the ingester sub-agent only on explicit user request.
+description: Download open-access PDFs for a list of DOIs (typically from suggest-reading's Tier 1 output, a thesis's Notable References, or a source's cites: snowball candidates). Wraps tools/fetch_oa.py (multi-provider cascade — Unpaywall + OpenAlex + Semantic Scholar + Europe PMC + publisher-direct + arXiv + bioRxiv + CORE, with within-provider URL iteration and publishedVersion preference) with judgment about which DOIs to fetch, where to save them, and what to do with the paywalled ones. Reports per-DOI status (downloaded / paywalled / error / already-on-disk) and hands off to the ingester sub-agent only on explicit user request.
 tools: Read, Bash, Grep, Glob, Write
 model: haiku
 ---
@@ -82,13 +82,25 @@ python tools/fetch_oa.py 10.xxx/yyy 10.xxx/zzz --output-dir raw/<vault>/papers/
 ```
 
 The tool walks a **cascade of OA providers** for each DOI —
-Unpaywall → OpenAlex → Europe PMC → arXiv → bioRxiv/medRxiv → CORE
-→ publisher-direct (PLOS / eLife / MDPI / Frontiers / JMIR URL
-patterns) — stopping at the first verifiable PDF. Skips paywalled
+Unpaywall → OpenAlex → Semantic Scholar → Europe PMC →
+publisher-direct (PLOS / eLife / MDPI / Frontiers / JMIR) →
+arXiv → bioRxiv/medRxiv → CORE — stopping at the first verified
+PDF with version `publishedVersion` or `acceptedVersion`. Lower
+versions (preprints / unknown) are held as a provisional fallback
+and only committed if no later provider yields a better version.
+Within each provider, ALL candidate URLs are tried (OpenAlex often
+returns 3-5 different repository copies per DOI). Skips paywalled
 / already-downloaded entries. Writes
 `raw/<vault>/papers/fetch_oa_report.json` with per-DOI status AND
 the per-provider attempts trail so a later `--retry-failed` run
 can skip routes that already failed.
+
+Note on ResearchGate: direct fetch from `researchgate.net` is
+Cloudflare-blocked and ToS-restricted (their public API was
+discontinued in 2019). The Semantic Scholar provider above
+indexes a large fraction of the PDFs RG hosts, so we get most
+of that recall for free. The RG search URL still appears in
+`missing.md` as a manual fallback for the long tail.
 
 When you have expected titles for the DOIs (e.g. a CSV with
 `doi` + `title` columns), add `--with-titles <path>` — the tool

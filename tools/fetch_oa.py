@@ -2,18 +2,37 @@
 """Fetch open-access PDFs for a list of DOIs, via a cascade of providers.
 
 Provider cascade — each DOI is tried against the list in order; the
-first hit that produces a verifiable PDF wins:
+first hit that produces a VERIFIED PDF with a publishedVersion (or
+acceptedVersion) wins. Lower-quality hits (preprints / unknown
+version) are held as a provisional fallback and only committed if
+no later provider yields a better version:
 
   1. Unpaywall          — broad coverage, well-maintained DOI → OA map
-  2. OpenAlex           — its own `oa_locations[*].pdf_url`; often has
-                          repository PDFs Unpaywall misses
-  3. Europe PMC         — biomedical full-text PDFs (PMCID-keyed)
-  4. arXiv              — preprints (search by DOI cross-ref)
-  5. bioRxiv / medRxiv  — preprints (DOI-keyed)
-  6. CORE               — institutional repositories (anonymous,
-                          best-effort; honors $CORE_API_KEY)
-  7. Publisher direct   — URL templates for known OA publishers
+  2. OpenAlex           — own `locations[*].pdf_url` (iterates ALL,
+                          not just primary); finds repo PDFs Unpaywall
+                          misses
+  3. Semantic Scholar   — author-uploaded PDFs (includes a lot of what
+                          ResearchGate indexes — direct RG fetch is
+                          Cloudflare-blocked and ToS-restricted, so we
+                          rely on SS's indexed copies)
+  4. Europe PMC         — biomedical full-text PDFs (PMCID-keyed)
+  5. Publisher direct   — URL templates for known OA publishers
                           (PLOS, eLife, MDPI, Frontiers, JMIR)
+  6. arXiv              — preprints (search by DOI cross-ref)
+  7. bioRxiv / medRxiv  — preprints (DOI-keyed)
+  8. CORE               — institutional repositories (anonymous,
+                          best-effort; honors $CORE_API_KEY)
+
+Within a provider, ALL candidate URLs are tried (OpenAlex routinely
+returns 3-5 URLs per DOI from different repositories). Candidates
+are sorted by version rank — publishedVersion > acceptedVersion >
+submittedVersion > unknown — so the best URL inside one provider
+is tried first.
+
+Across providers, the cascade stops at the first hit with rank ≥
+acceptedVersion. A submittedVersion / unknown hit is kept as a
+provisional fallback; the cascade continues looking for a better
+version, and only commits the provisional at the end.
 
 After download:
   - Sanity check (size > 1 KB, `%PDF` header).
@@ -56,8 +75,10 @@ Usage:
                              --from-file dois.txt
 
     # Set contact email (required by Unpaywall, OpenAlex, CORE ToS)
-    UNPAYWALL_EMAIL=you@example.org python tools/fetch_oa.py 10.xxx/yyy
+    UNPAYWALL_EMAIL=you@example.org   # also used for OpenAlex polite pool
     CORE_API_KEY=...                  # optional, raises CORE rate limits
+    SEMANTIC_SCHOLAR_API_KEY=...      # optional, lifts SS rate limit from
+                                      # 100 req / 5 min to ~10 req/s (free)
 
 The script writes `<output-dir>/fetch_oa_report.json` with per-DOI
 status: fetched / paywalled / oa_no_pdf / oa_landing_page_only /
@@ -90,11 +111,31 @@ DEFAULT_DST = raw_subdir("papers")
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
 DEFAULT_EMAIL = os.getenv("UNPAYWALL_EMAIL", "contact@example.com")
 CORE_API_KEY = os.getenv("CORE_API_KEY", "")
+SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "")
 SLEEP_BETWEEN_DOIS = 0.1
 SLEEP_BETWEEN_PROVIDERS = 0.05
 DOWNLOAD_TIMEOUT = 60
 
 TITLE_MATCH_THRESHOLD = 0.5   # below → reject (likely wrong paper / landing page)
+
+
+# Version-rank table — used to prefer publishedVersion over preprints when
+# multiple OA versions exist for the same DOI. Values are arbitrary but
+# strictly ordered.
+VERSION_RANKS = {
+    "publishedversion":  3,   # final, peer-reviewed, of-record
+    "acceptedversion":   2,   # accepted manuscript (post-peer-review, pre-typeset)
+    "submittedversion":  1,   # preprint
+}
+ACCEPTED_OR_BETTER = 2        # rank ≥ this → done, stop cascading
+
+
+def version_rank(v):
+    """Map a provider-reported version string to its numeric rank.
+    Unknown / None returns 0 (treated as preprint-equivalent for sorting)."""
+    if not v:
+        return 0
+    return VERSION_RANKS.get(str(v).strip().lower().replace("-", "").replace("_", ""), 0)
 
 
 # ----------------------------------------------------------------------
@@ -141,6 +182,12 @@ def _safe_get(requests, url, **kwargs):
 # The cascade in fetch_one() iterates over them in PRIORITY order.
 
 def _provider_unpaywall(doi, requests):
+    """Returns list[candidate] OR {"_status": "..."} OR None.
+
+    Iterates EVERY oa_location with a PDF URL (today: was first only).
+    Each candidate's `version` field comes from Unpaywall's own
+    classification so the cascade-level version sort works directly.
+    """
     r = _safe_get(
         requests,
         f"https://api.unpaywall.org/v2/{quote(doi, safe='/:')}",
@@ -161,27 +208,36 @@ def _provider_unpaywall(doi, requests):
     if not j.get("is_oa"):
         return {"_status": "paywalled"}
 
-    candidates = []
+    locations = []
     best = j.get("best_oa_location") or {}
     if best:
-        candidates.append(best)
+        locations.append(best)
     for loc in (j.get("oa_locations") or []):
-        if loc not in candidates:
-            candidates.append(loc)
-    for loc in candidates:
-        if loc.get("url_for_pdf"):
-            return {
-                "url": loc["url_for_pdf"],
-                "version": loc.get("version"),
-                "license": loc.get("license"),
-                "host_type": loc.get("host_type"),
-            }
-    # OA but no PDF URL — return landing page marker so the cascade
-    # records it but moves on
-    return {"_status": "oa_no_pdf"}
+        if loc not in locations:
+            locations.append(loc)
+
+    candidates = []
+    seen_urls = set()
+    for loc in locations:
+        url = (loc.get("url_for_pdf") or "").strip()
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        candidates.append({
+            "url": url,
+            "version": loc.get("version"),
+            "license": loc.get("license"),
+            "host_type": loc.get("host_type"),
+        })
+
+    if not candidates:
+        return {"_status": "oa_no_pdf"}
+    return candidates
 
 
 def _provider_openalex(doi, requests):
+    """Returns list[candidate] — iterates primary_location + every location[*]
+    that has a pdf_url. Often 3-5 candidates per DOI vs Unpaywall's 1-2."""
     r = _safe_get(
         requests,
         f"https://api.openalex.org/works/doi:{quote(doi, safe='/:')}",
@@ -194,27 +250,73 @@ def _provider_openalex(doi, requests):
     except Exception:
         return None
     candidates = []
-    pl = j.get("primary_location") or {}
-    if pl.get("pdf_url"):
+    seen_urls = set()
+
+    def _add(loc):
+        url = (loc.get("pdf_url") or "").strip()
+        if not url or url in seen_urls:
+            return
+        seen_urls.add(url)
         candidates.append({
-            "url": pl["pdf_url"],
-            "version": pl.get("version"),
-            "license": pl.get("license"),
+            "url": url,
+            "version": loc.get("version"),
+            "license": loc.get("license"),
         })
+
+    pl = j.get("primary_location") or {}
+    if pl:
+        _add(pl)
     for loc in (j.get("locations") or []):
-        if loc.get("pdf_url"):
-            candidates.append({
-                "url": loc["pdf_url"],
-                "version": loc.get("version"),
-                "license": loc.get("license"),
-            })
-    if not candidates:
+        _add(loc)
+    return candidates or None
+
+
+def _provider_semanticscholar(doi, requests):
+    """Semantic Scholar — covers many author-uploaded PDFs that Unpaywall
+    and OpenAlex miss (including PDFs hosted on ResearchGate-style
+    personal pages that SS has indexed).
+
+    Anonymous tier: 100 req / 5 min. Set $SEMANTIC_SCHOLAR_API_KEY to
+    lift the limit (free, sign up at semanticscholar.org/product/api).
+    """
+    headers = {"User-Agent": _ua()}
+    if SEMANTIC_SCHOLAR_API_KEY:
+        headers["x-api-key"] = SEMANTIC_SCHOLAR_API_KEY
+    r = _safe_get(
+        requests,
+        f"https://api.semanticscholar.org/graph/v1/paper/DOI:{quote(doi, safe='/')}",
+        params={"fields": "openAccessPdf,externalIds"},
+        headers=headers,
+    )
+    if r is None or r.status_code != 200:
         return None
-    return candidates[0]
+    try:
+        j = r.json()
+    except Exception:
+        return None
+    oa = j.get("openAccessPdf") or {}
+    url = (oa.get("url") or "").strip()
+    if not url:
+        return None
+    # SS reports `status` as e.g. "BRONZE", "GREEN", "GOLD", "HYBRID" —
+    # these are OA-tier labels (Unpaywall-style) not version labels.
+    # We can't infer publishedVersion / submittedVersion from that, so
+    # we leave version unknown (rank 0). The cascade still tries this
+    # candidate; if it brings a publishedVersion, downstream providers
+    # can override.
+    return [{
+        "url": url,
+        "version": None,
+        "license": oa.get("license"),
+        "oa_status": oa.get("status"),
+    }]
 
 
 def _provider_europepmc(doi, requests):
-    """Biomedical OA full text via Europe PMC. Keyed by DOI → PMCID."""
+    """Biomedical OA full text via Europe PMC. Keyed by DOI → PMCID.
+
+    PMC mirrors the publishedVersion in nearly every case, so this
+    provider's candidate is always tagged publishedVersion."""
     r = _safe_get(
         requests,
         "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
@@ -232,15 +334,16 @@ def _provider_europepmc(doi, requests):
     pmcid = (item.get("pmcid") or "").strip()
     if not pmcid:
         return None
-    return {
+    return [{
         "url": f"https://europepmc.org/articles/{pmcid}?pdf=render",
         "version": "publishedVersion",
         "license": item.get("license"),
-    }
+    }]
 
 
 def _provider_arxiv(doi, requests):
-    """arXiv preprint via the export.arxiv.org API. Search by DOI."""
+    """arXiv preprint via the export.arxiv.org API. Search by DOI.
+    All arXiv hits are submittedVersion by definition."""
     r = _safe_get(
         requests,
         "https://export.arxiv.org/api/query",
@@ -250,20 +353,20 @@ def _provider_arxiv(doi, requests):
         return None
     m = re.search(r"<id>http://arxiv\.org/abs/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)</id>", r.text or "")
     if not m:
-        # Old-style arXiv IDs (e.g. cs/0301010)
         m = re.search(r"<id>http://arxiv\.org/abs/([a-z\-]+/[0-9]+(?:v\d+)?)</id>", r.text or "")
     if not m:
         return None
     arxiv_id = m.group(1)
-    return {
+    return [{
         "url": f"https://arxiv.org/pdf/{arxiv_id}.pdf",
         "version": "submittedVersion",
         "license": "arxiv-perpetual",
-    }
+    }]
 
 
 def _provider_biorxiv(doi, requests):
-    """bioRxiv / medRxiv preprint server. /details/<server>/<doi>"""
+    """bioRxiv / medRxiv preprint server. Always submittedVersion."""
+    candidates = []
     for server in ("biorxiv", "medrxiv"):
         r = _safe_get(requests, f"https://api.biorxiv.org/details/{server}/{doi}",
                       timeout=10)
@@ -276,24 +379,25 @@ def _provider_biorxiv(doi, requests):
         if not collection:
             continue
         latest_doi = (collection[-1].get("doi") or doi).strip()
-        return {
+        candidates.append({
             "url": f"https://www.{server}.org/content/{latest_doi}.full.pdf",
             "version": "submittedVersion",
             "license": (collection[-1].get("license") or ""),
-        }
-    return None
+        })
+    return candidates or None
 
 
 def _provider_core(doi, requests):
-    """CORE.ac.uk — aggregates 200M+ open-access papers from institutional
-    repos. Anonymous tier is rate-limited; CORE_API_KEY lifts the cap."""
+    """CORE.ac.uk — institutional-repo aggregator. Iterates up to 3 results
+    per DOI; their downloadUrl can be authorVersion, publishedVersion, or
+    submittedVersion — CORE doesn't classify so version stays unknown."""
     headers = {"User-Agent": _ua()}
     if CORE_API_KEY:
         headers["Authorization"] = f"Bearer {CORE_API_KEY}"
     r = _safe_get(
         requests,
         "https://api.core.ac.uk/v3/search/works",
-        params={"q": f'doi:"{doi}"', "limit": 1},
+        params={"q": f'doi:"{doi}"', "limit": 3},
         headers=headers,
     )
     if r is None or r.status_code != 200:
@@ -302,17 +406,19 @@ def _provider_core(doi, requests):
         results = r.json().get("results") or []
     except Exception:
         return None
-    if not results:
-        return None
-    item = results[0]
-    pdf_url = (item.get("downloadUrl") or "").strip()
-    if not pdf_url:
-        return None
-    return {
-        "url": pdf_url,
-        "version": item.get("documentType"),
-        "license": "",
-    }
+    candidates = []
+    seen = set()
+    for item in results:
+        url = (item.get("downloadUrl") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        candidates.append({
+            "url": url,
+            "version": item.get("documentType"),
+            "license": "",
+        })
+    return candidates or None
 
 
 # Publisher prefix → PDF URL builder. Each builder receives the DOI
@@ -368,23 +474,30 @@ PUBLISHER_BUILDERS = [
 
 
 def _provider_publisher(doi, requests):
-    """Construct a direct PDF URL for known OA publishers (no API call)."""
+    """Construct a direct PDF URL for known OA publishers (no API call).
+    Always publishedVersion."""
     for name, builder in PUBLISHER_BUILDERS:
         url = builder(doi)
         if url:
-            return {"url": url, "version": "publishedVersion", "license": "",
-                    "publisher_imprint": name}
+            return [{
+                "url": url, "version": "publishedVersion", "license": "",
+                "publisher_imprint": name,
+            }]
     return None
 
 
+# Cascade order: publisher-direct and publishedVersion-likely providers
+# first, so the version-rank sort doesn't need to backtrack. Within each
+# provider, candidates are sorted by version rank too.
 PROVIDERS = [
-    ("unpaywall",  _provider_unpaywall),
-    ("openalex",   _provider_openalex),
-    ("europepmc",  _provider_europepmc),
-    ("arxiv",      _provider_arxiv),
-    ("biorxiv",    _provider_biorxiv),
-    ("core",       _provider_core),
-    ("publisher",  _provider_publisher),
+    ("unpaywall",       _provider_unpaywall),
+    ("openalex",        _provider_openalex),
+    ("semanticscholar", _provider_semanticscholar),
+    ("europepmc",       _provider_europepmc),
+    ("publisher",       _provider_publisher),
+    ("arxiv",           _provider_arxiv),
+    ("biorxiv",         _provider_biorxiv),
+    ("core",            _provider_core),
 ]
 
 
@@ -506,13 +619,47 @@ def verify_pdf_title(path, expected_title, threshold=TITLE_MATCH_THRESHOLD):
 _STATUS_HARD_STOPS = {"invalid_doi"}
 
 
+def _normalize_provider_return(value):
+    """Normalize a provider's return value to (list_of_candidates, meta_status).
+
+    Providers can return:
+      - None                      → ([], None)
+      - {"_status": "..."}        → ([], "<status>")
+      - {url, version, …}         → ([single_candidate], None)
+      - [c1, c2, …]               → (sorted_by_version_desc, None)
+    """
+    if value is None:
+        return [], None
+    if isinstance(value, dict):
+        if "_status" in value:
+            return [], value["_status"]
+        return [value], None
+    if isinstance(value, list):
+        # Sort candidates within a provider: publishedVersion → accepted → submitted → unknown
+        return sorted(value, key=lambda c: -version_rank(c.get("version"))), None
+    return [], None
+
+
 def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
               skip_providers=None):
-    """Walk PROVIDERS until one yields a verifiable PDF.
+    """Walk PROVIDERS, prefer publishedVersion, accept all URLs within
+    a provider before moving on.
 
-    `skip_providers` (set) lets callers like --retry-failed avoid
-    re-trying providers that already failed on a previous run.
-    Returns the per-DOI result dict (always includes `attempts`).
+    Strategy:
+      1. For each provider, get its candidates (list of {url, version}).
+      2. Within a provider, try candidates in descending version-rank
+         order — published > accepted > submitted > unknown.
+      3. On first verified download:
+          - rank ≥ ACCEPTED_OR_BETTER (acceptedVersion or
+            publishedVersion) → DONE, return immediately.
+          - rank < ACCEPTED_OR_BETTER (submittedVersion / unknown) →
+            keep as a `provisional` fallback, CONTINUE the cascade
+            in case a later provider has a publishedVersion.
+      4. At end of cascade, commit the best fallback. If nothing was
+         downloaded, return not_available.
+
+    `skip_providers` (set) lets --retry-failed avoid providers whose
+    previous URLs already returned bad downloads.
     """
     skip = set(skip_providers or [])
     slug = crossref_slug(doi) or slugify(doi.replace("/", "-"))
@@ -528,12 +675,29 @@ def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
 
     attempts = []
     seen_meta_status = None  # e.g. paywalled, oa_no_pdf, invalid_doi
-    for name, fn in PROVIDERS:
+    # provisional: (result_dict_partial, rank, tmp_path_on_disk)
+    provisional = None
+
+    def _finalize(result_dict, tmp_path):
+        """Promote a temp file to the canonical target path."""
+        if tmp_path != target:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path.replace(target)
+        try:
+            result_dict["path"] = str(target.relative_to(REPO_ROOT))
+        except ValueError:
+            # target not under REPO_ROOT (e.g. caller chose a path
+            # outside the repo, or tests use a tmp dir). Use absolute.
+            result_dict["path"] = str(target)
+        result_dict["attempts"] = attempts
+        return result_dict
+
+    for prov_idx, (name, fn) in enumerate(PROVIDERS):
         if name in skip:
             attempts.append({"source": name, "found": False, "skipped": True})
             continue
         try:
-            loc = fn(doi, requests)
+            raw = fn(doi, requests)
         except Exception as e:
             attempts.append({"source": name, "found": False,
                              "error": f"{type(e).__name__}: {e}"})
@@ -541,62 +705,95 @@ def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
             continue
         time.sleep(SLEEP_BETWEEN_PROVIDERS)
 
-        if not loc:
+        candidates, meta_status = _normalize_provider_return(raw)
+        if meta_status:
+            attempts.append({"source": name, "found": False,
+                             "meta_status": meta_status})
+            seen_meta_status = seen_meta_status or meta_status
+            if meta_status in _STATUS_HARD_STOPS:
+                break
+            continue
+        if not candidates:
             attempts.append({"source": name, "found": False})
             continue
 
-        # Provider returned a meta-status (no URL but informative)
-        if "_status" in loc:
-            attempts.append({"source": name, "found": False,
-                             "meta_status": loc["_status"]})
-            seen_meta_status = seen_meta_status or loc["_status"]
-            if loc["_status"] in _STATUS_HARD_STOPS:
-                break
-            continue
+        for cand_idx, cand in enumerate(candidates):
+            url = (cand.get("url") or "").strip()
+            if not url:
+                continue
+            # Each URL gets its own temp path so we don't clobber the
+            # provisional in case of a verification failure mid-cascade.
+            tmp = target.with_suffix(f".pdf.attempt.{name}.{cand_idx}")
 
-        url = loc.get("url")
-        if not url:
-            attempts.append({"source": name, "found": False, "meta_status": "no_url"})
-            continue
+            ok, reason = download_pdf(url, tmp, requests, overwrite=True)
+            if not ok:
+                attempts.append({
+                    "source": name, "found": True, "url": url,
+                    "version": cand.get("version"),
+                    "download_status": reason,
+                })
+                continue
 
-        # Try downloading
-        ok, reason = download_pdf(url, target, requests, overwrite=overwrite)
-        if not ok:
-            attempts.append({"source": name, "found": True, "url": url,
-                             "download_status": reason})
-            continue
+            v_ok, sim, extracted = verify_pdf_title(tmp, expected_title)
+            if not v_ok:
+                tmp.unlink(missing_ok=True)
+                attempts.append({
+                    "source": name, "found": True, "url": url,
+                    "version": cand.get("version"),
+                    "download_status": "ok",
+                    "verification": "rejected",
+                    "title_sim": sim,
+                    "title_extracted": (extracted or "")[:80],
+                })
+                continue
 
-        # Verify the PDF actually matches the expected paper
-        v_ok, sim, extracted = verify_pdf_title(target, expected_title)
-        if not v_ok:
-            target.unlink(missing_ok=True)
+            rank = version_rank(cand.get("version"))
             attempts.append({
                 "source": name, "found": True, "url": url,
+                "version": cand.get("version"),
                 "download_status": "ok",
-                "verification": "rejected",
+                "verification": "accepted" if sim is not None else "skipped",
                 "title_sim": sim,
-                "title_extracted": (extracted or "")[:80],
             })
-            continue
 
-        attempts.append({
-            "source": name, "found": True, "url": url,
-            "download_status": "ok",
-            "verification": "accepted" if sim is not None else "skipped",
-            "title_sim": sim,
-        })
-        return {
-            "doi": doi,
-            "status": "fetched",
-            "path": str(target.relative_to(REPO_ROOT)),
-            "source": name,
-            "license": loc.get("license"),
-            "version": loc.get("version"),
-            "title_sim": sim,
-            "attempts": attempts,
-        }
+            partial = {
+                "doi": doi,
+                "status": "fetched",
+                "source": name,
+                "license": cand.get("license"),
+                "version": cand.get("version"),
+                "title_sim": sim,
+            }
 
-    # All providers exhausted
+            if rank >= ACCEPTED_OR_BETTER:
+                # publishedVersion or acceptedVersion → done.
+                # Clean up any provisional we held back.
+                if provisional and provisional[2].exists():
+                    provisional[2].unlink(missing_ok=True)
+                return _finalize(partial, tmp)
+
+            # submittedVersion / unknown → keep as provisional,
+            # continue the cascade in case a later provider has a
+            # publishedVersion.
+            if provisional is None or rank > provisional[1]:
+                if provisional and provisional[2].exists():
+                    provisional[2].unlink(missing_ok=True)
+                provisional = (partial, rank, tmp)
+            else:
+                tmp.unlink(missing_ok=True)
+            # Within this provider, no need to keep iterating since we
+            # already have its best candidate as provisional.
+            break
+
+    # End of cascade — commit the provisional if we got one.
+    if provisional:
+        partial, rank, tmp = provisional
+        partial["note"] = ("no publishedVersion found in cascade — "
+                           f"keeping {partial.get('version') or 'unknown-version'} "
+                           f"from {partial.get('source')}")
+        return _finalize(partial, tmp)
+
+    # Nothing downloaded
     if seen_meta_status in ("paywalled", "oa_no_pdf", "not_in_unpaywall", "invalid_doi"):
         status = seen_meta_status
     else:
