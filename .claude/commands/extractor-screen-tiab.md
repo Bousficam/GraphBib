@@ -47,12 +47,24 @@ Print the plan:
 ```
 Will run:
   1. Dedupe identified CSVs            → screening/dedup.csv
-  2. Fetch missing abstracts           → updates dedup.csv (cached)
+  2. Fetch missing abstracts + heal DOIs → updates dedup.csv (cached)
+                                          + screening/reports/doi-warnings.md
   3. Screen each record (T/A only)     → screening/tiab-decisions.csv
   4. Auto-fetch PDFs of inclusions     → screening/1st-pass/raw/
   5. Write report + update PRISMA      → screening/reports/
 Proceed? [Y/n]
 ```
+
+**Prerequisite — DOI hygiene gate (recommended).** If
+`screening/reports/doi-warnings.md` does not exist (Phase 2 has not
+yet flagged any DOI issues) AND `dedup.csv` is already populated
+with rows, suggest running `/extractor-screen-validate <project>`
+first — it surfaces wrong-paper DOIs and `anon-YYYY` slugs BEFORE
+the T/A pass commits decisions. If the user declines, proceed —
+Phase 2 below runs the same DOI healing under the hood, and the
+screener-tiab agent's Step 0 will still auto-mark `uncertain` for
+mismatches. The standalone validate command is faster (no abstract
+cascade) and surfaces issues in a dedicated audit gate.
 
 ## Phase 1 — Deduplicate
 
@@ -100,6 +112,12 @@ For each row in `dedup.csv` (capped by `--limit` if given), spawn
 - the project's `criteria.md` path
 - the project's `background/notes.md` path (or nothing if absent / empty)
 - the row's slug, title, abstract, year, journal, authors, doi, pmid
+- the row's DOI hygiene flags: `doi_status`, `doi_title_match`,
+  `doi_year_match` (when present — these columns are populated by
+  Phase 2 or by an explicit `/extractor-screen-validate` run). The
+  agent's Step 0 uses them to auto-mark `uncertain` when the DOI
+  resolves to a wrong-paper title — saves a full-text fetch on a
+  paper that isn't what the abstract claims it is.
 
 The sub-agent returns one line: `<decision> | <reason> | <side_use>`.
 Parse it strictly:

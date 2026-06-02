@@ -37,6 +37,33 @@ results into `screening/fulltext-decisions.csv`.
 If the body is missing or empty, return `uncertain | body-unavailable | `
 and stop.
 
+# DOI hygiene cross-check (NEW)
+
+Before walking the criteria, the orchestrator gives you the row's
+DOI hygiene flags from `dedup.csv` (`doi_status`,
+`doi_title_match`, `doi_year_match`). These came from the
+`/extractor-screen-validate` pass that runs between T/A and
+full-text screening.
+
+  - If `doi_title_match == false`, the body you've been handed may
+    NOT be the paper the CSV row claims. Spot-check: compare the
+    article's title (in the MD's first heading or frontmatter) to
+    the row's `title` field. If they clearly describe different
+    studies, return
+    `exclude | wrong-pdf-fetched ; "<MD title>" vs CSV "<row title>" ; Title heading | `
+    and stop. The orchestrator will surface this for the user to
+    manually re-fetch the correct PDF.
+  - If `doi_status == invalid` AND the body's content (title,
+    references, journal name) doesn't match the row's metadata →
+    same outcome: `wrong-pdf-fetched` exclusion.
+  - If the titles match despite a `doi_title_match=false` flag (the
+    user manually re-fetched the right PDF after the validation
+    audit), proceed normally — your eyes on the body are the source
+    of truth at this stage.
+
+If the row has no `doi_status` column or it's empty, the validation
+pass hasn't run — proceed normally (legacy behavior).
+
 # Decision values
 
 At full text, `uncertain` is much rarer than at T/A — the body should

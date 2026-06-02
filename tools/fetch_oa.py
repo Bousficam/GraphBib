@@ -69,24 +69,17 @@ def slugify(s, max_len=60):
     return s[:max_len] or "unknown"
 
 
-def crossref_slug(doi, requests):
+# crossref_slug now lives in tools/crossref.py (shared cache, single
+# Crossref hit per DOI across the whole repo). The wrapper below
+# preserves the old (doi, requests) signature for backward compat —
+# the `requests` argument is ignored because the shared helper does
+# its own lazy import.
+from crossref import crossref_slug as _shared_crossref_slug  # noqa: E402
+
+
+def crossref_slug(doi, requests=None):
     """Return '<first-author-family>-<year>' or None on failure."""
-    try:
-        r = requests.get(
-            f"https://api.crossref.org/works/{quote(doi, safe='/:')}",
-            headers={"User-Agent": f"graphbib/0.1 (mailto:{DEFAULT_EMAIL})"},
-            timeout=10,
-        )
-        r.raise_for_status()
-        msg = r.json()["message"]
-        first_author = (msg.get("author") or [{}])[0]
-        family = first_author.get("family") or first_author.get("name") or "unknown"
-        year = "0000"
-        if msg.get("issued", {}).get("date-parts"):
-            year = str(msg["issued"]["date-parts"][0][0])
-        return f"{slugify(family)}-{year}"
-    except Exception:
-        return None
+    return _shared_crossref_slug(doi)
 
 
 def unpaywall_lookup(doi, requests):

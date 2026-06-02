@@ -84,6 +84,13 @@ Spawn `screener-fulltext` with:
 - the article's slug
 - the article MD path
   (`project-review/<vault>/<name>/screening/1st-pass/markdown/<slug>.md`)
+- the row's title and DOI hygiene flags from `dedup.csv`
+  (`doi_status`, `doi_title_match`, `doi_year_match`). The
+  sub-agent's DOI cross-check uses these to detect wrong-PDF
+  situations: a flagged title mismatch + a body whose title clearly
+  describes a different paper → returns `exclude |
+  wrong-pdf-fetched | ` and the orchestrator surfaces the slug for
+  manual re-fetch.
 
 The sub-agent returns ONE line:
 

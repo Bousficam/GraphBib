@@ -138,6 +138,26 @@ For each candidate record, walk these checks IN ORDER and return at
 the first match. After deciding `decision`, also assess `<side_use>`
 if and only if `decision = exclude` (Step 10 below).
 
+**Step 0 — DOI hygiene gate (NEW).** Before reading the abstract,
+check the row's DOI hygiene flags (provided by
+`/extractor-screen-validate`, columns `doi_status` and
+`doi_title_match`):
+
+  - If `doi_title_match == false` → return
+    `uncertain | doi-title-mismatch | ` immediately. The CSV says one
+    title, the DOI resolves to a different paper — the abstract
+    you're about to read might be for the wrong study. The audit gate
+    will surface this for manual review.
+  - If `doi_status == invalid` AND the abstract is missing →
+    `uncertain | doi-invalid-no-abstract | `. We can't fetch a real
+    abstract for a fictitious DOI, so any "abstract" present is
+    suspect.
+  - Otherwise (status is `valid`, `recovered`, `unverifiable`, or
+    `missing` with an abstract present) → continue to step 1.
+
+If the row has no `doi_status` column or the field is empty, the
+validation pass hasn't run — proceed normally (legacy behavior).
+
 1. **Empty abstract AND non-descriptive title** → `uncertain | abstract-missing | `
 2. **Inclusion: study design** — if `criteria.md` constrains design
    (e.g. RCT only), and title/abstract clearly states a different

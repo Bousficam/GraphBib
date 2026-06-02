@@ -1,26 +1,53 @@
 #!/usr/bin/env python3
-"""Fetch missing title + abstract for each row of `screening/dedup.csv`.
+"""Fetch missing metadata AND validate DOIs for each row of `screening/dedup.csv`.
 
-Cascade per record (stops at first success):
-    1. PubMed E-utilities (efetch) — when PMID is known.
-    2. OpenAlex                  — when DOI is known (or PMID -> DOI lookup).
-    3. Crossref                  — when DOI is known.
+Three passes, each idempotent and cached:
 
-Only records whose abstract is empty are queried. Existing abstracts
-are preserved verbatim. Title is upgraded only when missing.
+  1. **Abstract cascade**  — PubMed → OpenAlex → Crossref, fills the
+     row's title/abstract/journal/doi when missing. (Existing behavior.)
 
-Writes back into the same `dedup.csv` and appends a per-DOI status to
-`screening/reports/metadata-log.md`.
+  2. **DOI healing**       — for every row:
+        - missing DOI → `crossref_search(title + first_author + year)` →
+          set DOI + flag `doi_status=recovered`
+        - present DOI → `crossref_validate(doi)` → flag
+          `doi_status=valid|invalid`
+        - present + valid → cross-check title (SequenceMatcher) and
+          year (±1) against Crossref metadata; set `doi_title_match`
+          and `doi_year_match`.
+
+  3. **Slug rehab**         — re-derive slugs for rows that came out
+     of dedup as `anon-<year>` (missing first-author) but now have a
+     valid/recovered DOI. Uses `crossref_slug(doi)` → `<family>-<year>`,
+     handles collisions, writes a `slug_renames.csv` audit trail.
+
+Pass 3 is **locked** once `tiab-decisions.csv` exists for the project
+— renaming slugs after screening has started would break the
+decision trail. The DOI healing pass still runs, only the slug
+rewrite is skipped (warnings are logged so the user can rename
+manually if they wish).
+
+Cache is shared with all other GraphBib tools via
+`tools/.cache/crossref.json` (managed by `tools/crossref.py`).
+Re-runs only hit Crossref for new/changed DOIs.
+
+Outputs in `screening/reports/`:
+    metadata-log.md     - cascade fetch results
+    doi-warnings.md     - per-row DOI hygiene findings (only when issues found)
+    slug-renames.csv    - audit trail for slug rehab (only when renames occurred)
 
 Usage:
-    python tools/screen_fetch_metadata.py project-review/<name>
-    python tools/screen_fetch_metadata.py project-review/<name> --force
-        # --force: refetch even when abstract is already present.
+    python tools/screen_fetch_metadata.py project-review/<vault>/<name>
+        # Full run: abstract cascade + DOI healing + slug rehab.
 
-Set UNPAYWALL_EMAIL or CROSSREF_EMAIL in env to identify your client
-(polite pool — recommended by the providers).
+    python tools/screen_fetch_metadata.py project-review/<vault>/<name> --validate-only
+        # Skip the abstract cascade, only run DOI healing + slug rehab.
+        # Used by /extractor-screen-validate as the gate between
+        # /extractor-screen-init and /extractor-screen-tiab.
 
-Cached in tools/.cache/screen_metadata.json (keyed by doi|pmid).
+    python tools/screen_fetch_metadata.py project-review/<vault>/<name> --force
+        # Refetch abstracts even when present + re-validate every DOI.
+
+Set CROSSREF_EMAIL (or UNPAYWALL_EMAIL) in env for the polite pool.
 """
 import argparse
 import csv
@@ -34,8 +61,24 @@ from urllib.parse import quote
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).parent))
+from crossref import (  # noqa: E402
+    MIN_TITLE_MATCH,
+    crossref_metadata,
+    crossref_search,
+    crossref_slug,
+    crossref_validate,
+    load_cache,
+    normalize_doi,
+    save_cache,
+    title_similarity,
+)
+
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
+# Abstract-fetch cache (independent of the Crossref-only cache that
+# crossref.py manages, because abstract bodies are heavier than DOI
+# yes/no answers and we want to evict them separately if needed).
 CACHE_FILE = CACHE_DIR / "screen_metadata.json"
 
 EMAIL = (
@@ -49,7 +92,7 @@ TIMEOUT = 20
 RETRY_SLEEP = 1.0
 
 
-def load_cache():
+def load_abstract_cache():
     if CACHE_FILE.exists():
         try:
             return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
@@ -58,13 +101,13 @@ def load_cache():
     return {}
 
 
-def save_cache(cache):
+def save_abstract_cache(cache):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 # ----------------------------------------------------------------------
-# Providers
+# Abstract-fetch providers (unchanged from before this refactor)
 
 def fetch_pubmed(pmid):
     """Return dict with title, abstract, journal, doi (best-effort)."""
@@ -80,19 +123,14 @@ def fetch_pubmed(pmid):
     xml = r.text
 
     def grab(tag, after=""):
-        # Tolerant of attributes on the opening tag.
-        m = re.search(
-            rf"{after}<{tag}[^>]*>(.*?)</{tag}>", xml, re.S
-        )
+        m = re.search(rf"{after}<{tag}[^>]*>(.*?)</{tag}>", xml, re.S)
         return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else ""
 
     title = grab("ArticleTitle")
     abs_chunks = re.findall(r"<AbstractText[^>]*>(.*?)</AbstractText>", xml, re.S)
     abstract = " ".join(re.sub(r"<[^>]+>", "", c).strip() for c in abs_chunks)
     journal = grab("Title") or grab("ISOAbbreviation")
-    doi_m = re.search(
-        r'<ArticleId IdType="doi">([^<]+)</ArticleId>', xml
-    )
+    doi_m = re.search(r'<ArticleId IdType="doi">([^<]+)</ArticleId>', xml)
     return {
         "title": title,
         "abstract": abstract,
@@ -103,7 +141,6 @@ def fetch_pubmed(pmid):
 
 
 def _decode_openalex_abstract(inv_index):
-    """OpenAlex stores abstracts as {word: [positions]}."""
     if not inv_index:
         return ""
     words = []
@@ -157,7 +194,7 @@ def fetch_crossref(doi):
 
 
 def fetch_one(rec, cache, force=False):
-    """Try the cascade. Return (updated_rec, status_str)."""
+    """Cascade for missing abstracts. Returns (updated_rec, status_str)."""
     doi = (rec.get("doi") or "").strip().lower()
     pmid = (rec.get("pmid") or "").strip()
     have_abs = bool(rec.get("abstract"))
@@ -169,14 +206,12 @@ def fetch_one(rec, cache, force=False):
         meta = cache[cache_key]
     else:
         meta = None
-        # 1. PubMed
         if pmid:
             try:
                 meta = fetch_pubmed(pmid)
             except Exception:
                 meta = None
-            time.sleep(0.34)  # NCBI: max 3 req/s without API key
-        # 2. OpenAlex
+            time.sleep(0.34)  # NCBI: 3 req/s without API key
         if not meta or not meta.get("abstract"):
             try:
                 m2 = fetch_openalex(doi=doi or None, pmid=pmid or None)
@@ -184,7 +219,6 @@ def fetch_one(rec, cache, force=False):
                     meta = m2
             except Exception:
                 pass
-        # 3. Crossref
         if (not meta or not meta.get("abstract")) and doi:
             try:
                 m3 = fetch_crossref(doi)
@@ -199,7 +233,6 @@ def fetch_one(rec, cache, force=False):
     if not meta:
         return rec, "not_found"
 
-    # Merge — never overwrite non-empty user fields unless --force
     out = dict(rec)
     for k in ("title", "abstract", "journal", "doi"):
         v = (meta.get(k) or "").strip()
@@ -214,15 +247,188 @@ def fetch_one(rec, cache, force=False):
 
 
 # ----------------------------------------------------------------------
+# Pass 2 — DOI healing (recover missing, validate present, cross-check)
+
+def heal_doi(rec, cf_cache):
+    """Recover/validate the DOI and cross-check title + year.
+
+    Mutates `rec` in place. Sets these columns on the row:
+        doi (possibly recovered)
+        doi_status        ∈ {valid, recovered, invalid, unverifiable, missing}
+        doi_title_match   ∈ {true, false, ""}
+        doi_year_match    ∈ {true, false, ""}
+
+    Returns a list of (level, message) warnings for the report.
+    """
+    warnings = []
+    title = (rec.get("title") or "").strip()
+    year = (rec.get("year") or "").strip()
+    first_author = (rec.get("first_author") or "").strip()
+    doi = normalize_doi(rec.get("doi") or "")
+    slug = rec.get("slug", "?")
+
+    if not doi:
+        query_bits = [t for t in (title, first_author, year) if t]
+        query = " ".join(query_bits).strip()
+        if len(query) >= 12:
+            recovered = crossref_search(query, cache=cf_cache)
+            if recovered:
+                rec["doi"] = recovered
+                rec["doi_status"] = "recovered"
+                doi = recovered
+                warnings.append(("info", f"`{slug}`: recovered DOI `{recovered}` via Crossref search."))
+            else:
+                rec["doi_status"] = "missing"
+                warnings.append(("warn", f"`{slug}`: no DOI in CSV and Crossref search returned nothing."))
+        else:
+            rec["doi_status"] = "missing"
+            warnings.append(("warn", f"`{slug}`: too little metadata to recover DOI (title='{title[:60]}', author='{first_author}', year='{year}')."))
+    else:
+        if crossref_validate(doi, cache=cf_cache):
+            rec["doi_status"] = "valid"
+        else:
+            rec["doi_status"] = "invalid"
+            warnings.append(("error", f"`{slug}`: DOI `{doi}` is NOT recognized by Crossref. Likely a malformed or fictitious identifier."))
+
+    if doi and rec["doi_status"] in ("valid", "recovered"):
+        md = crossref_metadata(doi, cache=cf_cache)
+        if not md:
+            rec["doi_status"] = "unverifiable"
+            warnings.append(("warn", f"`{slug}`: Crossref returned the DOI but no metadata for cross-check (rare)."))
+        else:
+            ct = md.get("title", "")
+            cy = md.get("year", "")
+            if title and ct:
+                sim = title_similarity(title, ct)
+                if sim >= MIN_TITLE_MATCH:
+                    rec["doi_title_match"] = "true"
+                else:
+                    rec["doi_title_match"] = "false"
+                    warnings.append((
+                        "error",
+                        f"`{slug}`: title mismatch (similarity={sim:.2f}).\n"
+                        f"    CSV says    : {title[:100]}\n"
+                        f"    Crossref DOI: {ct[:100]}"
+                    ))
+            if year and cy:
+                try:
+                    rec["doi_year_match"] = "true" if abs(int(year) - int(cy)) <= 1 else "false"
+                    if rec["doi_year_match"] == "false":
+                        warnings.append((
+                            "warn",
+                            f"`{slug}`: year mismatch (CSV={year}, Crossref={cy})."
+                        ))
+                except ValueError:
+                    rec["doi_year_match"] = ""
+    return warnings
+
+
+# ----------------------------------------------------------------------
+# Pass 3 — Slug rehab
+
+def rehab_slugs(records, cf_cache):
+    """Re-derive `anon-YYYY` slugs from now-valid DOIs.
+
+    Mutates records in place (slug + slug_rehabilitated). Returns a
+    list of (old_slug, new_slug, doi) tuples for the audit trail.
+    """
+    existing_slugs = {r.get("slug") for r in records}
+    renames = []
+
+    for r in records:
+        slug = r.get("slug", "") or ""
+        doi = r.get("doi", "") or ""
+        if not slug.startswith("anon-") or not doi:
+            continue
+        if r.get("doi_status") not in ("valid", "recovered"):
+            continue
+        new = crossref_slug(doi, cache=cf_cache)
+        if not new or new == slug:
+            continue
+
+        candidate = new
+        n = 1
+        while candidate in existing_slugs:
+            n += 1
+            candidate = f"{new}-{n}"
+
+        existing_slugs.discard(slug)
+        existing_slugs.add(candidate)
+        r["slug"] = candidate
+        r["slug_rehabilitated"] = "true"
+        renames.append((slug, candidate, doi))
+
+    return renames
+
+
+# ----------------------------------------------------------------------
+# Reports
+
+def write_doi_warnings(warnings, out_path):
+    """Markdown summary, grouped by severity. Skipped when there are no issues."""
+    by_level = {"error": [], "warn": [], "info": []}
+    for level, msg in warnings:
+        by_level.setdefault(level, []).append(msg)
+    if not (by_level["error"] or by_level["warn"]):
+        # No actionable issues — don't pollute reports/ with an empty file
+        if out_path.exists():
+            out_path.unlink()
+        return False
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["# DOI hygiene warnings", ""]
+    lines.append("This pass cross-checks every DOI against Crossref:")
+    lines.append("- recovers missing DOIs via bibliographic search,")
+    lines.append("- validates present DOIs against Crossref's agency endpoint,")
+    lines.append("- compares Crossref's canonical title + year to the CSV row.")
+    lines.append("")
+    lines.append(f"**ERROR**: {len(by_level['error'])} — likely wrong-paper or fictitious DOI.")
+    lines.append(f"**WARN** : {len(by_level['warn'])} — missing or unverifiable DOI.")
+    lines.append(f"**INFO** : {len(by_level['info'])} — DOIs recovered successfully.")
+    lines.append("")
+    lines.append("Audit each ERROR before running `/extractor-screen-tiab` —")
+    lines.append("the screener-tiab agent will auto-default to `uncertain` for any")
+    lines.append("row with `doi_title_match=false`, so an audit here saves an")
+    lines.append("extra full-text fetch later.")
+    lines.append("")
+    for level in ("error", "warn", "info"):
+        if not by_level[level]:
+            continue
+        lines.append(f"## {level.upper()}")
+        lines.append("")
+        for msg in by_level[level]:
+            lines.append(f"- {msg}")
+        lines.append("")
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    return True
+
+
+def write_slug_renames(renames, out_path):
+    if not renames:
+        if out_path.exists():
+            out_path.unlink()
+        return False
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["old_slug", "new_slug", "doi"])
+        for row in renames:
+            w.writerow(row)
+    return True
+
+
+# ----------------------------------------------------------------------
 # CLI
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("project", help="Path to project-review/<name>/")
+    ap.add_argument("project", help="Path to project-review/<vault>/<name>/")
     ap.add_argument("--force", action="store_true",
-                    help="Refetch even when abstract is present (overwrites).")
+                    help="Refetch abstracts + re-validate DOIs even when present.")
     ap.add_argument("--limit", type=int, default=None,
-                    help="Stop after N fetches (for smoke-test).")
+                    help="Stop the abstract cascade after N fetches (smoke-test only — DOI healing still runs on all rows).")
+    ap.add_argument("--validate-only", action="store_true",
+                    help="Skip the abstract cascade; only run DOI healing + slug rehab.")
     args = ap.parse_args()
 
     project = Path(args.project).resolve()
@@ -235,45 +441,105 @@ def main():
         fieldnames = reader.fieldnames or []
         records = list(reader)
 
-    cache = load_cache()
-    status_counts = {}
+    # Ensure new DOI hygiene columns exist in the header even on
+    # legacy dedup.csv files (back-compat for projects that ran
+    # screen_dedupe.py before this refactor).
+    for col in ("doi_status", "doi_title_match", "doi_year_match", "slug_rehabilitated"):
+        if col not in fieldnames:
+            fieldnames.append(col)
+        for r in records:
+            r.setdefault(col, "")
+
+    # ── Pass 1 — abstract cascade ────────────────────────────────────────
+    abs_status_counts = {}
     log_lines = ["# Metadata fetch log", ""]
     fetched = 0
+    if not args.validate_only:
+        abs_cache = load_abstract_cache()
+        for r in records:
+            if args.limit is not None and fetched >= args.limit:
+                break
+            before_abs = (r.get("abstract") or "").strip()
+            new_rec, status = fetch_one(r, abs_cache, force=args.force)
+            r.update(new_rec)
+            abs_status_counts[status] = abs_status_counts.get(status, 0) + 1
+            if status != "already_had_abstract":
+                fetched += 1
+                slug = r.get("slug", "?")
+                log_lines.append(f"- `{slug}` ({r.get('doi') or r.get('pmid') or 'no-id'}): {status}")
+                after_abs = (r.get("abstract") or "").strip()
+                if not before_abs and not after_abs:
+                    log_lines.append("  - abstract: still empty after cascade")
+        save_abstract_cache(abs_cache)
+
+    # ── Pass 2 — DOI healing ─────────────────────────────────────────────
+    cf_cache = load_cache()
+    doi_warnings = []
+    doi_status_counts = {}
     for r in records:
-        if args.limit is not None and fetched >= args.limit:
-            break
-        before_abs = (r.get("abstract") or "").strip()
-        new_rec, status = fetch_one(r, cache, force=args.force)
-        r.update(new_rec)
-        status_counts[status] = status_counts.get(status, 0) + 1
-        if status != "already_had_abstract":
-            fetched += 1
-            slug = r.get("slug", "?")
-            log_lines.append(f"- `{slug}` ({r.get('doi') or r.get('pmid') or 'no-id'}): {status}")
-            after_abs = (r.get("abstract") or "").strip()
-            if not before_abs and not after_abs:
-                log_lines.append("  - abstract: still empty after cascade")
+        if args.force:
+            # Force re-validation — clear cached flags
+            r["doi_status"] = ""
+            r["doi_title_match"] = ""
+            r["doi_year_match"] = ""
+        if r.get("doi_status") and not args.force:
+            # Already healed on a previous run — skip the Crossref hit
+            doi_status_counts[r["doi_status"]] = doi_status_counts.get(r["doi_status"], 0) + 1
+            continue
+        warnings = heal_doi(r, cf_cache)
+        doi_warnings.extend(warnings)
+        doi_status_counts[r.get("doi_status", "")] = doi_status_counts.get(r.get("doi_status", ""), 0) + 1
+    save_cache(cf_cache)
 
-    save_cache(cache)
+    # ── Pass 3 — slug rehab (gated on no existing decisions) ─────────────
+    tiab_csv = project / "screening" / "tiab-decisions.csv"
+    if tiab_csv.exists() and tiab_csv.stat().st_size > 0:
+        renames = []
+        slug_rehab_status = "locked (tiab-decisions.csv exists)"
+    else:
+        renames = rehab_slugs(records, cf_cache)
+        save_cache(cf_cache)
+        slug_rehab_status = f"ran ({len(renames)} renamed)"
 
+    # ── Write outputs ────────────────────────────────────────────────────
     with open(dedup, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         w.writerows(records)
 
-    log_path = project / "screening" / "reports" / "metadata-log.md"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_lines.append("")
-    log_lines.append("## Counts")
-    for k, v in sorted(status_counts.items()):
-        log_lines.append(f"- {k}: {v}")
-    log_path.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+    if not args.validate_only:
+        log_path = project / "screening" / "reports" / "metadata-log.md"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_lines.append("")
+        log_lines.append("## Counts")
+        for k, v in sorted(abs_status_counts.items()):
+            log_lines.append(f"- {k}: {v}")
+        log_path.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
 
-    print(f"✓ Records   : {len(records)}")
-    for k, v in sorted(status_counts.items()):
-        print(f"  {k}: {v}")
-    print(f"✓ Wrote     {dedup.relative_to(project.parent)}")
-    print(f"✓ Log       {log_path.relative_to(project.parent)}")
+    warnings_path = project / "screening" / "reports" / "doi-warnings.md"
+    wrote_warnings = write_doi_warnings(doi_warnings, warnings_path)
+
+    renames_path = project / "screening" / "slug-renames.csv"
+    wrote_renames = write_slug_renames(renames, renames_path)
+
+    # ── Console summary ──────────────────────────────────────────────────
+    print(f"✓ Records       : {len(records)}")
+    if not args.validate_only:
+        print("  Abstract pass:")
+        for k, v in sorted(abs_status_counts.items()):
+            print(f"    {k}: {v}")
+    print("  DOI healing  :")
+    for k, v in sorted(doi_status_counts.items(), key=lambda x: (-x[1], x[0])):
+        print(f"    {k or '(uncategorized)'}: {v}")
+    print(f"  Slug rehab   : {slug_rehab_status}")
+    print(f"✓ Wrote         {dedup.relative_to(project.parent)}")
+    if wrote_warnings:
+        n_err = sum(1 for lvl, _ in doi_warnings if lvl == "error")
+        n_warn = sum(1 for lvl, _ in doi_warnings if lvl == "warn")
+        print(f"⚠ DOI warnings  {warnings_path.relative_to(project.parent)}"
+              f"  ({n_err} errors, {n_warn} warnings — audit before /extractor-screen-tiab)")
+    if wrote_renames:
+        print(f"✓ Slug renames  {renames_path.relative_to(project.parent)} ({len(renames)} rows)")
 
 
 if __name__ == "__main__":

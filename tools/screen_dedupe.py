@@ -56,6 +56,14 @@ COL_ALIASES = {
 CANONICAL_COLS = [
     "slug", "doi", "pmid", "title", "authors", "first_author",
     "year", "journal", "abstract", "source_dbs", "merged_count", "merged_from",
+    # DOI hygiene columns — populated by screen_fetch_metadata.py
+    # (see /extractor-screen-validate). Always emitted so the schema is
+    # stable across runs; left empty when the validation pass hasn't
+    # run yet.
+    "doi_status",        # valid | recovered | invalid | unverifiable | missing
+    "doi_title_match",   # true | false | "" (when no DOI or no title)
+    "doi_year_match",    # true | false | ""
+    "slug_rehabilitated",  # true | "" (anon-YYYY → <family>-YYYY)
 ]
 
 

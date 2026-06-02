@@ -45,8 +45,19 @@ from urllib.parse import quote
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).parent))
+from crossref import (  # noqa: E402
+    crossref_search,
+    crossref_validate,
+    load_cache,
+    save_cache,
+    title_overlap,
+)
+
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
+# Legacy cache file kept for migration — the new shared cache is
+# tools/.cache/crossref.json (managed by tools/crossref.py).
 CACHE_FILE = CACHE_DIR / "doi_validation.json"
 
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
@@ -134,93 +145,17 @@ def split_references(refs_text):
     return [e for e in entries if len(e) >= MIN_ENTRY_LEN]
 
 
-# ---------- cache -----------------------------------------------------------
-
-def load_cache():
-    if CACHE_FILE.exists():
-        try:
-            return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
-
-
-def save_cache(cache):
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    CACHE_FILE.write_text(
-        json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-
-
-# ---------- Crossref API ----------------------------------------------------
-
-def crossref_validate(doi, cache):
-    """Return True if Crossref recognizes the DOI.
-
-    Uses /works/{doi}/agency (lightweight). Caches definitive results
-    (200/404) but not transient errors — we stay optimistic on network
-    failure to avoid losing legitimate DOIs.
-    """
-    if doi in cache:
-        return cache[doi]
-    import requests
-
-    for attempt in range(2):
-        try:
-            r = requests.get(
-                f"https://api.crossref.org/works/{quote(doi, safe='/:')}/agency",
-                timeout=10,
-                headers={"User-Agent": USER_AGENT},
-            )
-            time.sleep(SLEEP_BETWEEN)
-            if r.status_code == 200:
-                cache[doi] = True
-                return True
-            if r.status_code == 404:
-                cache[doi] = False
-                return False
-            time.sleep(0.5)
-        except Exception:
-            time.sleep(0.5)
-    # Non-cached — optimistic on transient failure.
-    return True
-
-
-def title_overlap(a, b):
-    ta = set(re.findall(r"\w{4,}", (a or "").lower()))
-    tb = set(re.findall(r"\w{4,}", (b or "").lower()))
-    if not ta or not tb:
-        return 0.0
-    return len(ta & tb) / min(len(ta), len(tb))
-
-
-def crossref_search(query):
-    """Free-text bibliographic search. Returns DOI string or None."""
-    import requests
-
-    try:
-        r = requests.get(
-            "https://api.crossref.org/works",
-            params={"query.bibliographic": query[:500], "rows": 3},
-            timeout=15,
-            headers={"User-Agent": USER_AGENT},
-        )
-        time.sleep(SLEEP_BETWEEN)
-        r.raise_for_status()
-        items = r.json()["message"].get("items") or []
-    except Exception:
-        return None
-    if not items:
-        return None
-    best = items[0]
-    score = best.get("score") or 0.0
-    if score < MIN_SCORE:
-        return None
-    title = (best.get("title") or [""])[0]
-    if title_overlap(query, title) < MIN_TITLE_OVERLAP:
-        return None
-    doi = (best.get("DOI") or "").lower()
-    return doi or None
+# ---------- cache + Crossref API (moved to tools/crossref.py) ----------------
+#
+# Cache is shared across all GraphBib tools via `tools/.cache/crossref.json`
+# (managed by `tools/crossref.py`). The legacy `doi_validation.json` file
+# is no longer read or written — re-runs after this refactor pay one
+# Crossref hit per DOI to repopulate the new cache, then are free
+# forever.
+#
+# `crossref_validate`, `crossref_search`, `load_cache`, `save_cache`,
+# and `title_overlap` are imported from `crossref` at the top of this
+# file.
 
 
 # ---------- per-source pipeline ---------------------------------------------
