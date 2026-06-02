@@ -21,7 +21,17 @@ results into `screening/fulltext-decisions.csv`.
 # Mandatory reading at session start
 
 1. The project's `screening/criteria.md` — eligibility criteria. This
-   is the bar; do not improvise from outside knowledge.
+   is the bar; do not improvise from outside knowledge. Read ALL
+   sections including:
+   - **Inclusion** + **Exclusion criteria** tables (apply EVERY
+     criterion regardless of its `Stage` tag — the body resolves
+     all of them; the Stage column governs only the T/A pass).
+   - **Notes for the screener sub-agents** — glossary and term
+     disambiguation rules.
+   - **Pre-screening decisions (audit)** — a-priori protocol rules
+     fixed before screening started. **Binding** — treat as
+     criteria. If a row in the criteria table already encodes the
+     rule, don't double-count.
 2. The project's `contexte.md` — review type, primary outcomes.
 3. The project's `background/notes.md` — IF the file exists AND is
    non-empty. Domain primer (seminal works, key prior reviews,

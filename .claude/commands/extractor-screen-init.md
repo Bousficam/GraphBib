@@ -198,7 +198,40 @@ Q7 — Any other criterion the screening agent must apply?
 
 Wait. Then:
 
-### Q8 — Stage of testability (per criterion)
+### Q8 — A-priori protocol decisions
+
+Some choices have to be FIXED before screening starts, not
+discovered in the middle of it — they shape the population of
+includes and must be documented in the protocol for PRISMA
+auditability.
+
+Open question (domain-neutral):
+
+```
+Q8 — A-priori protocol decisions
+
+Are there any measurement / timing / dose / sampling rules you
+need to commit to BEFORE screening starts, so the screening
+agents apply them consistently?
+
+Examples of the shape of answers (NOT a list of recommended
+decisions — fill from your own protocol):
+   • "outcome must be measured pre AND post (not just post)"
+   • "follow-up at ≥ 4 weeks required"
+   • "minimum N per arm = 10"
+   • "exclude crossover designs (only parallel-group)"
+   • "treat 'BCI' and 'brain-computer interface' as synonyms"
+
+Type each rule on its own line. Empty / "none" is acceptable —
+you can add decisions later by appending to the
+"Pre-screening decisions (audit)" section of criteria.md.
+
+Your rules?
+```
+
+Wait. Then:
+
+### Q9 — Stage of testability (per criterion)
 
 PRISMA is two sieves with **opposite default behaviors**:
 - TITLE/ABSTRACT pass = permissive (sensitivity-first; "when in
@@ -216,7 +249,7 @@ Walk through every criterion you defined in Q1–Q7 (PICO + design +
 hard filters + free-form). For each, ask the user:
 
 ```
-Q8 — Stage for criterion `<tag>` ("<short text>")
+Q9 — Stage for criterion `<tag>` ("<short text>")
 
   tiab      Reliably checkable from title + abstract alone. The
             screener-tiab agent can EXCLUDE on this criterion when
@@ -273,40 +306,60 @@ Format:
 
 | Tag | Stage | Criterion |
 |---|---|---|
-| `eligible-design`        | <from Q8> | <from Q5 — included designs> |
-| `eligible-population`    | <from Q8> | <from Q1 — included population> |
-| `eligible-intervention`  | <from Q8> | <from Q2 — included intervention> |
-| `eligible-comparator`    | <from Q8> | <from Q3 — comparator requirement> |
-| `eligible-outcome`       | <from Q8> | <from Q4 — required outcome> |
+| `eligible-design`        | <from Q9> | <from Q5 — included designs> |
+| `eligible-population`    | <from Q9> | <from Q1 — included population> |
+| `eligible-intervention`  | <from Q9> | <from Q2 — included intervention> |
+| `eligible-comparator`    | <from Q9> | <from Q3 — comparator requirement> |
+| `eligible-outcome`       | <from Q9> | <from Q4 — required outcome> |
 
 ## Exclusion criteria
 
 (Listed in the ORDER the screener should evaluate. Tag = mnemonic
 label the screener uses in its decision output. Stage = the
 earliest pass at which the criterion can be reliably checked —
-`tiab`, `fulltext`, or `both`; see Q8.)
+`tiab`, `fulltext`, or `both`; see Q9.)
 
 | # | Tag | Stage | Criterion | Verifiable from |
 |---|---|---|---|---|
-| 1 | `wrong-population`   | <from Q8> | <verbatim — derived from Q1>     | Methods §Participants |
-| 2 | `not-<design>`       | <from Q8> | <e.g. `not-RCT`, derived from Q5>| Methods §Study design |
-| 3 | `wrong-intervention` | <from Q8> | <derived from Q2>                | Methods §Intervention |
-| 4 | `no-comparator`      | <from Q8> | <derived from Q3, if applicable> | Methods §Study design |
-| 5 | `wrong-outcome`      | <from Q8> | <derived from Q4>                | Methods §Outcomes / Results |
-| 6 | `non-english`        | <from Q8> | <if applicable from Q6>          | metadata / first page |
-| 7 | `pre-<year>`         | <from Q8> | <if applicable from Q6>          | metadata |
-| 8 | `wrong-pub-type`     | <from Q8> | <e.g. conference abstract only>  | metadata / DOI prefix |
-| 9 | <free-form from Q7>  | <from Q8> | <verbatim>                       | <where to look> |
+| 1 | `wrong-population`   | <from Q9> | <verbatim — derived from Q1>     | Methods §Participants |
+| 2 | `not-<design>`       | <from Q9> | <e.g. `not-RCT`, derived from Q5>| Methods §Study design |
+| 3 | `wrong-intervention` | <from Q9> | <derived from Q2>                | Methods §Intervention |
+| 4 | `no-comparator`      | <from Q9> | <derived from Q3, if applicable> | Methods §Study design |
+| 5 | `wrong-outcome`      | <from Q9> | <derived from Q4>                | Methods §Outcomes / Results |
+| 6 | `non-english`        | <from Q9> | <if applicable from Q6>          | metadata / first page |
+| 7 | `pre-<year>`         | <from Q9> | <if applicable from Q6>          | metadata |
+| 8 | `wrong-pub-type`     | <from Q9> | <e.g. conference abstract only>  | metadata / DOI prefix |
+| 9 | <free-form from Q7>  | <from Q9> | <verbatim>                       | <where to look> |
 
 ## Notes for the screener sub-agents
 
+> Glossary, term disambiguation, and any non-criterion rule from
+> Q8 that the sub-agents must apply consistently.
+
 - <if Q5 requires a specific N per arm, state it here>
 - <if Q4 requires a specific timepoint, state it here>
+- <Q8 — interpretation rules (synonyms, term equivalences, parsing
+  conventions). Operational rules from Q8 that have an exclusion
+  tag should be in the table above instead.>
 - <any other domain prior that disambiguates a tag>
 
 ## Pre-screening decisions (audit)
 
-(Append-only — fill as decisions evolve mid-screening.)
+> A-priori rules fixed BEFORE screening (Q8). New decisions taken
+> mid-screening MUST also be appended here with a date and a
+> rationale — PRISMA requires this audit trail.
+
+### Fixed at protocol time (from /extractor-screen-init Q8)
+
+<one bullet per rule from Q8 — verbatim user answer>
+- <rule 1>
+- <rule 2>
+- …
+
+(If Q8 was answered "none", write `_No a-priori rules beyond
+PICO + criteria above._`)
+
+### Decisions taken mid-screening (append-only)
 
 - **YYYY-MM-DD** — <criterion> — <decision> (<rationale>)
 ```

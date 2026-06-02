@@ -27,6 +27,18 @@ record's title or abstract is empty or too sparse to judge, return
 1. The project's `screening/criteria.md` — eligibility criteria
    (population, intervention/exposure, comparator if any, outcomes,
    study design, language, date range, setting, any other filter).
+   Read ALL sections including:
+   - **Inclusion criteria** + **Exclusion criteria** tables (each
+     row has a `Stage` tag — `tiab`, `fulltext`, or `both` — that
+     governs how you may use it).
+   - **Notes for the screener sub-agents** — glossary and term
+     disambiguation rules. Apply them consistently.
+   - **Pre-screening decisions (audit)** — a-priori protocol rules
+     fixed BEFORE screening started (e.g. "outcome must be pre AND
+     post", "minimum N per arm = 10"). These are **binding** —
+     treat them as if they were criteria rows themselves. If a
+     pre-screening rule was already integrated into the criteria
+     tables (with its own tag), don't double-count.
 2. The project's `contexte.md` — review type, research question,
    primary outcomes. Calibrates how strict you should be (a
    meta-analysis filters harder than a scoping review).
