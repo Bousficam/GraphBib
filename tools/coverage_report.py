@@ -25,8 +25,9 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, WIKI_DIR  # noqa: E402
+
 WIKILINK_RE = re.compile(r"\[\[([A-Za-z0-9\-_/.]+)\]\]")
 
 

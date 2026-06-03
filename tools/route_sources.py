@@ -17,8 +17,12 @@ Routing rule mirrors CLAUDE.md:
  10. fallback → general/
 """
 import os, re, shutil, sys, yaml
+from pathlib import Path
 
-SOURCES = "wiki/sources"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import SRC_DIR  # noqa: E402
+
+SOURCES = str(SRC_DIR)
 ARTICLES = os.path.join(SOURCES, "articles")
 
 FAMILY_MAP = {

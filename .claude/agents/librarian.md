@@ -37,10 +37,12 @@ Run these unconditionally — they are safe, deterministic, idempotent:
 python tools/update_cited_by.py
 python tools/parse_references.py --validate --all wiki/sources/
 python tools/organize_sources.py --promote --threshold 3
+python tools/audit_raw.py --apply
 python tools/coverage_report.py --save
 ```
 
-Report what each did (counts of moved files, validated DOIs, etc.).
+Report what each did (counts of moved files, validated DOIs, raws
+renamed to match their slug, etc.).
 
 ## Phase 2 — Delegate fixes (no confirmation needed for low-risk)
 
@@ -51,7 +53,9 @@ For each lint finding, route to a specialist:
 | Source page with `checklist_incomplete` (Extraction Checklist > 30 % unchecked) | `Agent(subagent_type=source-extender, prompt="Deepen <slug>")` |
 | Source page with `page_too_short` for type | Same |
 | Source page with `uncited_claims` (bullets without `(p. ?)`) | Same |
+| Source page where the raw has a `<slug>_images/` dir but the page has no `## Figures` section (detect with `comm` between `find raw -name "*_images" -type d` and `grep -lE "^## Figures" wiki/<vault>/sources/`) | `Agent(subagent_type=source-illustrator, prompt="Illustrate <slug>")` |
 | Concept page with `concept_stub_priority` (stub but ≥ 3 sources) | `Agent(subagent_type=concept-builder, prompt="Extend <ConceptName>")` |
+| Concept page chapter-depth (≥ 1500 words, check `wc -w`) with zero figures (no `![]` syntax in body) AND ≥ 2 cited sources have a `## Figures` section | `Agent(subagent_type=concept-illustrator, prompt="Illustrate <ConceptName>")` |
 | Method page with `method_bare_wikilinks` | Re-run the affected sources via `source-extender` (per-source descriptions are written there, not on method pages) |
 | `cites_unresolved_high` on a source | Run `python tools/parse_references.py --curate <source-md>` |
 
@@ -69,6 +73,7 @@ list and WAIT for confirmation:
 | `wrong_folder` for several sources (e.g. articles/general/ but family=BCI) | Propose `python tools/organize_sources.py --dry-run` then apply. User confirms. |
 | `cross_source_contradiction` not flagged | Surface the contradiction; user reads both papers and decides whose claim wins, or marks both with explicit `## Contradictions / Agreements` notes. |
 | Sources with `consort_compliance: BLOCKING` | Surface the missing items (allocation concealment, blinding); user manually adds notes if the paper genuinely doesn't report them. |
+| `audit_raw` reports `missing` / `ambiguous` / `orphan_raw` | Phase 1 already auto-renamed the unambiguous mismatches. Surface the residue: `missing` (frontmatter pointer broken — propose either restore the raw or clear the field), `ambiguous` (no usable pointer, multiple raw candidates — ask user which one is the right input), `orphan_raw` (raw file with no wiki source — propose ingest or delete). User confirms before any rename / delete. |
 | **Source removal** (orphan source from ingestion error, retracted paper) | Delegate to `source-remover` ONLY after explicit user approval. |
 
 ## Phase 4 — Report

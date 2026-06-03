@@ -56,7 +56,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _lib import REPO_ROOT, WIKI_DIR, WIKILINK_RE, load_sources, parse_fm  # noqa: E402
+from _lib import REPO_ROOT, SRC_DIR, WIKI_DIR, WIKILINK_RE, load_sources, parse_fm  # noqa: E402
 
 CONCEPTS_DIR = WIKI_DIR / "concepts"
 DEFAULT_LLM_MODEL = "claude-sonnet-4-6"  # synthesis tier — quality matters
@@ -211,10 +211,11 @@ def filter_recent_concepts(sources, since_arg):
 
     Returns the set of concept slugs those sources reference.
     """
+    sources_rel = SRC_DIR.relative_to(REPO_ROOT).as_posix() + "/"
     try:
         out = subprocess.check_output(
             ["git", "log", f"--since={since_arg}", "--name-only", "--pretty=format:",
-             "--", "wiki/sources/"],
+             "--", sources_rel],
             cwd=REPO_ROOT,
             text=True,
         )
@@ -224,7 +225,7 @@ def filter_recent_concepts(sources, since_arg):
     recent_slugs = set()
     for line in out.splitlines():
         line = line.strip()
-        if line.endswith(".md") and "wiki/sources/" in line:
+        if line.endswith(".md") and sources_rel in line:
             recent_slugs.add(Path(line).stem)
     if not recent_slugs:
         return set()

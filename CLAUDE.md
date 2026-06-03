@@ -80,7 +80,7 @@ harness surfaces them).
 
 ## Sub-agents
 
-Fourteen specialists in `.claude/agents/`. Delegate via `Agent` with
+Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
 **Wiki side** — knowledge-graph building / maintenance:
@@ -88,7 +88,11 @@ Fourteen specialists in `.claude/agents/`. Delegate via `Agent` with
 - `fetch-reading` — download OA PDFs for a DOI list (Unpaywall).
 - `ingester` — ingest one source, all 16 steps incl. entity creation.
 - `source-extender` — deepen an already-ingested shallow source.
+- `source-illustrator` — populate `## Figures` on one source page
+  from images already extracted by `pdf2md_marker.py`.
 - `concept-builder` — extend one concept page to chapter depth.
+- `concept-illustrator` — insert relevant figures into one concept
+  page, sourced from its cited sources' `## Figures` sections.
 - `query-synthesizer` — answer a focused research question.
 - `reviewer` — generate a structured literature review.
 - `lint` — audit (deterministic + cached semantic).
@@ -116,6 +120,16 @@ wiki is output of the same domain) and are resolved via the same
 `$WIKI_VAULT` env var (auto-detected when a single vault exists).
 Backward-compat: legacy flat `wiki/sources/` + `raw/papers/` layouts
 still work as an implicit single vault. Wikilinks: `[[PageName]]`.
+
+**Vault selection at session start.** When the repo holds ≥2 vaults
+and `$WIKI_VAULT` is unset, the `SessionStart` hook
+(`.claude/hooks/session_start_vault.py`) injects a notice listing the
+available vaults. Before running any wiki tool or `/wiki-*` command,
+ASK the user which vault to use, then persist the choice for the
+session by merging `{"env": {"WIKI_VAULT": "<choice>"}}` into
+`.claude/settings.local.json` (preserve the existing `permissions`
+block). This avoids re-asking on every tool call and is inherited by
+sub-agents.
 
 The `project-review/<vault>/<name>/` orchestrator (Extractor side)
 is independent of the wiki side — see `docs/workflows/screening.md`
