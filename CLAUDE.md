@@ -26,10 +26,15 @@ If `context.md` is absent, the agent runs in **neutral mode** — it
 does all structural work (IMRAD extraction, citation network,
 snowball, lint) but with less domain consistency.
 
-To adapt this repo to a different research field: replace
-`context.md` with one of the examples in `docs/context/examples/`,
-or draft your own from the `generic-academic.md` template. See
-`docs/context/README.md` for the full adaptation checklist.
+The repo ships **neutral by default**: `context.md` is the
+`generic-academic` baseline, and the analyzer tools read their
+field-specific vocabulary from `tools/data/domain.json` (also shipped
+empty). To adapt this repo to a research field: replace `context.md`
+with one of the examples in `docs/context/examples/` (or draft your own
+from `generic-academic.md`), and fill / copy a pack into
+`tools/data/domain.json` (e.g. `tools/data/domain.stroke.example.json`).
+See `docs/context/README.md` for the full adaptation checklist and
+`docs/tools.md` > "Domain configuration" for the `domain.json` schema.
 
 ---
 
@@ -86,7 +91,7 @@ Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
 **Wiki side** — knowledge-graph building / maintenance:
 - `suggest-reading` — find what to read next (snowball + OpenAlex).
 - `fetch-reading` — download OA PDFs for a DOI list (Unpaywall).
-- `ingester` — ingest one source, all 16 steps incl. entity creation.
+- `ingester` — ingest one source, all 16 steps (entity pages OFF by default).
 - `source-extender` — deepen an already-ingested shallow source.
 - `source-illustrator` — populate `## Figures` on one source page
   from images already extracted by `pdf2md_marker.py`.

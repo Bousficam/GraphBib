@@ -9,7 +9,7 @@ biographical or affiliative claim cites a source.
 title: "Entity Name"
 type: entity
 entity_type: author | institution | lab | tool-vendor | consortium
-domain: [stroke, MI-BCI]
+domain: []                  # your domain tag(s)
 tags: []
 sources: []                 # auto-populated
 last_updated: YYYY-MM-DD

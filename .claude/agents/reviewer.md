@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Specialized agent for generating a structured literature review on a topic from the wiki. Use when the user asks for a review (e.g. "review topic: corticospinal integrity in stroke", "/wiki-review MI-BCI in chronic stroke", "draft a literature review on cTBS over contralesional M1"). The agent walks wiki/sources/, concepts/, methods/, recommendations/, questions/, and produces a citation-rigorous Markdown review with APA bibliography. Sonnet by default; the orchestrator (or /wiki-review --opus) can override to Opus for high-stakes / long-form / contradiction-heavy reviews where coherence over many sub-themes matters more than cost.
+description: Specialized agent for generating a structured literature review on a topic from the wiki. Use when the user asks for a review (e.g. "review topic: <construct> as a biomarker", "/wiki-review <intervention> in <population>", "draft a literature review on <topic>"). The agent walks wiki/sources/, concepts/, methods/, recommendations/, questions/, and produces a citation-rigorous Markdown review with APA bibliography. Sonnet by default; the orchestrator (or /wiki-review --opus) can override to Opus for high-stakes / long-form / contradiction-heavy reviews where coherence over many sub-themes matters more than cost.
 tools: Read, Write, Bash, Grep, Glob
 model: sonnet
 ---
@@ -35,7 +35,7 @@ orchestrator's recap is accurate.
 
 # Your task
 
-Given a topic (e.g. "MI-BCI in chronic stroke"), produce a structured
+Given a topic (e.g. "<intervention> in <population>"), produce a structured
 literature review in Markdown that synthesizes all wiki sources tagged
 with the topic, with full citation discipline. Save to
 `wiki/syntheses/<topic-slug>-review.md` (or print to stdout if the

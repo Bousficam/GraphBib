@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Brain atlas anchoring — link sources to brain regions / tracts they discuss.
+"""Atlas anchoring — link sources to anatomical / structural anchors they discuss.
 
-Walks `wiki/sources/`, scans each body for region / tract mentions
-listed in `tools/data/brain_lexicon.json`. Outputs:
+Walks `wiki/sources/`, scans each body for region / tract mentions declared
+in `tools/data/domain.json` (`regions` and `tracts` sections). Outputs:
 
     1. Per-region report: which papers discuss each region or tract,
        with a sentence-level snippet for context.
     2. A "what's known about X" view per region — Markdown that can be
        saved into wiki/ as the basis of a region anchor page.
+
+The anatomy vocabulary is NOT hardcoded — the shipped default
+(`tools/data/domain.json`) is the neutral baseline (empty), so this tool
+only does something once a domain pack declaring `regions` / `tracts` is
+configured. See `tools/data/domain.stroke.example.json` for a neuroimaging
+example.
 
 Usage:
     python tools/brain_atlas_anchor.py
@@ -16,32 +22,35 @@ Usage:
     python tools/brain_atlas_anchor.py --region M1 --save-region   # writes wiki/concepts/M1-atlas.md
 """
 import argparse
-import json
 import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _lib import REPO_ROOT, WIKI_DIR, load_sources  # noqa: E402
+from _lib import REPO_ROOT, WIKI_DIR, load_domain, load_sources  # noqa: E402
 
-LEXICON_FILE = REPO_ROOT / "tools" / "data" / "brain_lexicon.json"
+DOMAIN_HINT = (
+    "No anatomical anchors configured. Add `regions` and/or `tracts` to "
+    "tools/data/domain.json, or activate the example pack:\n"
+    "    cp tools/data/domain.stroke.example.json tools/data/domain.json\n"
+    "See docs/tools.md > 'Domain configuration'."
+)
 
 
 def load_lexicon():
-    if not LEXICON_FILE.is_file():
-        sys.exit(f"Lexicon not found at {LEXICON_FILE}")
-    raw = json.loads(LEXICON_FILE.read_text(encoding="utf-8"))
-    out = {}  # canonical_key -> {"label": str, "patterns": [compiled regex]}
+    """Build {key: {label, kind, patterns}} from domain.json regions + tracts."""
+    out = {}
     for kind in ("regions", "tracts"):
-        for key, entry in raw.get(kind, {}).items():
-            patterns = []
-            for alias in entry["aliases"]:
-                # Word boundary on both sides; case-insensitive
-                escaped = re.escape(alias)
-                patterns.append(re.compile(rf"\b{escaped}\b", re.IGNORECASE))
+        for key, entry in (load_domain(kind) or {}).items():
+            if not isinstance(entry, dict):
+                continue
+            patterns = [
+                re.compile(rf"\b{re.escape(alias)}\b", re.IGNORECASE)
+                for alias in entry.get("aliases", [])
+            ]
             out[key] = {
-                "label": entry["canonical"],
+                "label": entry.get("canonical", key),
                 "kind": kind,
                 "patterns": patterns,
             }
@@ -72,6 +81,8 @@ def main():
     args = ap.parse_args()
 
     lexicon = load_lexicon()
+    if not lexicon:
+        sys.exit(DOMAIN_HINT)
     if args.region and args.region not in lexicon:
         sys.exit(f"Unknown region: {args.region}. Available: {', '.join(sorted(lexicon))}")
 

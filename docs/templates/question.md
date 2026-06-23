@@ -9,7 +9,7 @@ title: "Open Question: <one-line question>"
 type: question
 status: "open"                  # open | partially-answered | resolved
 raised_by: [[source-slug]]      # source(s) that explicitly raise it
-domain: [stroke, MI-BCI]
+domain: []                      # your domain tag(s)
 tags: []
 last_updated: YYYY-MM-DD
 ---
@@ -26,7 +26,7 @@ Clinical, theoretical, or methodological stakes.
 
 ## What's Missing
 - Specific evidence type missing (e.g., long-term follow-up RCT).
-- Specific population missing (e.g., subacute stroke).
+- Specific population missing (e.g., an under-studied sub-group).
 
 ## Suggested Studies
 - Design 1 that would close the gap.

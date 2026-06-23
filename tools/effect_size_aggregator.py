@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Effect size aggregator — surface ΔFugl-Meyer / ΔARAT / similar across sources.
+"""Effect size aggregator — surface outcome-scale changes across sources.
 
 Heuristic regex extraction over `wiki/sources/`. Surfaces:
 
-    - Outcome change values (ΔFM, ΔARAT, BBT, MEP amplitude shift)
+    - Outcome change values (Δ on any configured scale)
     - Group context (intervention vs control if labelled)
     - Effect-size keywords (Cohen's d, η², g, p-value)
 
 Output: per-outcome aggregated table, grouped by intervention family.
+
+The outcome-scale vocabulary is NOT hardcoded — it is read from
+`tools/data/domain.json` (`outcome_scales` section). The shipped default
+is the neutral baseline (empty), so this tool only does something once a
+domain pack declaring outcome scales is configured. See
+`tools/data/domain.stroke.example.json` for a clinical example.
 
 This is heuristic — meant to surface "look here" candidates for manual
 synthesis, not to replace a meta-analysis tool.
@@ -24,16 +30,18 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _lib import REPO_ROOT, WIKI_DIR, load_sources  # noqa: E402
+from _lib import REPO_ROOT, WIKI_DIR, compile_fragments, load_domain, load_sources  # noqa: E402
 
-OUTCOME_PATTERNS = {
-    "FM": re.compile(r"(?:Fugl[-\s]?Meyer|FM[A-Z]?[-\s]?(?:UE|LE|U|L)?)\b", re.I),
-    "ARAT": re.compile(r"\bARAT\b|Action\s+Research\s+Arm", re.I),
-    "BBT": re.compile(r"\bBBT\b|Box\s+(?:and|&)\s+Block", re.I),
-    "NHPT": re.compile(r"\bNHPT\b|Nine[-\s]?Hole\s+Peg", re.I),
-    "MEP": re.compile(r"\bMEP\s+amplitude|motor\s+evoked\s+potential", re.I),
-    "MAS": re.compile(r"\bMAS\b|Modified\s+Ashworth", re.I),
-}
+DOMAIN_HINT = (
+    "No outcome scales configured. Add an `outcome_scales` section to "
+    "tools/data/domain.json, or activate the example pack:\n"
+    "    cp tools/data/domain.stroke.example.json tools/data/domain.json\n"
+    "See docs/tools.md > 'Domain configuration'."
+)
+
+# {scale_key: compiled regex} built from domain.json; empty in neutral mode.
+OUTCOME_PATTERNS = compile_fragments(load_domain("outcome_scales"))
+
 DELTA_RE = re.compile(
     r"(?:Δ|\\Delta\s|change|gain|increase|decrease)[^.;\n]{0,40}?([+-]?\d+\.?\d*)\s*(?:points?|pts?)?",
     re.I,
@@ -70,6 +78,8 @@ def extract_effect(text):
 
 
 def main():
+    if not OUTCOME_PATTERNS:
+        sys.exit(DOMAIN_HINT)
     ap = argparse.ArgumentParser()
     ap.add_argument("--outcome", choices=list(OUTCOME_PATTERNS), help="Restrict to one outcome (default: all)")
     ap.add_argument("--save", action="store_true")

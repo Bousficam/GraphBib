@@ -51,19 +51,16 @@ USER_AGENT = "graphbib-watcher/0.1 (mailto:contact@example.com)"
 STARTER_CONFIG = """\
 # Saved queries for tools/watch_pubmed.py.
 # Each query targets PubMed via the E-utilities API.
+#
+# Replace the placeholders below with queries for YOUR research domain.
+# PubMed query syntax: https://pubmed.ncbi.nlm.nih.gov/help/
 
 queries:
-  - name: "MI-BCI stroke"
-    pubmed: "(motor imagery[Title/Abstract]) AND (BCI OR brain-computer interface) AND stroke"
+  - name: "example query 1"
+    pubmed: "(your topic[Title/Abstract]) AND (another term)"
 
-  - name: "TMS stroke motor recovery"
-    pubmed: "TMS[Title/Abstract] AND stroke[Title/Abstract] AND motor recovery"
-
-  - name: "DTI corticospinal tract stroke"
-    pubmed: "DTI[Title/Abstract] AND corticospinal AND stroke"
-
-  - name: "Neural control theory motor recovery"
-    pubmed: "(neural control theory) AND motor recovery"
+  - name: "example query 2"
+    pubmed: "your intervention[Title/Abstract] AND your outcome"
 """
 
 

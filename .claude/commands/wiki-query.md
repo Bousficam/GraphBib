@@ -7,8 +7,8 @@ Answer a research question with synthesis across the wiki, every
 factual claim cited.
 
 Arguments: $ARGUMENTS — the full question, e.g.
-*"what does the literature say about cTBS over contralesional M1 in
-chronic stroke?"*
+*"what does the literature say about the dose-response of <intervention>
+in <population>?"*
 
 # Procedure
 

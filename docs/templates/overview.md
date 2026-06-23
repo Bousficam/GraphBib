@@ -24,12 +24,10 @@ Cross-source claims, **each with citations**:
 
 ## Major Concepts
 Linked, not redefined here:
-- [[MotorImagery]], [[CorticospinalTract]], [[Neuroplasticity]],
-  [[NeuralControlTheory]]
+- [[ConceptA]], [[ConceptB]], [[ConceptC]]
 
 ## Major Methods
-- [[methods/MI-BCI]], [[methods/TMS]], [[methods/DTI]],
-  [[methods/FuglMeyer]]
+- [[methods/MethodA]], [[methods/MethodB]], [[methods/MethodC]]
 
 ## Active Debates
 Linked to question pages:

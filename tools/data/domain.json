@@ -1,0 +1,17 @@
+{
+  "_comment": "Machine-readable domain vocabulary consumed by the analyzer tools (brain_atlas_anchor, dti_aggregator, effect_size_aggregator, cohort_tracker). THIS IS THE NEUTRAL BASELINE: every section is empty, so those tools no-op with a helpful message instead of assuming a domain. To configure a real domain, copy a *.example.json file in this folder over this one (e.g. cp domain.stroke.example.json domain.json) or fill the sections below. Mirror your prose context.md here. See docs/tools.md > 'Domain configuration'.",
+  "_conventions": {
+    "regions_tracts": "Each entry: {canonical: display name, aliases: [plain strings]}. Tools escape aliases and match on word boundaries.",
+    "metric_and_scale_aliases": "dti_metrics / outcome_scales / cohort.* values are lists of REGEX FRAGMENTS, OR-joined raw (NOT escaped). This lets you encode numeric patterns like '>\\s*6\\s*month'."
+  },
+  "regions": {},
+  "tracts": {},
+  "dti_metrics": {},
+  "outcome_scales": {},
+  "cohort": {
+    "chronicity": {},
+    "side": {},
+    "lesion": {},
+    "severity_scale": {}
+  }
+}

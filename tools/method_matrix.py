@@ -10,9 +10,9 @@ methodology chapters and systematic-review prep.
 
 Usage:
     python tools/method_matrix.py                      # all sources
-    python tools/method_matrix.py --domain stroke
-    python tools/method_matrix.py --intervention BCI
-    python tools/method_matrix.py --method DTI
+    python tools/method_matrix.py --domain <domain-tag>
+    python tools/method_matrix.py --intervention <family>
+    python tools/method_matrix.py --method <method>
     python tools/method_matrix.py --save               # writes wiki/syntheses/method-matrix.md
 """
 import argparse
@@ -61,9 +61,9 @@ def render_table(sources):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--domain", help="Filter by domain tag (e.g. stroke)")
-    ap.add_argument("--intervention", help="Filter by intervention family or name (BCI, TMS, MI-BCI…)")
-    ap.add_argument("--method", help="Filter by method (DTI, EEG, FuglMeyer…)")
+    ap.add_argument("--domain", help="Filter by domain tag")
+    ap.add_argument("--intervention", help="Filter by intervention family or name")
+    ap.add_argument("--method", help="Filter by method")
     ap.add_argument("--save", action="store_true", help="Write to wiki/syntheses/method-matrix.md")
     args = ap.parse_args()
 

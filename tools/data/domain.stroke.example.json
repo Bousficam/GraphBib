@@ -1,5 +1,5 @@
 {
-  "_comment": "Lexicon of brain regions / pathways anchored for stroke / MI-BCI / TMS / DTI research. Each entry: canonical name + matching aliases (regex-friendly).",
+  "_comment": "EXAMPLE domain pack for stroke / MI-BCI / TMS / DTI research. To activate: cp tools/data/domain.stroke.example.json tools/data/domain.json. Keep this file as a reference; edit the copy. Conventions: regions/tracts aliases are plain strings (escaped + word-boundary matched by tools); dti_metrics/outcome_scales/cohort.* values are regex fragments OR-joined raw.",
   "regions": {
     "M1": {
       "canonical": "Primary Motor Cortex (M1)",
@@ -37,7 +37,7 @@
   "tracts": {
     "CorticospinalTract": {
       "canonical": "Corticospinal Tract (CST)",
-      "aliases": ["corticospinal tract", "CST", "pyramidal tract"]
+      "aliases": ["corticospinal tract", "corticospinal", "CST", "pyramidal tract"]
     },
     "InternalCapsule": {
       "canonical": "Internal Capsule",
@@ -62,6 +62,40 @@
     "Uncinate": {
       "canonical": "Uncinate Fasciculus",
       "aliases": ["uncinate", "uncinate fasciculus"]
+    }
+  },
+  "dti_metrics": {
+    "FA": ["fa", "fractional anisotropy"],
+    "MD": ["md", "mean diffusivity"],
+    "AD": ["ad", "axial diffusivity"],
+    "RD": ["rd", "radial diffusivity"]
+  },
+  "outcome_scales": {
+    "FM": ["(?:Fugl[-\\s]?Meyer|FM[A-Z]?[-\\s]?(?:UE|LE|U|L)?)\\b"],
+    "ARAT": ["\\bARAT\\b|Action\\s+Research\\s+Arm"],
+    "BBT": ["\\bBBT\\b|Box\\s+(?:and|&)\\s+Block"],
+    "NHPT": ["\\bNHPT\\b|Nine[-\\s]?Hole\\s+Peg"],
+    "MEP": ["\\bMEP\\s+amplitude|motor\\s+evoked\\s+potential"],
+    "MAS": ["\\bMAS\\b|Modified\\s+Ashworth"]
+  },
+  "cohort": {
+    "chronicity": {
+      "chronic": ["\\bchronic\\b|>\\s*6\\s*month|after\\s+6\\s*months"],
+      "subacute": ["\\bsubacute\\b|1\\s*[-to]+\\s*6\\s*month"],
+      "acute": ["\\bacute\\b|<\\s*7\\s*day|first\\s+week"]
+    },
+    "side": {
+      "left": ["\\bleft[- ]hemispher|\\bLH\\b|\\bleft hemiparesis"],
+      "right": ["\\bright[- ]hemispher|\\bRH\\b|\\bright hemiparesis"],
+      "bilateral": ["\\bbilateral"]
+    },
+    "lesion": {
+      "cortical": ["\\bcortical\\b"],
+      "subcortical": ["\\bsubcortical\\b|internal\\s+capsule|deep\\s+stroke"]
+    },
+    "severity_scale": {
+      "name": "Fugl-Meyer Upper Extremity",
+      "regex": "Fugl[-\\s]?Meyer.{0,40}?(\\d{1,2})\\s*[-–]\\s*(\\d{1,2})"
     }
   }
 }

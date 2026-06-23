@@ -35,8 +35,8 @@ Available examples in this repo:
 
 | File | Domain | Use if your wiki covers… |
 |---|---|---|
-| `stroke-mibci-tms.md` | Stroke motor rehabilitation via MI-BCI + TMS | Default fork content (the de-facto GraphBib config) |
-| `generic-academic.md` | Domain-agnostic baseline | You want minimum vocabulary bias; you'll let the agent grow the taxonomy from your sources |
+| `generic-academic.md` | Domain-agnostic baseline | **The shipped default** — `context.md` ships as a copy of this. Minimum vocabulary bias; the agent grows the taxonomy from your sources |
+| `stroke-mibci-tms.md` | Stroke motor rehabilitation via MI-BCI + TMS | A fully worked clinical-neuroscience example (the field GraphBib was first built for) |
 | `clinical-trials-cardiology.md` | Cardiovascular clinical trials | Drug RCTs, hard endpoints, regulatory submissions |
 
 ### Option B — start from a template, customize
@@ -74,23 +74,33 @@ The agent walks you through the schema. Save its output as
 
 ## Adaptation checklist beyond context.md
 
-Some domain bias still lives in **code** that needs separate
-patching. If you're moving to a non-stroke domain, audit:
+The repo ships **neutral by default**: `context.md` is the
+`generic-academic` baseline, and the analyzer tools read their
+vocabulary from `tools/data/domain.json`, which ships empty. So a
+fresh clone is **not** pre-configured for any domain.
+
+To configure a real domain, the machine-readable vocabulary lives in
+**one file**:
+
+```bash
+# activate the worked example…
+cp tools/data/domain.stroke.example.json tools/data/domain.json
+# …or edit tools/data/domain.json directly (regions, tracts,
+#    dti_metrics, outcome_scales, cohort) to mirror your context.md
+```
 
 | File | Why | What to edit |
 |---|---|---|
-| `tools/organize_sources.py` | `FAMILY_FOLDER` and `IMAGING_METHODS` are hardcoded Python dicts | Match the enums to your `context.md` interventions taxonomy |
-| `tools/dti_aggregator.py` | Stroke / DTI-specific anatomical regex | Delete if irrelevant, or rewrite for your structures |
-| `tools/effect_size_aggregator.py` | Stroke motor outcome regex (FM, ARAT, BBT, NHPT, MAS, MEP) | Rewrite with your outcome scales |
-| `tools/brain_atlas_anchor.py` | Anchors to M1, CST, etc. | Delete or repurpose |
-| `tools/cohort_tracker.py` | Likely tracks stroke chronicity / lesion / age | Audit for your cohort variables |
-| `.claude/agents/*.md` | System prompts contain stroke examples | Search for stroke/MI-BCI/TMS and replace with your domain examples |
+| `tools/data/domain.json` | Drives `brain_atlas_anchor.py`, `dti_aggregator.py`, `effect_size_aggregator.py`, `cohort_tracker.py` | Fill `regions` / `tracts` / `dti_metrics` / `outcome_scales` / `cohort`, or copy a `*.example.json` pack |
+| `tools/organize_sources.py` | `FAMILY_FOLDER` / `IMAGING_METHODS` are hardcoded Python dicts (still mirrors context.md taxonomy) | Match the enums to your `context.md` interventions taxonomy (unknown families fall back to `articles/general/`) |
+| `tools/watch_pubmed.py` | First run writes a placeholder `tools/watch_queries.yaml` | Replace the example queries with yours |
+| `.claude/agents/*.md`, `.claude/commands/*.md`, `docs/templates/*.md` | Examples use `<placeholders>` plus one worked stroke/MI-BCI illustration for concreteness | Optional — replace illustrative examples with your domain's if you want |
 
-Tools `dti_aggregator.py`, `effect_size_aggregator.py`,
-`brain_atlas_anchor.py`, `cohort_tracker.py` won't *break* if you
-leave them as-is — they just won't match anything in your corpus
-and become inert. Safe to delete from `tools/` if you prefer a clean
-folder.
+The four analyzer tools won't *break* on a fresh clone — with the
+empty `domain.json` they print a "configure your domain" message and
+exit cleanly (or, for `cohort_tracker`, still report pooled sample
+sizes). They only do domain-specific work once `domain.json` is
+filled.
 
 ## What the agent does with context.md
 

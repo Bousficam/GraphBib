@@ -33,6 +33,7 @@ $WIKI_VAULT env var and falls back to the same auto-detection rules:
 Wiki and raw share the same vault name (they describe the same
 research domain — raw is the input, wiki is the ingested output).
 """
+import json
 import os
 import re
 from pathlib import Path
@@ -42,6 +43,8 @@ import yaml
 REPO_ROOT = Path(__file__).parent.parent
 WIKI_ROOT = REPO_ROOT / "wiki"
 RAW_ROOT = REPO_ROOT / "raw"
+DATA_DIR = REPO_ROOT / "tools" / "data"
+DOMAIN_FILE = DATA_DIR / "domain.json"
 
 
 def _detect_active_vault():
@@ -164,6 +167,63 @@ def load_sources(directory=None):
         text = p.read_text(encoding="utf-8")
         fm, body = parse_fm(text)
         out.append({"slug": p.stem, "fm": fm, "body": body, "path": p})
+    return out
+
+
+def load_domain(section_name=None):
+    """Load the machine-readable domain vocabulary from tools/data/domain.json.
+
+    Returns the whole config dict (keys starting with `_` stripped), or one
+    section if `section_name` is given. Returns {} when the file is missing,
+    unparseable, or the section is absent. The shipped default is the neutral
+    baseline (all sections empty) — domain-specific tools should detect an
+    empty section and print a helpful "configure domain.json" message rather
+    than assuming a domain.
+    """
+    if not DOMAIN_FILE.is_file():
+        return {}
+    try:
+        data = json.loads(DOMAIN_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    data = {k: v for k, v in data.items() if not k.startswith("_")}
+    if section_name is None:
+        return data
+    return data.get(section_name, {})
+
+
+def compile_lexicon(entries):
+    """Compile a regions/tracts-style section into matchers.
+
+    `entries` is {key: {"canonical": str, "aliases": [plain strings]}}.
+    Returns {key: {"label": str, "patterns": [compiled regex]}} with each
+    alias escaped and matched on word boundaries, case-insensitive.
+    """
+    out = {}
+    for key, entry in (entries or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        aliases = entry.get("aliases", []) or []
+        out[key] = {
+            "label": entry.get("canonical", key),
+            "patterns": [re.compile(rf"\b{re.escape(a)}\b", re.IGNORECASE) for a in aliases],
+        }
+    return out
+
+
+def compile_fragments(mapping):
+    """Compile a {key: [regex fragments]} section into {key: compiled regex}.
+
+    Fragments are OR-joined raw (NOT escaped), so numeric patterns like
+    r">\\s*6\\s*month" work. A bare string value is accepted too.
+    """
+    out = {}
+    for key, frags in (mapping or {}).items():
+        if isinstance(frags, str):
+            frags = [frags]
+        if not frags:
+            continue
+        out[key] = re.compile("|".join(frags), re.IGNORECASE)
     return out
 
 

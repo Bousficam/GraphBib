@@ -13,7 +13,7 @@ consensus statements).
 ---
 title: "Recommendations: <Topic>"
 type: recommendation
-domain: [stroke, MI-BCI]
+domain: []                      # your domain tag(s)
 tags: []
 sources: []                     # auto-populated
 last_updated: YYYY-MM-DD
@@ -35,7 +35,7 @@ last_updated: YYYY-MM-DD
 - Open question → see [[questions/<slug>]].
 
 ## Practical Notes
-Actionable details (dose, duration, timing post-stroke, contraindications).
+Actionable details (e.g. dose, duration, timing, contraindications).
 
 ## Related Recommendations
 - [[recommendations/<other-topic>]]

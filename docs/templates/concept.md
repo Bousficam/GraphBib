@@ -20,7 +20,7 @@ Use this template for `wiki/concepts/<ConceptName>.md`.
 title: "Concept Name"
 type: concept
 aka: ["alias 1", "alias 2"]
-domain: [stroke, motor-control]
+domain: []                  # your domain tag(s), e.g. [stroke-rehab] or [cardiology]
 tags: []
 sources: []                 # auto-populated: sources that mention this concept
 last_updated: YYYY-MM-DD
@@ -103,9 +103,9 @@ Mixed: [[paper-d]] (p. ?) finds X; [[paper-e]] (p. ?) does not. See
 [[questions/<slug>]] for the open debate.
 
 ## Clinical / Applied Relevance
-One or two paragraphs on why the concept matters in practice. In our
-domain, focus on stroke motor rehabilitation: how the concept informs
-intervention design, prognosis, or assessment. Link to relevant
+One or two paragraphs on why the concept matters in practice — how it
+informs intervention design, prognosis, or assessment in your domain
+(see the applied focus declared in `context.md`). Link to relevant
 [[recommendations/...]] pages.
 
 ## Controversies & Open Debates

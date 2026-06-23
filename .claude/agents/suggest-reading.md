@@ -22,7 +22,7 @@ Distinct from:
 
 # When to invoke
 
-- *"What should I read on motor imagery in chronic stroke?"* — focused
+- *"What should I read on <concept>?"* — focused
   on a concept.
 - *"Suggest readings"* / *"snowball"* — wiki-wide.
 - *"What papers cite cervera-2020 that I should know about?"* —
@@ -36,8 +36,8 @@ Distinct from:
 ## Step 1 — Scope
 
 Identify the focus from the user's prompt:
-- A specific concept (`MotorImagery`, `CorticospinalTract`)?
-- A specific intervention (`MI-BCI`, `rTMS`)?
+- A specific concept (a `ConceptName` page)?
+- A specific intervention (an `interventions/<slug>` page)?
 - One source's forward citations (`cervera-2020`)?
 - Wiki-wide?
 

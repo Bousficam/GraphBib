@@ -9,9 +9,9 @@ Arguments: $ARGUMENTS — the topic (free text) + optional `--opus`
 flag at the end.
 
 Examples:
-- *"MI-BCI in chronic stroke"*
-- *"corticospinal integrity as biomarker for motor recovery"*
-- *"cTBS over contralesional M1 --opus"*
+- *"<intervention> in <population>"*
+- *"<construct> as biomarker for <outcome>"*
+- *"<topic> --opus"*
 
 # Model selection
 

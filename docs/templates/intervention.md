@@ -1,10 +1,15 @@
 # Intervention Page Format
 
+> The worked example below uses MI-BCI / stroke rehabilitation **for
+> concreteness only**. GraphBib is domain-neutral — replace the example
+> content (and the `domain:` / `intervention_family:` values) with an
+> intervention family from your own field. See `context.md`.
+
 Intervention pages document **treatments** — what is delivered to a
 patient or participant. Distinct from `methods/` (which documents
-measurement instruments like EEG, KVIQ, MEP). Use this for interventions
-tested by multiple studies of the same family (BCI, TMS, mirror therapy,
-robot-assisted training, mental practice, etc.).
+measurement instruments). Use this for interventions tested by multiple
+studies of the same family (the `intervention_family` taxonomy you
+declared in `context.md`).
 
 A page is created or refreshed at ingest step 9b: when ≥ 2 sources in
 the wiki use the same `intervention_family`, the agent generates
@@ -15,10 +20,9 @@ the wiki use the same `intervention_family`, the agent generates
 title: "Intervention: MI-BCI"
 type: intervention
 aka: ["motor imagery brain-computer interface", "EEG-based MI-BCI"]
-intervention_family: "BCI"      # BCI | TMS | tDCS | mirror | robot |
-                                # mental-practice | physio | combined
+intervention_family: "BCI"      # one of the families you declared in context.md
 target_outcome: ["motor recovery", "corticospinal excitability"]
-domain: [stroke, motor-rehab]
+domain: []                      # your domain tag(s), e.g. [stroke-rehab] or [cardiology]
 variants: ["MI-BCI + FES", "MI-BCI + AO", "closed-loop MI-BCI"]
 sources: []                     # auto-populated: studies using this intervention
 last_updated: YYYY-MM-DD

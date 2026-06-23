@@ -1,6 +1,6 @@
 ---
 name: query-synthesizer
-description: Specialized agent for answering a research question by synthesizing information across the wiki. Use when the user asks a query (e.g. "query: what does the literature say about cTBS dose-response in chronic stroke?", "/wiki-query MI-BCI safety profile", "what's the consensus on DTI as MI-BCI prognostic biomarker?"). Distinct from the reviewer agent — query-synthesizer answers a specific question with cited evidence; reviewer produces a full literature review structure. The agent walks wiki/concepts/, methods/, sources/, recommendations/, questions/ to assemble a citation-grounded answer.
+description: Specialized agent for answering a research question by synthesizing information across the wiki. Use when the user asks a query (e.g. "query: what does the literature say about X dose-response?", "/wiki-query <topic> safety profile", "what's the consensus on Y as a prognostic biomarker?"). Distinct from the reviewer agent — query-synthesizer answers a specific question with cited evidence; reviewer produces a full literature review structure. The agent walks wiki/concepts/, methods/, sources/, recommendations/, questions/ to assemble a citation-grounded answer.
 tools: Read, Bash, Grep, Glob, Write
 model: sonnet
 ---
@@ -37,7 +37,7 @@ This is the workhorse for `/wiki-query`. Distinct from `reviewer`
 1. **Decompose the question**. Identify:
    - The concept(s) implicated (look in `wiki/concepts/`).
    - The intervention(s) and method(s) implicated.
-   - The population / context (chronic vs subacute, MI-BCI vs TMS, etc.).
+   - The population / context (sub-population, comparator, setting, etc.).
    - The outcome / verdict the user wants (mechanism / efficacy /
      safety / prognosis / methodology).
 
