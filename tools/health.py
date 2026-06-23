@@ -5,7 +5,7 @@ from __future__ import annotations
 Structural health checks for the LLM Wiki.
 
 Unlike lint.py (which includes expensive LLM-powered semantic analysis),
-health.py is purely deterministic — zero API calls, fast enough to run
+health.py is purely deterministic - zero API calls, fast enough to run
 every session.
 
 Usage:
@@ -148,7 +148,7 @@ def _parse_log_entries(log_content: str) -> set[str]:
 def check_log_coverage(pages: list[Path]) -> list[dict]:
     """Find source pages that have no corresponding ingest entry in log.md.
 
-    Only checks wiki/sources/*.md — entity/concept pages are created as
+    Only checks wiki/sources/*.md - entity/concept pages are created as
     side-effects of ingest and don't need their own log entry.
     """
     log_content = read_file(LOG_FILE)
@@ -196,7 +196,7 @@ def run_health() -> dict:
 def format_report(results: dict) -> str:
     """Format health check results as markdown."""
     lines = [
-        f"# Wiki Health Report — {results['date']}",
+        f"# Wiki Health Report - {results['date']}",
         "",
         f"Scanned {results['total_pages']} wiki pages. "
         "Checks are purely structural (no LLM calls).",
@@ -249,7 +249,7 @@ def format_report(results: dict) -> str:
         lines.append("These source pages have no corresponding `ingest` entry in log.md:")
         lines.append("")
         for lm in log_missing:
-            lines.append(f"- `{lm['path']}` — {lm['title']}")
+            lines.append(f"- `{lm['path']}` - {lm['title']}")
     else:
         lines.append("All source pages have corresponding log entries. ✅")
     lines.append("")

@@ -3,11 +3,11 @@
 
 Two roles in one small module:
 
-1. **Cache** — store per (sha256_of_file, check_name, agent_version)
+1. **Cache** - store per (sha256_of_file, check_name, agent_version)
    results so that re-running lint on unchanged content is free.
    Cache file: `tools/.cache/lint_state.json`.
 
-2. **Deterministic checks** — pure-Python audits over wiki frontmatter
+2. **Deterministic checks** - pure-Python audits over wiki frontmatter
    and bodies. No LLM needed, fast, run every time the lint agent is
    invoked. The lint sub-agent reserves its LLM budget for the semantic
    checks (concept-definition compatibility, cross-source contradictions,
@@ -46,6 +46,24 @@ CACHE_DIR = REPO_ROOT / "tools" / ".cache"
 CACHE_FILE = CACHE_DIR / "lint_state.json"
 
 CURRENT_AGENT_VERSION = "2026-05-v1"
+
+EM_DASH = chr(0x2014)  # codepoints, not literals, so this file stays dash-clean
+EN_DASH = chr(0x2013)
+
+
+def em_dash_findings(body):
+    """House-style rule: no em dash or en dash in wiki output. Flag any present."""
+    em = body.count(EM_DASH)
+    en = body.count(EN_DASH)
+    if not (em or en):
+        return []
+    return [{
+        "check": "em_dash",
+        "pass": False,
+        "severity": "WARNING",
+        "details": f"{em} em dash(es) + {en} en dash(es) present; "
+                   f"replace with hyphens (run python tools/strip_em_dash.py)",
+    }]
 
 
 # ============================================================================
@@ -274,6 +292,8 @@ def check_source_page(p, fm, body):
                 "details": f"{unchecked}/{total} checklist items unchecked",
             })
 
+    findings += em_dash_findings(body)
+
     if not findings:
         findings.append({
             "check": "source_page_overall",
@@ -295,6 +315,7 @@ def check_concept_page(p, fm, body, source_mention_count):
             "details": f"{source_mention_count} sources mention this concept "
                        f"but page is {wc} words (stub)",
         })
+    findings += em_dash_findings(body)
     return findings
 
 
@@ -322,6 +343,7 @@ def check_method_page(p, fm, body):
                 "details": f"{bare_links} bare wikilinks in `## Used In This Wiki` "
                            f"(no per-source description)",
             })
+    findings += em_dash_findings(body)
     return findings
 
 

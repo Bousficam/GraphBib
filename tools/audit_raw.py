@@ -6,7 +6,7 @@ raw inputs (PDF + converted markdown + extracted-images directory) live
 at `raw/<vault>/{papers,theses,books,notes}/<basename>.{pdf,md}` and
 `raw/<vault>/.../<basename>_images/`.
 
-For consistency we want every raw triple to be named `<slug>` — same
+For consistency we want every raw triple to be named `<slug>` - same
 as the wiki source page. This script audits the wiki, finds mismatches,
 classifies each, and (with --apply) renames the unambiguous ones.
 

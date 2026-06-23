@@ -6,7 +6,7 @@ organized around a model / framework / hypothesis, contains few or no
 empirical data of its own, primarily proposes definitions or
 predictions.
 
-These papers are common foundations for concept pages — they often
+These papers are common foundations for concept pages - they often
 introduce or refine the framework that empirical work later tests.
 Their value is **conceptual**, so the source page extracts the model
 faithfully and the concept pages they touch are heavily enriched.
@@ -51,20 +51,20 @@ cites: []
 
 ```markdown
 ## Summary
-2–4 sentence summary: what framework / model / hypothesis is proposed
+2-4 sentence summary: what framework / model / hypothesis is proposed
 and why it matters for the field.
 
 ## Introduction
 
 ### Background (from cited literature)
 The intellectual lineage the paper builds on. Theoretical papers tend
-to have very dense Backgrounds (often 20+ bullets — they trace the
+to have very dense Backgrounds (often 20+ bullets - they trace the
 problem they're solving through prior work). Apply Indirect Citation
 Rule.
 
 ### Problem Statement
 What the existing theoretical landscape fails to explain or unify.
-1–2 sentences.
+1-2 sentences.
 
 ### Aim of the Paper
 What the framework aims to deliver: a new explanation, a unification
@@ -74,8 +74,8 @@ of competing theories, a falsifiable prediction set, etc.
 
 ### Core Claims / Postulates
 Each claim verbatim with page reference. The framework's "axioms".
-- Postulate 1 — (p. ?)
-- Postulate 2 — (p. ?)
+- Postulate 1 - (p. ?)
+- Postulate 2 - (p. ?)
 
 ### Definitions
 Each new term defined by the paper, verbatim:
@@ -86,7 +86,7 @@ These definitions feed the corresponding `[[concepts/...]]` pages
 (`## Definitions and Conceptual Boundaries` section).
 
 ### Mechanism / Architecture
-1–3 paragraphs explaining how the framework works internally:
+1-3 paragraphs explaining how the framework works internally:
 - What entities it posits.
 - What relationships between them.
 - What dynamics / processes / equations.
@@ -94,8 +94,8 @@ These definitions feed the corresponding `[[concepts/...]]` pages
 
 ### Predictions / Falsifiable Claims
 Empirically testable predictions the framework makes:
-- Prediction 1 — testable by … (p. ?)
-- Prediction 2 — testable by … (p. ?)
+- Prediction 1 - testable by … (p. ?)
+- Prediction 2 - testable by … (p. ?)
 
 These are the most valuable extraction items: they become the
 foundation for `[[questions/<slug>]]` pages and for evaluating future
@@ -110,9 +110,9 @@ The paper's worked examples or illustrations of the framework.
 ## Comparison with Existing Frameworks
 
 Apply Indirect Citation Rule for cited frameworks:
-- vs [[FrameworkA]] — origin in [[paper-a]] (p. ?), reported via this
+- vs [[FrameworkA]] - origin in [[paper-a]] (p. ?), reported via this
   paper (p. ?). The new framework differs by … and aligns by …
-- vs [[FrameworkB]] — origin in [[paper-b]] (p. ?), reported via this
+- vs [[FrameworkB]] - origin in [[paper-b]] (p. ?), reported via this
   paper (p. ?). …
 
 ## Discussion
@@ -136,9 +136,9 @@ Apply Indirect Citation Rule for cited frameworks:
 
 ## Future Empirical Tests
 List explicitly each open empirical test the framework awaits:
-- Test 1 — would distinguish this framework from [[FrameworkA]] →
+- Test 1 - would distinguish this framework from [[FrameworkA]] →
   routed to `wiki/questions/<slug>.md`.
-- Test 2 — …
+- Test 2 - …
 
 ## Reporting Standard Alignment
 Theoretical papers do not align with empirical reporting standards.
@@ -160,11 +160,11 @@ intellectual bedrock of the framework.
 *(Auto-populated.)*
 
 ## Connections
-- [[FrameworkName]] — the framework introduced. **Updated heavily**:
+- [[FrameworkName]] - the framework introduced. **Updated heavily**:
   this paper is THE primary source. Populate the framework's concept
   page (`Theoretical Foundations`, `Mechanisms`).
-- [[ConceptName]] — concepts redefined or refined by the paper.
-- [[methods/...]] — methods proposed for empirical testing.
+- [[ConceptName]] - concepts redefined or refined by the paper.
+- [[methods/...]] - methods proposed for empirical testing.
 
 ## Contradictions / Agreements
 - Contradicts [[OtherFramework-paper]] on …

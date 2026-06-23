@@ -9,7 +9,7 @@ pipeline, a new clinical scale), and the empirical content is mostly
 The output of ingesting a methodological paper feeds **directly** the
 relevant `wiki/methods/<MethodName>.md` (for measurement instruments)
 or `wiki/interventions/<intervention-slug>.md` (for therapy protocols)
-page — beyond the source page itself.
+page - beyond the source page itself.
 
 ## Frontmatter
 
@@ -55,7 +55,7 @@ cites: []
 
 ```markdown
 ## Summary
-2–4 sentence summary: what method, what gap it fills, headline
+2-4 sentence summary: what method, what gap it fills, headline
 validation result.
 
 ## Introduction
@@ -70,17 +70,17 @@ Apply Indirect Citation Rule.
 - Link to relevant [[concepts/...]] pages.
 
 ### Limitations of Existing Methods
-- Method A — [[paper-x]] (p. ?) — limitation: …
-- Method B — [[paper-y]] (p. ?) — limitation: …
-- Gap this paper fills: 1–2 sentences.
+- Method A - [[paper-x]] (p. ?) - limitation: …
+- Method B - [[paper-y]] (p. ?) - limitation: …
+- Gap this paper fills: 1-2 sentences.
 
 ### Aim of the New Method
-Single sentence — what the method does that prior ones don't.
+Single sentence - what the method does that prior ones don't.
 
 ## Method Description
 
 ### Core Idea
-1–2 paragraphs of prose explaining the method conceptually.
+1-2 paragraphs of prose explaining the method conceptually.
 
 ### Procedure / Algorithm
 Step-by-step description, faithful to the paper. If the paper provides
@@ -179,12 +179,12 @@ densely. These are high-priority snowball candidates.
 *(Auto-populated.)*
 
 ## Connections
-- [[methods/<MethodName>]] — the method introduced. **Updated heavily**:
+- [[methods/<MethodName>]] - the method introduced. **Updated heavily**:
   this paper is THE primary source for the method page; populate
   Definition, When to Use, Best Practices, Common Pitfalls verbatim
   from this paper.
-- [[interventions/<slug>]] — if the method is a therapy.
-- [[ConceptName]] — concepts the method operationalizes.
+- [[interventions/<slug>]] - if the method is a therapy.
+- [[ConceptName]] - concepts the method operationalizes.
 
 ## Contradictions / Agreements
 - Improves on [[OtherMethod-paper]] on …

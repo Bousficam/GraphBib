@@ -31,13 +31,13 @@ constructs appear in ingested sources. After ~10 ingests, review
 
 If you want some anchor terms to seed consistency, list them here:
 
-- (empty — will grow with ingests)
+- (empty - will grow with ingests)
 
 ---
 
 ## Methods vocabulary
 
-*Not pre-specified.* As above — let the corpus dictate.
+*Not pre-specified.* As above - let the corpus dictate.
 
 ---
 
@@ -55,7 +55,7 @@ list (and mirror them in `tools/organize_sources.py` →
 
 | `intervention_family` | `intervention_subfamily` values |
 |---|---|
-| `none` | (default — non-interventional) |
+| `none` | (default - non-interventional) |
 
 ---
 
@@ -69,7 +69,7 @@ extractor sub-agent recognize them:
 
 | Scale | What it measures | Typical range |
 |---|---|---|
-| (none declared) | — | — |
+| (none declared) | - | - |
 
 ---
 
@@ -88,7 +88,7 @@ tissues, pathways), declare them in `tools/data/domain.json`
 Topics under which clinical / policy / research recommendations are
 aggregated in `wiki/recommendations/`:
 
-- (none declared — will grow with ingests)
+- (none declared - will grow with ingests)
 
 ---
 
@@ -102,7 +102,7 @@ aggregated in `wiki/recommendations/`:
   a controversial position, attribute it explicitly to that source
   rather than stating it as established fact.
 - Quote **numerical results and definitions verbatim**.
-- **No domain authorities pre-declared** — the agent treats all
+- **No domain authorities pre-declared** - the agent treats all
   peer-reviewed sources as equally weighty until the wiki itself
   reveals which authors / labs / journals are most cited.
 
@@ -112,7 +112,7 @@ aggregated in `wiki/recommendations/`:
 
 In neutral mode, the agent uses this file mostly for the **style
 notes**. The empty vocabulary sections signal "no expected
-taxonomy" — the agent will grow `wiki/concepts/`, `wiki/methods/`,
+taxonomy" - the agent will grow `wiki/concepts/`, `wiki/methods/`,
 and `wiki/interventions/` organically from sources, then suggest a
 consolidation pass once enough material exists.
 

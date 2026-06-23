@@ -10,7 +10,7 @@ the orchestrator surfaces in Phase 4b of /extractor-screen-fulltext
 
 Clustering signals (any one fires a candidate pair):
 
-  1. **Same trial registration ID** — strongest signal. If two
+  1. **Same trial registration ID** - strongest signal. If two
      papers report the same NCT/ChiCTR/EudraCT ID, they are by
      definition reporting on the same trial. → cluster confidence
      HIGH.
@@ -24,7 +24,7 @@ Clustering signals (any one fires a candidate pair):
      (Two groups can recruit from the same hospital independently.)
 
 Each cluster is reported with all matching papers, the signal that
-fired, and a recommended action (keep-both / pick-one / merge —
+fired, and a recommended action (keep-both / pick-one / merge - 
 the user decides at the audit gate).
 
 Usage:
@@ -86,7 +86,7 @@ def window_overlap(start_a, end_a, start_b, end_b):
 
 
 def parse_n(s):
-    """Parse N — integer or 'min-max' range. Returns (min, max) or (None, None)."""
+    """Parse N - integer or 'min-max' range. Returns (min, max) or (None, None)."""
     if not s:
         return None, None
     s = str(s).strip()
@@ -120,7 +120,7 @@ def n_within_tolerance(n_a, n_b, tol=N_TOLERANCE):
 # Metadata extraction
 
 def normalize_token(s):
-    """Lowercase, strip punctuation, collapse whitespace — for set comparisons."""
+    """Lowercase, strip punctuation, collapse whitespace - for set comparisons."""
     if not s:
         return ""
     return re.sub(r"[^a-z0-9]+", " ", str(s).lower()).strip()
@@ -129,7 +129,7 @@ def normalize_token(s):
 def load_includes(decisions_path):
     """Return list[dict] of include rows enriched with parsed metadata.
 
-    Reads xlsx (preferred) or csv (legacy fallback) — `read_records`
+    Reads xlsx (preferred) or csv (legacy fallback) - `read_records`
     auto-detects format and falls back to a sibling .csv when the
     .xlsx is missing.
     """
@@ -167,7 +167,7 @@ def load_includes(decisions_path):
 
 def pair_signal(a, b):
     """Return (confidence, signal_label, evidence) or None when no overlap."""
-    # 1. Same registration ID — strongest
+    # 1. Same registration ID - strongest
     if a["registration"] and a["registration"] == b["registration"]:
         return ("HIGH", "same-trial-registration", a["registration"])
 
@@ -195,7 +195,7 @@ def pair_signal(a, b):
 
 
 def cluster_includes(rows):
-    """Return list[dict] — one entry per detected cluster."""
+    """Return list[dict] - one entry per detected cluster."""
     clusters = []
     visited = set()  # set of frozenset({slug_a, slug_b}) already reported
     for i, a in enumerate(rows):
@@ -235,14 +235,14 @@ def write_clusters_md(clusters, out_path, n_includes):
         "",
         f"Scanned **{n_includes} included articles** for shared trial",
         "registrations, recruitment cohorts, or sites. Each pair below",
-        "is a CANDIDATE — the user resolves at the audit gate of",
+        "is a CANDIDATE - the user resolves at the audit gate of",
         "`/extractor-screen-fulltext` (Phase 4b).",
         "",
         "## Signals + confidence",
         "",
         "| Signal                            | Confidence | What it suggests                              |",
         "|---|---|---|",
-        "| `same-trial-registration`         | HIGH       | Same registered trial — same patients.        |",
+        "| `same-trial-registration`         | HIGH       | Same registered trial - same patients.        |",
         "| `same-team-overlapping-window-similar-n` | MEDIUM | Likely cohort reuse by the same group.        |",
         "| `shared-site-overlapping-window`  | LOW        | Two groups recruiting from the same hospital. |",
         "",
@@ -250,7 +250,7 @@ def write_clusters_md(clusters, out_path, n_includes):
     if not clusters:
         lines.append("**No overlap signals detected.** All includes appear to come "
                      "from distinct cohorts. (Caveat: this only catches what the "
-                     "screener-fulltext managed to harvest from the body — sparse "
+                     "screener-fulltext managed to harvest from the body - sparse "
                      "metadata cannot be cross-checked.)")
         lines.append("")
     else:
@@ -259,8 +259,8 @@ def write_clusters_md(clusters, out_path, n_includes):
             lines.append("")
             lines.append(f"- **Signal**: `{c['signal']}`")
             lines.append(f"- **Evidence**: {c['evidence']}")
-            lines.append(f"- **{c['slug_a']}** — `{c['doi_a']}` — {c['title_a']}")
-            lines.append(f"- **{c['slug_b']}** — `{c['doi_b']}` — {c['title_b']}")
+            lines.append(f"- **{c['slug_a']}** - `{c['doi_a']}` - {c['title_a']}")
+            lines.append(f"- **{c['slug_b']}** - `{c['doi_b']}` - {c['title_b']}")
             lines.append("- **User action** [keep-both / pick-one / merge-into-one]:")
             lines.append("    _Leave bracketed action above; resolved during"
                          " /extractor-screen-fulltext Phase 4b._")

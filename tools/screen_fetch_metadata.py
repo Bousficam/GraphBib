@@ -3,10 +3,10 @@
 
 Three passes, each idempotent and cached:
 
-  1. **Abstract cascade**  — PubMed → OpenAlex → Crossref, fills the
+  1. **Abstract cascade** - PubMed → OpenAlex → Crossref, fills the
      row's title/abstract/journal/doi when missing. (Existing behavior.)
 
-  2. **DOI healing**       — for every row:
+  2. **DOI healing** - for every row:
         - missing DOI → `crossref_search(title + first_author + year)` →
           set DOI + flag `doi_status=recovered`
         - present DOI → `crossref_validate(doi)` → flag
@@ -15,13 +15,13 @@ Three passes, each idempotent and cached:
           year (±1) against Crossref metadata; set `doi_title_match`
           and `doi_year_match`.
 
-  3. **Slug rehab**         — re-derive slugs for rows that came out
+  3. **Slug rehab** - re-derive slugs for rows that came out
      of dedup as `anon-<year>` (missing first-author) but now have a
      valid/recovered DOI. Uses `crossref_slug(doi)` → `<family>-<year>`,
      handles collisions, writes a `slug_renames.csv` audit trail.
 
 Pass 3 is **locked** once `tiab-decisions.xlsx` (or its legacy
-.csv) exists for the project — renaming slugs after screening has
+.csv) exists for the project - renaming slugs after screening has
 started would break the decision trail. The DOI healing pass
 still runs; only the slug rewrite is skipped (warnings are logged
 so the user can rename manually if they wish).
@@ -248,7 +248,7 @@ def fetch_one(rec, cache, force=False):
 
 
 # ----------------------------------------------------------------------
-# Pass 2 — DOI healing (recover missing, validate present, cross-check)
+# Pass 2 - DOI healing (recover missing, validate present, cross-check)
 
 def heal_doi(rec, cf_cache):
     """Recover/validate the DOI and cross-check title + year.
@@ -325,7 +325,7 @@ def heal_doi(rec, cf_cache):
 
 
 # ----------------------------------------------------------------------
-# Pass 3 — Slug rehab
+# Pass 3 - Slug rehab
 
 def rehab_slugs(records, cf_cache):
     """Re-derive `anon-YYYY` slugs from now-valid DOIs.
@@ -371,7 +371,7 @@ def write_doi_warnings(warnings, out_path):
     for level, msg in warnings:
         by_level.setdefault(level, []).append(msg)
     if not (by_level["error"] or by_level["warn"]):
-        # No actionable issues — don't pollute reports/ with an empty file
+        # No actionable issues - don't pollute reports/ with an empty file
         if out_path.exists():
             out_path.unlink()
         return False
@@ -383,11 +383,11 @@ def write_doi_warnings(warnings, out_path):
     lines.append("- validates present DOIs against Crossref's agency endpoint,")
     lines.append("- compares Crossref's canonical title + year to the CSV row.")
     lines.append("")
-    lines.append(f"**ERROR**: {len(by_level['error'])} — likely wrong-paper or fictitious DOI.")
-    lines.append(f"**WARN** : {len(by_level['warn'])} — missing or unverifiable DOI.")
-    lines.append(f"**INFO** : {len(by_level['info'])} — DOIs recovered successfully.")
+    lines.append(f"**ERROR**: {len(by_level['error'])} - likely wrong-paper or fictitious DOI.")
+    lines.append(f"**WARN** : {len(by_level['warn'])} - missing or unverifiable DOI.")
+    lines.append(f"**INFO** : {len(by_level['info'])} - DOIs recovered successfully.")
     lines.append("")
-    lines.append("Audit each ERROR before running `/extractor-screen-tiab` —")
+    lines.append("Audit each ERROR before running `/extractor-screen-tiab` - ")
     lines.append("the screener-tiab agent will auto-default to `uncertain` for any")
     lines.append("row with `doi_title_match=false`, so an audit here saves an")
     lines.append("extra full-text fetch later.")
@@ -424,7 +424,7 @@ def main():
     ap.add_argument("--force", action="store_true",
                     help="Refetch abstracts + re-validate DOIs even when present.")
     ap.add_argument("--limit", type=int, default=None,
-                    help="Stop the abstract cascade after N fetches (smoke-test only — DOI healing still runs on all rows).")
+                    help="Stop the abstract cascade after N fetches (smoke-test only - DOI healing still runs on all rows).")
     ap.add_argument("--validate-only", action="store_true",
                     help="Skip the abstract cascade; only run DOI healing + slug rehab.")
     args = ap.parse_args()
@@ -449,7 +449,7 @@ def main():
         for r in records:
             r.setdefault(col, "")
 
-    # ── Pass 1 — abstract cascade ────────────────────────────────────────
+    # ── Pass 1 - abstract cascade ────────────────────────────────────────
     abs_status_counts = {}
     log_lines = ["# Metadata fetch log", ""]
     fetched = 0
@@ -471,18 +471,18 @@ def main():
                     log_lines.append("  - abstract: still empty after cascade")
         save_abstract_cache(abs_cache)
 
-    # ── Pass 2 — DOI healing ─────────────────────────────────────────────
+    # ── Pass 2 - DOI healing ─────────────────────────────────────────────
     cf_cache = load_cache()
     doi_warnings = []
     doi_status_counts = {}
     for r in records:
         if args.force:
-            # Force re-validation — clear cached flags
+            # Force re-validation - clear cached flags
             r["doi_status"] = ""
             r["doi_title_match"] = ""
             r["doi_year_match"] = ""
         if r.get("doi_status") and not args.force:
-            # Already healed on a previous run — skip the Crossref hit
+            # Already healed on a previous run - skip the Crossref hit
             doi_status_counts[r["doi_status"]] = doi_status_counts.get(r["doi_status"], 0) + 1
             continue
         warnings = heal_doi(r, cf_cache)
@@ -490,8 +490,8 @@ def main():
         doi_status_counts[r.get("doi_status", "")] = doi_status_counts.get(r.get("doi_status", ""), 0) + 1
     save_cache(cf_cache)
 
-    # ── Pass 3 — slug rehab (gated on no existing decisions) ─────────────
-    # Slug rehab is LOCKED once T/A decisions have been written —
+    # ── Pass 3 - slug rehab (gated on no existing decisions) ─────────────
+    # Slug rehab is LOCKED once T/A decisions have been written - 
     # renaming a slug after a decision references it would orphan
     # the decision. Check both formats (xlsx + legacy csv).
     tiab_xlsx = project / "screening" / "tiab-decisions.xlsx"
@@ -539,7 +539,7 @@ def main():
         n_err = sum(1 for lvl, _ in doi_warnings if lvl == "error")
         n_warn = sum(1 for lvl, _ in doi_warnings if lvl == "warn")
         print(f"⚠ DOI warnings  {warnings_path.relative_to(project.parent)}"
-              f"  ({n_err} errors, {n_warn} warnings — audit before /extractor-screen-tiab)")
+              f"  ({n_err} errors, {n_warn} warnings - audit before /extractor-screen-tiab)")
     if wrote_renames:
         print(f"✓ Slug renames  {renames_path.relative_to(project.parent)} ({len(renames)} rows)")
 

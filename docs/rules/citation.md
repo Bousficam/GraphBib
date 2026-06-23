@@ -9,9 +9,9 @@ reference for the agent during ingest and review.
 statement in any wiki page MUST cite at least one
 `[[source-slug]] (p. N)`.**
 
-- If the page number is unknown, write `(p. ?)` — do not omit the
+- If the page number is unknown, write `(p. ?)` - do not omit the
   citation.
-- Never paraphrase numerical results, p-values, or effect sizes — quote
+- Never paraphrase numerical results, p-values, or effect sizes - quote
   them verbatim with page reference.
 - If a claim is the agent's synthesis across multiple sources, list all
   of them: `(see [[paper-a]] p. 12, [[paper-b]] p. 4)`.
@@ -31,7 +31,7 @@ statement in any wiki page MUST cite at least one
 
 ## Indirect Citation Rule (literature vs results)
 
-A paper has two epistemic registers — claims it *inherits* from prior
+A paper has two epistemic registers - claims it *inherits* from prior
 work (intro / discussion / theoretical framework) and claims it
 *originates* itself (methods / results). The agent must respect that
 distinction.
@@ -41,7 +41,7 @@ distinction.
   - **If Y is in the wiki**: cite `[[paper-Y]] (p. ?)` directly. X is
     the path through which you found Y, but Y is the citable source.
   - **If Y is not in the wiki**: cite `[[paper-X]] (p. ?, citing Y, YYYY)`
-    — explicit acknowledgement that you read X but the claim originates
+ - explicit acknowledgement that you read X but the claim originates
     in Y. Add Y to the snowball candidate list (X's `cites:`
     frontmatter).
 - A claim from the **Results** of X is X's own contribution: cite
@@ -78,14 +78,14 @@ with **inherited** claims. Treat them as primary material:
 1. **Extract every cited claim from `Introduction`/`Discussion` into the
    source page's `## Background (from cited literature)`**, one bullet
    per claim, each citing the original Y per the Indirect Citation Rule.
-   For an empirical paper expect 5–15 bullets; for a thesis introduction
+   For an empirical paper expect 5-15 bullets; for a thesis introduction
    or a review, 20+.
 2. **When extending a concept page from a paper's intro**, the new
    bullet under `## Empirical Evidence` or `## Theoretical Foundations`
    MUST cite the originating paper Y (with `reported via [[X]]`),
    **never** the transmitter X alone. Otherwise the concept page
    becomes a network of who-said-what-when rather than a knowledge map.
-3. **Do not rewrite Y's claim from your own knowledge** — quote or
+3. **Do not rewrite Y's claim from your own knowledge** - quote or
    paraphrase what X says about Y, with X's framing made explicit. If
    X distorts Y, that distortion belongs in the wiki entry (with a
    contradiction flag if Y is also in the wiki).

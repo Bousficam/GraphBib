@@ -116,7 +116,7 @@ def _imaging_modality(slug, fm):
         return "imaging/fmri"
     if any("eeg" in m for m in methods):
         return "imaging/eeg"
-    # slug hints — DTI/structural
+    # slug hints - DTI/structural
     if re.search(r"(dti|tractography|disconnectome|schlemm|dulyan|moura-2019|zolkefley|"
                  r"lam-2018|jang-2014|trunk-2022|hordacre|alawieh|williams-2012-cst)", slug):
         return "imaging/dti"

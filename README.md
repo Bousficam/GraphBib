@@ -1,17 +1,17 @@
-# LLM Wiki Agent — Academic Edition
+# LLM Wiki Agent - Academic Edition
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**A coding agent skill, specialized for academic research.** Drop a PDF library into `raw/` and tell the agent to ingest it — the wiki builds itself: source summaries with verbatim citations, concept pages structured as short academic chapters, methodology pages, recommendations grouped by evidence strength, open research questions, and a citation network that connects every paper to what it cites and what cites it.
+**A coding agent skill, specialized for academic research.** Drop a PDF library into `raw/` and tell the agent to ingest it - the wiki builds itself: source summaries with verbatim citations, concept pages structured as short academic chapters, methodology pages, recommendations grouped by evidence strength, open research questions, and a citation network that connects every paper to what it cites and what cites it.
 
-This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) specialized for academic research workflows. The upstream supplies the core "agent maintains a wiki from source documents" pattern; this fork adds the IMRAD source templates, the Indirect Citation Rule, the PDF→Markdown pipeline (Marker + pymupdf4llm + Crossref), and the systematic-review tooling. Spiritually inspired by Andrej Karpathy's vision of LLMs as a new computing layer ("[Software 3.0](https://www.youtube.com/watch?v=LCEmiRjPEtQ)") — the agent doesn't just retrieve, it reads, structures, and writes back into a persistent knowledge graph.
+This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) specialized for academic research workflows. The upstream supplies the core "agent maintains a wiki from source documents" pattern; this fork adds the IMRAD source templates, the Indirect Citation Rule, the PDF→Markdown pipeline (Marker + pymupdf4llm + Crossref), and the systematic-review tooling. Spiritually inspired by Andrej Karpathy's vision of LLMs as a new computing layer ("[Software 3.0](https://www.youtube.com/watch?v=LCEmiRjPEtQ)") - the agent doesn't just retrieve, it reads, structures, and writes back into a persistent knowledge graph.
 
-> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time — cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
+> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time - cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
 
-The agent core is **domain-neutral** — same IMRAD extraction, same citation network, same snowball discovery regardless of field. A single file at the repo root, **`context.md`**, tells the agent which domain *your* GraphBib instance covers: expected concepts, methods, intervention taxonomy, outcome scales, style notes. The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** — replace it with one of `docs/context/examples/` (or a custom one) to retarget. See [Adapting to your domain](#adapting-to-your-domain) below.
+The agent core is **domain-neutral** - same IMRAD extraction, same citation network, same snowball discovery regardless of field. A single file at the repo root, **`context.md`**, tells the agent which domain *your* GraphBib instance covers: expected concepts, methods, intervention taxonomy, outcome scales, style notes. The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** - replace it with one of `docs/context/examples/` (or a custom one) to retarget. See [Adapting to your domain](#adapting-to-your-domain) below.
 
 ```
-raw/                  # Immutable source documents — never modified
+raw/                  # Immutable source documents - never modified
 ├── <vault-name>/     # Per-vault raw inputs (mirrors wiki/<vault-name>/)
 │   ├── papers/       # Journal articles
 │   ├── theses/       # PhD/MSc theses (with citation snowball)
@@ -20,7 +20,7 @@ raw/                  # Immutable source documents — never modified
 └── …                 # Additional raw vaults for other domains
 wiki/                 # Multi-vault knowledge graph (one Obsidian vault per research domain)
 ├── <vault-name>/     # e.g. stroke-rehab/, cardiology/, nlp-research/
-│   ├── index.md      # Vault catalog — updated on every ingest
+│   ├── index.md      # Vault catalog - updated on every ingest
 │   ├── log.md        # Append-only chronological record
 │   ├── overview.md   # Living synthesis across this vault's sources
 │   ├── sources/      # One academic summary per ingested source
@@ -31,25 +31,25 @@ wiki/                 # Multi-vault knowledge graph (one Obsidian vault per rese
 │   ├── questions/    # Open research questions identified across the corpus
 │   └── syntheses/    # Saved query answers and literature reviews
 └── …                 # Additional vault sub-folders for other domains
-project-review/       # Self-contained review projects (NOT in Obsidian) — Extractor orchestrator
-├── <vault>/          # Per-vault container — independent from wiki/<vault>/
+project-review/       # Self-contained review projects (NOT in Obsidian) - Extractor orchestrator
+├── <vault>/          # Per-vault container - independent from wiki/<vault>/
 │   └── <name>/       # One folder per systematic / scoping / narrative review
-│   ├── contexte.md       # Shared scope — review type, objective, question, outcomes
+│   ├── contexte.md       # Shared scope - review type, objective, question, outcomes
 │   ├── log.md            # Audit trail across both phases
 │   ├── background/       # USER-AUTHORED context (input to every sub-agent)
 │   │   ├── notes.md      # Domain primer read by screener-tiab/fulltext + extractor
 │   │   ├── raw/          # Seminal PDFs / prior reviews (user reference)
 │   │   └── markdown/     # Converted MDs (user reference)
-│   ├── screening/        # PRISMA 2020 — title/abstract + full-text passes
+│   ├── screening/        # PRISMA 2020 - title/abstract + full-text passes
 │   │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
 │   │   ├── identified/            # Raw CSV exports (pubmed.csv, scopus.csv, …)
 │   │   ├── dedup.csv              # After dedup (DOI > PMID > fuzzy title)
-│   │   ├── tiab-decisions.csv     # Pass 1 — decision + reason + side_use
-│   │   ├── fulltext-decisions.csv # Pass 2 — decision + verbatim excerpts + side_use
+│   │   ├── tiab-decisions.csv     # Pass 1 - decision + reason + side_use
+│   │   ├── fulltext-decisions.csv # Pass 2 - decision + verbatim excerpts + side_use
 │   │   ├── 1st-pass/
 │   │   │   ├── raw/               # PDFs auto-fetched after T/A inclusion
 │   │   │   ├── markdown/          # Converted for full-text reading
-│   │   │   └── missing.md         # Paywalled — manual user fetch
+│   │   │   └── missing.md         # Paywalled - manual user fetch
 │   │   └── reports/
 │   │       ├── tiab-report.md
 │   │       ├── fulltext-report.md
@@ -62,7 +62,7 @@ project-review/       # Self-contained review projects (NOT in Obsidian) — Ext
 │       │   ├── extraction-detailed.xlsx   # Verbatim + units + source location
 │       │   └── extraction-coded.xlsx      # Strict per-instruction, R-ready
 │       └── biblio/
-│           ├── side/         # OUTPUT — side refs auto-flagged during screening
+│           ├── side/         # OUTPUT - side refs auto-flagged during screening
 │           │   ├── intro/        # Cite in introduction / motivation
 │           │   ├── discussion/   # Cite in discussion / interpretation
 │           │   ├── method/       # Methodological references (scale validation, …)
@@ -86,7 +86,7 @@ git clone https://github.com/SamurAIGPT/llm-wiki-agent.git
 cd llm-wiki-agent
 ```
 
-Open in your agent — no API key or Python setup needed:
+Open in your agent - no API key or Python setup needed:
 
 ```bash
 claude      # reads CLAUDE.md + .claude/commands/ (slash commands available)
@@ -97,9 +97,9 @@ gemini      # reads GEMINI.md
 
 ## Quick start (60 seconds)
 
-Three steps inside the agent — **init the layout, add a source, ingest**.
+Three steps inside the agent - **init the layout, add a source, ingest**.
 
-### 1. Init — bootstrap the folder structure
+### 1. Init - bootstrap the folder structure
 
 ```
 /wiki-init <vault-name>
@@ -107,7 +107,7 @@ Three steps inside the agent — **init the layout, add a source, ingest**.
 
 e.g. `/wiki-init stroke-rehab` or `/wiki-init cardiology`. Each
 **vault** is a self-contained Obsidian-compatible knowledge graph
-for one research domain — you can have many side-by-side under
+for one research domain - you can have many side-by-side under
 `wiki/`. The command creates BOTH sides in lockstep:
 `raw/<vault-name>/{papers,theses,books,notes}/` for the raw inputs
 and `wiki/<vault-name>/{sources,concepts,methods,interventions,
@@ -120,7 +120,7 @@ tools which one to operate on (resolves BOTH `wiki/<vault>/` and
 `raw/<vault>/`). Single-vault setups are auto-detected; legacy flat
 `wiki/sources/` + `raw/papers/` layouts keep working.
 
-### 2. Add a source — drop a file into the right `raw/` folder
+### 2. Add a source - drop a file into the right `raw/` folder
 
 Markdown sources are ready immediately. PDF and EPUB sources need a
 one-shot conversion:
@@ -132,9 +132,9 @@ one-shot conversion:
 
 The conversion pipeline (Marker → pymupdf4llm fallback → Crossref
 enrichment → DOI curation for PDFs; pandoc + OPF metadata for EPUBs)
-runs idempotently — already-converted files are skipped.
+runs idempotently - already-converted files are skipped.
 
-### 3. Ingest — the agent builds the wiki
+### 3. Ingest - the agent builds the wiki
 
 ```
 ingest raw/<vault>/papers/cervera-2020.md
@@ -142,18 +142,18 @@ ingest raw/<vault>/papers/cervera-2020.md
 
 In a single pass the agent produces:
 
-- `wiki/sources/cervera-2020.md` — IMRAD-structured summary with verbatim quotes + page numbers
-- `wiki/concepts/*.md` — every concept the paper touches (created or extended chapter-style)
-- `wiki/methods/*.md` — every method described (FuglMeyer, MEP, EEG, DTI…)
-- `wiki/recommendations/*.md` — any clinical / research recommendations, grouped by evidence
-- `wiki/questions/*.md` — open research questions surfaced from the discussion
-- `wiki/entities/*.md` — authors, labs, institutions
-- `index.md` / `log.md` / `overview.md` — all updated
+- `wiki/sources/cervera-2020.md` - IMRAD-structured summary with verbatim quotes + page numbers
+- `wiki/concepts/*.md` - every concept the paper touches (created or extended chapter-style)
+- `wiki/methods/*.md` - every method described (FuglMeyer, MEP, EEG, DTI…)
+- `wiki/recommendations/*.md` - any clinical / research recommendations, grouped by evidence
+- `wiki/questions/*.md` - open research questions surfaced from the discussion
+- `wiki/entities/*.md` - authors, labs, institutions
+- `index.md` / `log.md` / `overview.md` - all updated
 - frontmatter `cites: [DOIs]` populated, ready for `/wiki-snowball` and reverse-citation index
 
 For batch work: `/wiki-batch-ingest raw/<vault>/papers/` (or `raw/<vault>/books/`) processes a whole directory with confirmation between batches.
 
-That's it — the wiki compounds from there. Everything below is depth.
+That's it - the wiki compounds from there. Everything below is depth.
 
 ## Adapting to your domain
 
@@ -162,11 +162,11 @@ GraphBib's agent core is field-agnostic. **Domain orientation lives in a single 
 - The field's identity and central question
 - Expected **concepts** vocabulary (so repeated mentions land on the same page rather than spawning near-duplicates)
 - Expected **methods** vocabulary (measurement instruments, modalities)
-- **Interventions taxonomy** — two-tier `intervention_family` / `intervention_subfamily` enum
+- **Interventions taxonomy** - two-tier `intervention_family` / `intervention_subfamily` enum
 - **Outcome scales** for systematic-review extraction
 - **Anatomical / structural anchors** (when relevant)
 - **Recommendation topics** under which the agent aggregates recommendations
-- **Style notes** — domain-specific writing conventions
+- **Style notes** - domain-specific writing conventions
 
 ### Three ways to retarget
 
@@ -178,14 +178,14 @@ cp docs/context/examples/clinical-trials-cardiology.md context.md
 cp docs/context/examples/generic-academic.md context.md
 ${EDITOR:-vim} context.md
 
-# C. Agent-assisted — open a fresh session and say:
+# C. Agent-assisted - open a fresh session and say:
 #    "Initialize context.md for a wiki on <X>. Ask me 5 clarifying
 #     questions, then draft the taxonomy."
 ```
 
 The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** (the de-facto specialization of this fork). Replace it with your own to retarget.
 
-### Beyond context.md — code-level audits
+### Beyond context.md - code-level audits
 
 Some domain bias still lives in **Python** that needs separate editing if you're moving to a non-stroke field:
 
@@ -195,7 +195,7 @@ Some domain bias still lives in **Python** that needs separate editing if you're
 | `tools/dti_aggregator.py`, `tools/effect_size_aggregator.py`, `tools/brain_atlas_anchor.py`, `tools/cohort_tracker.py` | Stroke / motor-rehab specific regex (CST, FuglMeyer, ARAT, etc.) | Leave inert, delete, or rewrite for your domain |
 | `.claude/agents/*.md` | Sub-agent system prompts contain stroke examples | Search for `stroke`, `MI-BCI`, `TMS` and adapt |
 
-These tools won't *break* if you leave them — they'll just become inert (regex match nothing). Full adaptation checklist in [`docs/context/README.md`](docs/context/README.md).
+These tools won't *break* if you leave them - they'll just become inert (regex match nothing). Full adaptation checklist in [`docs/context/README.md`](docs/context/README.md).
 
 ## Usage
 
@@ -237,7 +237,7 @@ Plain English works too:
 `/wiki-discover` chains *suggest → fetch → convert → ingest* end-to-end.
 `/wiki-maintain` runs lint then delegates fixes to the librarian
 sub-agent. Other agents (Codex, Gemini, etc.) use the natural language
-triggers above, which work identically — every slash command has a
+triggers above, which work identically - every slash command has a
 plain-English equivalent.
 
 Markdown is the native ingestion format. For PDF-heavy academic
@@ -247,7 +247,7 @@ pymupdf4llm fallback + Crossref enrichment + curation).
 ### Specialist sub-agents
 
 Twelve focused sub-agents live in `.claude/agents/`. Each has its own
-context window and a tier-appropriate model — the parent agent stays
+context window and a tier-appropriate model - the parent agent stays
 orchestrator while specialists do the focused work. Slash commands
 above delegate automatically; you can also invoke them directly via
 the `Agent` tool.
@@ -256,18 +256,18 @@ the `Agent` tool.
 |---|---|---|
 | `suggest-reading` | sonnet | Find what to read next (snowball + OpenAlex forward) |
 | `fetch-reading` | haiku | Download OA PDFs for a DOI list (Unpaywall) |
-| `ingester` | sonnet | Ingest one source — forces all 16 ingest steps |
+| `ingester` | sonnet | Ingest one source - forces all 16 ingest steps |
 | `source-extender` | sonnet | Deepen an already-ingested shallow source |
-| `concept-builder` | sonnet *(opus opt-in)* | Extend one concept page to chapter depth — pass "with opus" / "use opus" for theoretically-dense concepts |
+| `concept-builder` | sonnet *(opus opt-in)* | Extend one concept page to chapter depth - pass "with opus" / "use opus" for theoretically-dense concepts |
 | `extractor` | haiku | Fill one cell of a SR data-extraction table |
 | `query-synthesizer` | sonnet | Answer a focused research question |
-| `reviewer` | sonnet *(opus opt-in)* | Generate a structured literature review — pass `--opus` to `/wiki-review` for high-stakes / contradiction-heavy reviews |
+| `reviewer` | sonnet *(opus opt-in)* | Generate a structured literature review - pass `--opus` to `/wiki-review` for high-stakes / contradiction-heavy reviews |
 | `lint` | sonnet | Audit (deterministic + cached semantic) |
-| `librarian` | sonnet | Act on lint findings — auto-fix / delegate / confirm |
+| `librarian` | sonnet | Act on lint findings - auto-fix / delegate / confirm |
 | `source-remover` | sonnet | Cleanly remove a source and every cross-reference |
 | `deduplicator` | sonnet | Judge redundant concept/method pages, merge or extract via deterministic pre-filter |
 
-**Opus opt-in** for `reviewer` and `concept-builder`: these are the two synthesis-heavy agents where Opus' long-form coherence and contradiction handling move the needle. By **default both run on Sonnet** (fast, cheap, solid for routine work). Override with `/wiki-review <topic> --opus` or by asking the orchestrator to "build / extend `<Concept>` with opus". Opus ≈ 5× Sonnet pricing — worth it on high-stakes outputs (papers, grants, guidelines), wasteful on routine synthesis.
+**Opus opt-in** for `reviewer` and `concept-builder`: these are the two synthesis-heavy agents where Opus' long-form coherence and contradiction handling move the needle. By **default both run on Sonnet** (fast, cheap, solid for routine work). Override with `/wiki-review <topic> --opus` or by asking the orchestrator to "build / extend `<Concept>` with opus". Opus ≈ 5× Sonnet pricing - worth it on high-stakes outputs (papers, grants, guidelines), wasteful on routine synthesis.
 
 ## Academic Pipeline
 
@@ -288,9 +288,9 @@ PDF library                                         EPUB library (academic books
    │                                  Regex → cites: [DOIs]
    │
    ▼  tools/parse_references.py --curate
-   │     ↳ Phase 1 — extract DOIs from References (regex)
-   │     ↳ Phase 2 — validate each DOI against Crossref agency endpoint
-   │     ↳ Phase 3 — recover broken/missing DOIs via Crossref free-text search
+   │     ↳ Phase 1 - extract DOIs from References (regex)
+   │     ↳ Phase 2 - validate each DOI against Crossref agency endpoint
+   │     ↳ Phase 3 - recover broken/missing DOIs via Crossref free-text search
    │
    ▼  ingest in Claude Code
    │     ↳ Background / Methods / Results / Discussion / Cites sections
@@ -305,7 +305,7 @@ PDF library                                         EPUB library (academic books
    ▼  Living academic wiki
 ```
 
-### Step 1 — PDF → Markdown
+### Step 1 - PDF → Markdown
 
 ```bash
 python pdf2md/pdf2md_marker.py "/path/to/PDFs" raw/<vault>/papers
@@ -315,7 +315,7 @@ python pdf2md/pdf2md_fallback.py "/path/to/PDFs" raw/<vault>/papers
 `pdf2md_marker.py` walks the source directory recursively, runs each PDF
 through [marker-pdf](https://github.com/VikParuchuri/marker), mirrors the
 folder structure, and writes a frontmatter header (`source_pdf`, `title`,
-`backend: marker`). Idempotent — already-converted files are skipped.
+`backend: marker`). Idempotent - already-converted files are skipped.
 Output: `marker.log`, `marker_report.json` summarizing OK / suspicious /
 errors.
 
@@ -325,7 +325,7 @@ that failed or produced a suspiciously short output, this time with
 Useful when Marker / Surya hits known MPS bugs on certain PDFs. The
 backend used for each `.md` is recorded in its frontmatter.
 
-#### Optional — Document AI tier for hard PDFs
+#### Optional - Document AI tier for hard PDFs
 
 For scanned papers, complex tables, equations, or two-column layouts
 that defeat both Marker and pymupdf4llm, the pipeline supports a
@@ -338,7 +338,7 @@ python pdf2md/pdf2md_mistral.py "/path/to/PDFs" raw/<vault>/papers
 ```
 
 Reads `marker_report.json` and only sends the entries Marker errored
-on or flagged as suspicious — typically 10–20 % of a corpus. Paces
+on or flagged as suspicious - typically 10-20 % of a corpus. Paces
 itself at ~2 req/s; the experimental plan is free with rate limits.
 Output is mirrored to `raw/<vault>/papers/` with `backend: mistral` in the
 frontmatter so the source of each markdown is auditable.
@@ -351,7 +351,7 @@ the same input/output contract (`marker_report.json` driver, mirrored
 output path, `backend: <provider>` frontmatter), and the rest of the
 pipeline is provider-agnostic.
 
-### Step 1b — EPUB → Markdown (academic books)
+### Step 1b - EPUB → Markdown (academic books)
 
 ```bash
 python pdf2md/epub2md.py "/path/to/EPUBs"              # default DST: raw/<vault>/books/
@@ -364,13 +364,13 @@ mirrors arborescence to `raw/<vault>/books/`, and converts each book to
 Markdown via **pandoc** (primary, install with `apt install pandoc`
 or `brew install pandoc`) or **markitdown** (fallback, `pip install
 markitdown`). Bibliographic metadata is extracted from the EPUB's
-OPF manifest — `title`, `authors`, `editors`, `year`, `publisher`,
-`isbn`, `language` — and written to frontmatter alongside `backend:
+OPF manifest - `title`, `authors`, `editors`, `year`, `publisher`,
+`isbn`, `language` - and written to frontmatter alongside `backend:
 pandoc-epub` (or `markitdown-epub`). Idempotent. Output:
 `epub.log`, `epub_report.json`.
 
 EPUB carries chapter structure natively, so pandoc's output preserves
-`# Chapter` headings cleanly — `pdf2md/split_thesis.py` (which is
+`# Chapter` headings cleanly - `pdf2md/split_thesis.py` (which is
 type-agnostic, despite the name) can then split a long book or
 edited handbook into per-chapter pages that ingest separately:
 
@@ -382,7 +382,7 @@ The chapters become `raw/<vault>/books/<slug>/chXX-<title>.md`, ingest via
 `source-academic-paper.md` with the `parent_book` / `book_editors`
 frontmatter fields documented in `docs/templates/source-book.md`.
 
-### Step 2 — Enrich Bibliographic Metadata
+### Step 2 - Enrich Bibliographic Metadata
 
 ```bash
 python pdf2md/enrich_frontmatter.py raw/<vault>/papers
@@ -396,17 +396,17 @@ References section into `cites: []`.
 Outputs `enrich_report.json` with the breakdown: Crossref-resolved /
 DOI-only / no-DOI / errors / how many sources got `cites:` populated.
 
-### Step 3 — Validate and Curate Citations
+### Step 3 - Validate and Curate Citations
 
 ```bash
 python tools/parse_references.py --curate --all raw/<vault>/papers
 ```
 
 Three opt-in phases:
-1. **Extract** — regex DOI extraction (offline, fast).
-2. **Validate** — Crossref `/works/{doi}/agency` check; drops invalid
+1. **Extract** - regex DOI extraction (offline, fast).
+2. **Validate** - Crossref `/works/{doi}/agency` check; drops invalid
    DOIs (typically broken at line breaks during PDF extraction).
-3. **Curate** — for entries with no valid DOI, free-text bibliographic
+3. **Curate** - for entries with no valid DOI, free-text bibliographic
    search recovers the canonical DOI, accepted only when relevance
    score and title overlap pass thresholds.
 
@@ -418,11 +418,11 @@ cites_unresolved:                      # entries no DOI could be assigned to
   - "Smith J, Brown K. ..."
 ```
 
-Cache: `tools/.cache/doi_validation.json` — once a DOI is validated,
+Cache: `tools/.cache/doi_validation.json` - once a DOI is validated,
 subsequent runs skip the network call. Estimated cost on a fresh
 698-paper corpus: ~13 min; subsequent runs: ~5 min.
 
-### Step 4 — Ingest into the Wiki
+### Step 4 - Ingest into the Wiki
 
 ```bash
 claude
@@ -431,7 +431,7 @@ claude
 Then in the agent:
 ```
 ingest raw/<vault>/papers/cervera-2020.md
-ingest raw/<vault>/papers/   # batch — process by length, ascending
+ingest raw/<vault>/papers/   # batch - process by length, ascending
 ```
 
 Or in plain English:
@@ -442,7 +442,7 @@ Or in plain English:
 
 Claude reads `CLAUDE.md` and applies the academic schema:
 - **Source pages** with explicit `## Background (from cited literature)`,
-  `## Methods`, `## Results (this paper's findings)`, `## Discussion` —
+  `## Methods`, `## Results (this paper's findings)`, `## Discussion` - 
   each register cited correctly under the **Indirect Citation Rule**.
 - **Concept pages** structured as short academic chapters (Overview,
   Historical Genesis, Definitions, Theoretical Foundations, Mechanisms,
@@ -462,7 +462,7 @@ Claude reads `CLAUDE.md` and applies the academic schema:
 For theses (`raw/<vault>/theses/*`), Claude additionally extracts a
 **citation snowball list** of high-value references the thesis builds on.
 
-### Step 5 — Build and Maintain the Citation Network
+### Step 5 - Build and Maintain the Citation Network
 
 ```bash
 python tools/update_cited_by.py
@@ -473,7 +473,7 @@ source's `cites:` frontmatter, and rewrites every source's `## Cited By`
 section with `[[wikilinks]]` pointing to the papers that cite it. Run
 after each batch of ingestions.
 
-### Step 6 — Surface Complementary Readings
+### Step 6 - Surface Complementary Readings
 
 ```bash
 python tools/suggest_readings.py MotorImagery --enrich --top 20
@@ -538,7 +538,7 @@ unless explicitly noted.
 Run after every batch of ingestions to keep the wiki citation-rigorous and
 to surface where it's thin.
 
-### 1 — Refresh the citation network
+### 1 - Refresh the citation network
 
 ```bash
 python tools/update_cited_by.py
@@ -549,7 +549,7 @@ python tools/parse_references.py --curate --all wiki/sources/
 `cites:` frontmatter. `parse_references.py --curate` validates each DOI
 against Crossref and recovers broken / missing DOIs via free-text search.
 
-### 2 — Health checks (free, fast)
+### 2 - Health checks (free, fast)
 
 ```bash
 python tools/health.py
@@ -560,7 +560,7 @@ python tools/coverage_report.py --save
 flags concepts mentioned 3+ times that are still stubs and sources missing
 either `methods:` or `intervention_family:`.
 
-### 3 — Targeted analyses (per current focus)
+### 3 - Targeted analyses (per current focus)
 
 ```bash
 python tools/method_matrix.py --intervention BCI --save
@@ -572,9 +572,9 @@ python tools/brain_atlas_anchor.py --save
 ```
 
 Each `--save` writes to `wiki/syntheses/<slug>.md`. Without `--save`, the
-report goes to stdout — useful for quick exploration.
+report goes to stdout - useful for quick exploration.
 
-### 4 — Discovery
+### 4 - Discovery
 
 ```bash
 python tools/watch_pubmed.py --init               # first time only
@@ -582,7 +582,7 @@ python tools/watch_pubmed.py --save               # weekly
 python tools/suggest_readings.py MotorImagery --enrich
 ```
 
-### 5 — Output (when writing)
+### 5 - Output (when writing)
 
 ```bash
 python tools/bibtex_export.py > wiki.bib                          # master
@@ -595,66 +595,66 @@ The `--chapters` mode reads a YAML mapping (chapter name → list of wiki pages)
 and emits one `.bib` per chapter, gathering only the sources actually
 wikilinked from those pages.
 
-### 6 — Audit a specific claim
+### 6 - Audit a specific claim
 
 ```bash
 python tools/audit_page.py wiki/concepts/MotorImagery.md --section "Empirical Evidence"
 ```
 
 Returns a `git blame`-by-section view with each line mapped to its commit
-and to the matching `wiki/log.md` ingest entry — useful when a thesis
+and to the matching `wiki/log.md` ingest entry - useful when a thesis
 reviewer asks *"where does this claim come from?"*.
 
 ## What You Get
 
-**Persistent wiki** — structured markdown pages that accumulate across
+**Persistent wiki** - structured markdown pages that accumulate across
 sessions. Unlike chat, nothing is lost.
 
-**Source pages — IMRAD by default** — every empirical paper ingested
+**Source pages - IMRAD by default** - every empirical paper ingested
 produces a structured source page (Introduction · Methods · Results ·
 Discussion · Reporting Standard Alignment · Extraction Checklist).
 Specialized templates for systematic reviews (PRISMA-aware), narrative
 reviews (thematic), scoping reviews (PRISMA-ScR), methodological
 papers, and theoretical / framework papers.
 
-**Concept pages — short academic chapters** — Overview · Historical
+**Concept pages - short academic chapters** - Overview · Historical
 Genesis · Definitions · Theoretical Foundations · Mechanisms ·
 Operationalization · Empirical Evidence · Clinical Relevance ·
-Controversies · Seminal References (1500–3500 word target). Built
+Controversies · Seminal References (1500-3500 word target). Built
 incrementally as new sources touch them.
 
-**Method, intervention, recommendation, question pages** — measurement
+**Method, intervention, recommendation, question pages** - measurement
 instruments, treatment monographs, evidence-graded recommendations, and
 open research questions, all auto-created and cross-referenced.
 
-**Entity pages** — authors, labs, institutions, instrument vendors,
+**Entity pages** - authors, labs, institutions, instrument vendors,
 auto-created from each ingest's frontmatter.
 
-**Citation network** — `cites:` extracted from each paper's References
+**Citation network** - `cites:` extracted from each paper's References
 section (regex + Crossref validation + free-text curation). `## Cited By`
 maintained automatically. Snowball candidates surfaced per concept.
 
-**Indirect Citation Rule** — claims a paper inherits from prior work
+**Indirect Citation Rule** - claims a paper inherits from prior work
 cite the **original** source, with explicit `reported via [[X]]`
 provenance. Concept pages aggregate cited claims, not transmitter
 citations.
 
-**APA-ready output** — `citation_apa` and `bibtex_key` per source page.
+**APA-ready output** - `citation_apa` and `bibtex_key` per source page.
 `tools/bibtex_export.py` produces a master `wiki.bib` or per-chapter
 files for a manuscript outline.
 
-**Living overview** — `wiki/overview.md` is revised when synthesis
+**Living overview** - `wiki/overview.md` is revised when synthesis
 warrants. `tools/coverage_report.py` flags concepts mentioned ≥ 3 times
 that are still stubs (priority expansions).
 
-**Contradiction flags** — when a new source contradicts an existing
+**Contradiction flags** - when a new source contradicts an existing
 claim, it's flagged at ingest time with page references on both sides.
 
-**Knowledge graph** — `graph.html` shows every wiki page as a node,
+**Knowledge graph** - `graph.html` shows every wiki page as a node,
 every `[[wikilink]]` as an edge, and inferred relationships as dotted
 edges. Louvain community detection clusters related topics.
 
-**Lint and audit** — orphan pages, broken links, uncited claims,
+**Lint and audit** - orphan pages, broken links, uncited claims,
 sources without DOI, snowball debt, replication chains, single-study
 claims. `tools/audit_page.py` traces each line back to the ingest
 that introduced it.
@@ -681,7 +681,7 @@ python tools/parse_references.py --curate --all raw/<vault>/papers
 python tools/update_cited_by.py
 python tools/coverage_report.py --save
 
-# When writing — BibTeX organized by manuscript chapter
+# When writing - BibTeX organized by manuscript chapter
 python tools/bibtex_export.py --chapters chapters.yaml --output-dir bib/
 ```
 
@@ -714,9 +714,9 @@ You can save the review as `wiki/syntheses/<topic>-review.md`.
 
 ---
 
-### Systematic review — screening + extraction
+### Systematic review - screening + extraction
 
-Review projects live under `project-review/<vault>/<name>/` —
+Review projects live under `project-review/<vault>/<name>/` - 
 **separate from the Obsidian wiki**, self-contained per review,
 organized in two sequential phases. The `<vault>` is independent
 from the wiki vault (set via `$PROJECT_VAULT` or as the first path
@@ -725,14 +725,14 @@ segment, e.g. `BCINET/mibci`):
 ```
 project-review/BCINET/mibci/
 ├── contexte.md          # Shared scope (PICO, objective, question, outcomes)
-├── screening/           # PRISMA 2020 — pass 1 (T/A) + pass 2 (full text)
+├── screening/           # PRISMA 2020 - pass 1 (T/A) + pass 2 (full text)
 │   ├── criteria.md            # PICO + IN/OUT criteria with mnemonic tags
 │   ├── identified/            # User drops CSV exports (pubmed.csv, scopus.csv, …)
 │   ├── tiab-decisions.csv     # Per-record decisions from pass 1
 │   ├── fulltext-decisions.csv # Per-article decisions from pass 2 (with verbatim excerpts)
 │   ├── 1st-pass/{raw,markdown}/   # PDFs auto-fetched + converted for pass 2
 │   └── reports/{tiab,fulltext,prisma-flowchart}.md  # Auto-generated
-└── extraction/          # Phase 2 — data extraction
+└── extraction/          # Phase 2 - data extraction
     ├── instructions.md  # Per-column extraction spec (agent-authored from Phase 1 debrief)
     ├── template.xlsx    # 2-row template (variable name + instruction)
     ├── articles/        # MDs of included articles (copied from screening or wiki)
@@ -743,21 +743,21 @@ project-review/BCINET/mibci/
 
 **Five slash commands drive the workflow:**
 
-#### Phase 1 — PRISMA screening (optional)
+#### Phase 1 - PRISMA screening (optional)
 
-1. **`/extractor-screen-init <name>`** — interactive build of PICO +
+1. **`/extractor-screen-init <name>`** - interactive build of PICO +
    inclusion / exclusion criteria → `screening/criteria.md`. Each
    criterion gets a mnemonic tag (`wrong-population`, `not-RCT`,
    `non-english`, …) consumed by the screener sub-agents in their
    decision output.
 
-2. **`/extractor-screen-tiab <name>`** — pass 1, title/abstract.
+2. **`/extractor-screen-tiab <name>`** - pass 1, title/abstract.
    - Dedupes CSV exports (DOI > PMID > fuzzy title/author/year)
    - Fetches missing abstracts via PubMed → OpenAlex → Crossref cascade
    - Delegates one decision per record to the `screener-tiab`
-     sub-agent (haiku — title + abstract only, never reads PDFs)
+     sub-agent (haiku - title + abstract only, never reads PDFs)
    - **Reads `background/notes.md`** when present (domain primer
-     authored by the user — gives every screener decision the same
+     authored by the user - gives every screener decision the same
      context)
    - Defaults to over-inclusion (`uncertain` → retrieve)
    - **Flags side-useful excludes** (`intro` / `discussion` /
@@ -766,13 +766,13 @@ project-review/BCINET/mibci/
    - Lists paywalled PDFs in `1st-pass/missing.md` for manual fetch
    - Updates the PRISMA flowchart
 
-3. **`/extractor-screen-fulltext <name>`** — pass 2, full text.
+3. **`/extractor-screen-fulltext <name>`** - pass 2, full text.
    - Reads each article's MD body via the `screener-fulltext`
-     sub-agent (sonnet — Methods + Results mandatory)
+     sub-agent (sonnet - Methods + Results mandatory)
    - **Reads `background/notes.md`** when present (same primer as T/A)
    - Every full-text exclusion carries a **verbatim excerpt + source
      location** (audit trail)
-   - **Re-evaluates side-use on a more reliable basis** (the body) —
+   - **Re-evaluates side-use on a more reliable basis** (the body) - 
      with optional justifying excerpt + location per side flag
    - Mandatory user audit gate (sample + all `uncertain` + all
      `side_use` flagged rows)
@@ -781,45 +781,45 @@ project-review/BCINET/mibci/
      `extraction/biblio/side/<category>/<slug>.md` + appends to the
      per-category `index.md`
 
-#### Phase 2 — data extraction
+#### Phase 2 - data extraction
 
-4. **`/extractor-init <name>`** — interactive bootstrap.
+4. **`/extractor-init <name>`** - interactive bootstrap.
    Creates the full project skeleton (both `screening/` and
    `extraction/`), then walks you through:
    - **contexte.md** (5 structured questions: review type, objective,
-     research question, primary outcomes, style notes — plus 0–5
+     research question, primary outcomes, style notes - plus 0-5
      targeted follow-ups; eligibility criteria section for inclusion/
      exclusion rules used to flag wrongly-included articles)
    - **template** (co-design if blank: default 27-col SR set,
      category subset, or paste custom list)
    - **instructions** (per-column dialog: type-hint / categorical-strict /
-     categorical-open / coded / NL — with int vs float and strict vs open
+     categorical-open / coded / NL - with int vs float and strict vs open
      confirmation)
-   - **Step 8d — mandatory instruction review pass**: after saisie,
+   - **Step 8d - mandatory instruction review pass**: after saisie,
      scans all columns for 10 issue types (empty, no NR fallback, open/
      closed ambiguity, missing units, inconsistent tokens, etc.), severity
      triage 🔴/🟠/🟡, resolves one by one before finalising
 
-5. **`/extractor-table project-review/<vault>/<name>/`** — runs extraction.
-   - **Phase 1b** — article resolution: for each article, locates PDF
+5. **`/extractor-table project-review/<vault>/<name>/`** - runs extraction.
+   - **Phase 1b** - article resolution: for each article, locates PDF
      (`extraction/biblio/raw/` or, if the project went through screening,
      `screening/1st-pass/raw/`) and MD via the wiki; copies both (never
      moves). Fuzzy PDF search when the filename doesn't match the slug
      exactly.
-   - **Phase 1c** — eligibility check: compares each article's
+   - **Phase 1c** - eligibility check: compares each article's
      characteristics against the review's eligibility criteria in
      `screening/criteria.md` (or `contexte.md` if no screening was run);
      flags potential mismatches before extraction begins; user decides
      `Y / exclure`.
-   - **Phase 2–3** — deterministic + LLM extraction; ambiguous cells
-     tagged `À PRÉCISER — [verbatim]` without interrupting the batch.
+   - **Phase 2-3** - deterministic + LLM extraction; ambiguous cells
+     tagged `À PRÉCISER - [verbatim]` without interrupting the batch.
    - **End-of-batch resolution**: ambiguous cells grouped by column;
      agent proposes adapted instruction → `Y` updates `template.xlsx`
      row 2 + `instructions.md` and re-extracts; user can also ignore.
-   - **Phase 5** — adaptive refinement proposals (add column / split /
+   - **Phase 5** - adaptive refinement proposals (add column / split /
      refine instruction) based on observed patterns.
    - **Output format**: both detailed and coded files carry two header
-     rows — row 1 = column names, row 2 = instructions (readable without
+     rows - row 1 = column names, row 2 = instructions (readable without
      opening the template).
 
 **Template format (2-row)**:
@@ -834,8 +834,8 @@ project-review/BCINET/mibci/
 
 **Detailed output cell format**: `<value> | <source location>`
 (e.g. `12.4 ± 3.1 years | Table 1 row "Age"` or `RCT | Methods §"Study design"`).
-The source location is precise — `Table N` / `Fig N` / `p.N §"heading"` /
-`Section §"subsection"` — so you can audit any cell back to the page.
+The source location is precise - `Table N` / `Fig N` / `p.N §"heading"` /
+`Section §"subsection"` - so you can audit any cell back to the page.
 
 **Coded output**: same cells with the `| <source>` suffix stripped,
 units removed for floats, decimals rounded for ints, categorical
@@ -850,7 +850,7 @@ instructions are free.
 
 **Backward compatible**: the single-file legacy 4-row template
 (INSTRUCTIONS / TYPE / SCALE markers) still works with
-`tools/extract_data.py <template>` directly — same flow without the
+`tools/extract_data.py <template>` directly - same flow without the
 project folder.
 
 ---
@@ -875,7 +875,7 @@ in its `## Notable References` section (☐ for not-yet-in-wiki).
 ### Comparing methodologies across the corpus
 
 The repo ships six analyzers that walk `wiki/sources/` and emit
-Markdown reports — zero LLM calls.
+Markdown reports - zero LLM calls.
 
 ```bash
 # Sources × design × N × methods × intervention
@@ -905,14 +905,14 @@ synthesis.
 
 Two-pass build:
 
-1. **Deterministic** — parses all `[[wikilinks]]` across wiki pages → edges tagged `EXTRACTED`
-2. **Semantic** — agent infers implicit relationships not captured by wikilinks → edges tagged `INFERRED` (with confidence score) or `AMBIGUOUS`
+1. **Deterministic** - parses all `[[wikilinks]]` across wiki pages → edges tagged `EXTRACTED`
+2. **Semantic** - agent infers implicit relationships not captured by wikilinks → edges tagged `INFERRED` (with confidence score) or `AMBIGUOUS`
 
-Louvain community detection clusters nodes by topic. SHA256 cache means only changed pages are reprocessed. Output is a self-contained `graph.html` — no server, opens in any browser.
+Louvain community detection clusters nodes by topic. SHA256 cache means only changed pages are reprocessed. Output is a self-contained `graph.html` - no server, opens in any browser.
 
 ## CLAUDE.md / AGENTS.md
 
-The schema file tells the agent how to maintain the wiki — the two
+The schema file tells the agent how to maintain the wiki - the two
 non-negotiable rules (Citation, Depth), the sub-agent roster, and a
 pointer index to the detailed procedure. It's a compact (~3.5 kB)
 orchestrator file: heavy procedural detail (16-step ingest, source
@@ -998,7 +998,7 @@ If you want to keep the LLM Wiki Agent repository separate from your main person
 ## Multi-Format Ingest
 
 For PDF papers and theses, use the dedicated **Academic Pipeline**
-(above) — Marker + pymupdf4llm fallback gives higher fidelity than
+(above) - Marker + pymupdf4llm fallback gives higher fidelity than
 generic conversion, and the Crossref enrichment step populates
 bibliographic metadata automatically.
 
@@ -1032,10 +1032,10 @@ python tools/file_to_md.py --input_dir raw/imports/ --delete_source  # remove or
 
 | Package | Install | Used for |
 |---|---|---|
-| [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | **Required** for `pdf2md/pdf2md_marker.py` — high-fidelity academic PDF conversion |
-| [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | **Required** for `pdf2md/pdf2md_fallback.py` — CPU rescue when Marker fails |
-| [Mistral SDK](https://docs.mistral.ai/) | `pip install mistralai` + `MISTRAL_API_KEY` | **Optional** Document AI / OCR tier (`pdf2md/pdf2md_mistral.py`) for scanned PDFs, complex tables, equations. Swappable for Google Cloud Document AI, AWS Textract, Azure AI Document Intelligence — same input/output contract |
-| [Pandoc](https://pandoc.org/) | `apt install pandoc` / `brew install pandoc` | **Recommended** for `pdf2md/epub2md.py` — preserves chapter headings, footnotes, equations from academic EPUBs; falls back to `markitdown` if absent |
+| [Marker](https://github.com/VikParuchuri/marker) | `pip install marker-pdf` | **Required** for `pdf2md/pdf2md_marker.py` - high-fidelity academic PDF conversion |
+| [PyMuPDF4LLM](https://github.com/pymupdf/RAG) | `pip install pymupdf4llm` | **Required** for `pdf2md/pdf2md_fallback.py` - CPU rescue when Marker fails |
+| [Mistral SDK](https://docs.mistral.ai/) | `pip install mistralai` + `MISTRAL_API_KEY` | **Optional** Document AI / OCR tier (`pdf2md/pdf2md_mistral.py`) for scanned PDFs, complex tables, equations. Swappable for Google Cloud Document AI, AWS Textract, Azure AI Document Intelligence - same input/output contract |
+| [Pandoc](https://pandoc.org/) | `apt install pandoc` / `brew install pandoc` | **Recommended** for `pdf2md/epub2md.py` - preserves chapter headings, footnotes, equations from academic EPUBs; falls back to `markitdown` if absent |
 | [requests](https://requests.readthedocs.io/) + [PyYAML](https://pyyaml.org/) | `pip install requests pyyaml` | **Required** for `enrich_frontmatter.py`, `parse_references.py`, `suggest_readings.py`, `update_cited_by.py` (Crossref API + frontmatter parsing) |
 | [tqdm](https://github.com/tqdm/tqdm) | `pip install tqdm` | Progress bars in the pdf2md pipeline |
 | [markitdown](https://github.com/microsoft/markitdown) | `pip install markitdown` | Auto-conversion of non-PDF formats (.docx, .pptx, .xlsx, .html, …) |
@@ -1052,18 +1052,18 @@ pip install marker-pdf pymupdf4llm requests pyyaml tqdm
 - For PDF libraries, run the dedicated `pdf2md/` pipeline before ingest
   (Marker is much higher fidelity than markitdown for academic PDFs).
 - Run `tools/parse_references.py --curate` *after* the conversion pipeline
-  but *before* ingestion — the agent then sees a clean `cites:` list and
+  but *before* ingestion - the agent then sees a clean `cites:` list and
   can wikilink to existing wiki sources directly.
 - Re-run `tools/update_cited_by.py` after each batch of ingestions to
   refresh the reverse citation index.
 - For theses, the agent surfaces a **citation snowball list** of
-  high-value references at the end of the ingest summary — pick which
+  high-value references at the end of the ingest summary - pick which
   to ingest next.
 - Use `tools/suggest_readings.py <concept>` to identify what to read next
   to deepen a concept that feels under-supported.
-- Query answers are shown first — the agent then asks if you want to
+- Query answers are shown first - the agent then asks if you want to
   file them as `wiki/syntheses/<topic>-review.md` pages.
-- The wiki is a git repo — version history for free.
+- The wiki is a git repo - version history for free.
 - Standalone Python scripts in `tools/` work without a coding agent
   (Crossref scripts require internet but no API key).
 
@@ -1073,12 +1073,12 @@ NetworkX + Louvain + Claude + vis.js. No server, no database, runs entirely loca
 
 ## Related & inspiration
 
-- [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) — the upstream this fork specializes for academic research. The "agent maintains a self-organizing wiki from source documents" pattern is theirs; the IMRAD templates, Indirect Citation Rule, PDF pipeline, and SR tooling are this fork's additions.
-- [Andrej Karpathy — Software 3.0 (Sequoia AI Ascent, 2025)](https://www.youtube.com/watch?v=LCEmiRjPEtQ) — the framing of LLMs as a new programming layer that reads, synthesizes, and writes natural-language artefacts. This project applies that lens to academic literature: instead of retrieving chunks for one query, an agent compiles a persistent, citation-rigorous knowledge base.
-- [Andrej Karpathy — Intro to LLMs](https://www.youtube.com/watch?v=zjkBMFhNj_g) — accessible primer on what LLMs are good at and where they fail, useful background for understanding why this project trusts the agent for synthesis but not for inventing citations.
-- [graphify](https://github.com/safishamsi/graphify) — graph-based knowledge extraction skill (inspiration for the graph layer in upstream).
-- [Vannevar Bush's Memex (1945)](https://en.wikipedia.org/wiki/Memex) — the original vision this resembles.
+- [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) - the upstream this fork specializes for academic research. The "agent maintains a self-organizing wiki from source documents" pattern is theirs; the IMRAD templates, Indirect Citation Rule, PDF pipeline, and SR tooling are this fork's additions.
+- [Andrej Karpathy - Software 3.0 (Sequoia AI Ascent, 2025)](https://www.youtube.com/watch?v=LCEmiRjPEtQ) - the framing of LLMs as a new programming layer that reads, synthesizes, and writes natural-language artefacts. This project applies that lens to academic literature: instead of retrieving chunks for one query, an agent compiles a persistent, citation-rigorous knowledge base.
+- [Andrej Karpathy - Intro to LLMs](https://www.youtube.com/watch?v=zjkBMFhNj_g) - accessible primer on what LLMs are good at and where they fail, useful background for understanding why this project trusts the agent for synthesis but not for inventing citations.
+- [graphify](https://github.com/safishamsi/graphify) - graph-based knowledge extraction skill (inspiration for the graph layer in upstream).
+- [Vannevar Bush's Memex (1945)](https://en.wikipedia.org/wiki/Memex) - the original vision this resembles.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.

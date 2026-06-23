@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Export wiki/sources/ as BibTeX, organized in three modes.
 
-Mode 1 — master file with %-section comments by primary type (default):
+Mode 1 - master file with %-section comments by primary type (default):
 
     python tools/bibtex_export.py > wiki.bib
 
-Mode 2 — one file per concept / intervention / method:
+Mode 2 - one file per concept / intervention / method:
 
     python tools/bibtex_export.py --per-concept --output-dir bib/
     python tools/bibtex_export.py --per-intervention --output-dir bib/
     python tools/bibtex_export.py --per-method --output-dir bib/
 
-Mode 3 — explicit chapter mapping (manuscript / thesis):
+Mode 3 - explicit chapter mapping (manuscript / thesis):
 
     python tools/bibtex_export.py --chapters chapters.yaml --output-dir bib/
 

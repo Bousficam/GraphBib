@@ -8,19 +8,19 @@ only how to apply it cleanly.
 
 Operation (dry-run by default; `--apply` to actually do it):
 
-  1. **Frontmatter union** — target keeps its title and primary fields.
+  1. **Frontmatter union** - target keeps its title and primary fields.
      Source's title and aliases are added to target's `aliases:`.
      `tags`, `cites`, `methods`, `domain`, `replication_of` (when lists)
      are unioned. Scalar fields not on target are copied from source.
-  2. **Body append** — source body is appended under a new section:
+  2. **Body append** - source body is appended under a new section:
      `## Merged from [[source-slug]] (YYYY-MM-DD)`. A comment marker
      `<!-- merged-from: source-slug -->` is added for audit.
-  3. **Wikilink rewrite** — every `.md` in the wiki has
+  3. **Wikilink rewrite** - every `.md` in the wiki has
      `[[source-slug]]`, `[[source-slug|alias]]`, `[[source-slug#section]]`
      replaced with the target-slug equivalent.
-  4. **Source page deletion** — `wiki/<kind>/<source-slug>.md` is
+  4. **Source page deletion** - `wiki/<kind>/<source-slug>.md` is
      removed (only after the rewrites succeed).
-  5. **Audit log entry** — appends to `wiki/log.md`.
+  5. **Audit log entry** - appends to `wiki/log.md`.
 
 CLI:
 
@@ -124,7 +124,7 @@ def _append_log(src_slug: str, tgt_slug: str, apply: bool) -> None:
     log = WIKI_DIR / "log.md"
     if not log.exists():
         return
-    line = f"- {dt.date.today().isoformat()} — merged [[{src_slug}]] into [[{tgt_slug}]] (tools/merge_pages.py)\n"
+    line = f"- {dt.date.today().isoformat()} - merged [[{src_slug}]] into [[{tgt_slug}]] (tools/merge_pages.py)\n"
     log.write_text(log.read_text(encoding="utf-8").rstrip() + "\n" + line, encoding="utf-8")
 
 
@@ -182,7 +182,7 @@ def main():
         for path, n in sorted(rewrites.items()):
             print(f"    {path:60s} {n} link(s)")
     if not args.apply:
-        print("\nDry-run only — re-run with --apply to write changes.")
+        print("\nDry-run only - re-run with --apply to write changes.")
 
 
 if __name__ == "__main__":

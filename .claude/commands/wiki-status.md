@@ -1,5 +1,5 @@
 ---
-description: Quick dashboard of the wiki — counts, recent activity, coverage thinness, pending PRs, snowball debt. Zero LLM calls.
+description: Quick dashboard of the wiki - counts, recent activity, coverage thinness, pending PRs, snowball debt. Zero LLM calls.
 argument-hint: ""
 ---
 
@@ -46,7 +46,7 @@ python tools/lint_cache.py cache --status 2>/dev/null
 # Output structure
 
 ```markdown
-=== Wiki status — <date> ===
+=== Wiki status - <date> ===
 
 ## Counts
 | Type | Count |
@@ -66,11 +66,11 @@ python tools/lint_cache.py cache --status 2>/dev/null
 - …
 
 ## Coverage thinness (top 5 priorities)
-- [[ConceptName]] — N sources, M words (stub)
+- [[ConceptName]] - N sources, M words (stub)
 - …
 
 ## Snowball candidates (top 10 by frequency)
-- [Nx] <DOI> — cited by [a, b, c, …]
+- [Nx] <DOI> - cited by [a, b, c, …]
 - …
 
 ## Git

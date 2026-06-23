@@ -20,12 +20,12 @@ last_updated: YYYY-MM-DD
 ---
 
 ## Strong Evidence (≥3 sources, replicated, including ≥1 RCT or meta-analysis)
-- Recommendation 1 — sources: [[paper-a]] (p. ?), [[paper-b]] (p. ?),
+- Recommendation 1 - sources: [[paper-a]] (p. ?), [[paper-b]] (p. ?),
   [[cervera-2020]] meta-analysis (p. ?). Evidence level: A.
 - ...
 
 ## Moderate Evidence (1-2 RCTs or several non-randomized studies)
-- Recommendation 2 — source: [[paper-d]] (p. ?). Not yet replicated.
+- Recommendation 2 - source: [[paper-d]] (p. ?). Not yet replicated.
   Evidence level: B.
 - ...
 

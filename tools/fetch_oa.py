@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
 """Fetch open-access PDFs for a list of DOIs, via a cascade of providers.
 
-Provider cascade — each DOI is tried against the list in order; the
+Provider cascade - each DOI is tried against the list in order; the
 first hit that produces a VERIFIED PDF with a publishedVersion (or
 acceptedVersion) wins. Lower-quality hits (preprints / unknown
 version) are held as a provisional fallback and only committed if
 no later provider yields a better version:
 
-  1. Unpaywall          — broad coverage, well-maintained DOI → OA map
-  2. OpenAlex           — own `locations[*].pdf_url` (iterates ALL,
+  1. Unpaywall - broad coverage, well-maintained DOI → OA map
+  2. OpenAlex - own `locations[*].pdf_url` (iterates ALL,
                           not just primary); finds repo PDFs Unpaywall
                           misses
-  3. Semantic Scholar   — author-uploaded PDFs (includes a lot of what
-                          ResearchGate indexes — direct RG fetch is
+  3. Semantic Scholar - author-uploaded PDFs (includes a lot of what
+                          ResearchGate indexes - direct RG fetch is
                           Cloudflare-blocked and ToS-restricted, so we
                           rely on SS's indexed copies)
-  4. Europe PMC         — biomedical full-text PDFs (PMCID-keyed)
-  5. Publisher direct   — URL templates for known OA publishers
+  4. Europe PMC - biomedical full-text PDFs (PMCID-keyed)
+  5. Publisher direct - URL templates for known OA publishers
                           (PLOS, eLife, MDPI, Frontiers, JMIR)
-  6. arXiv              — preprints (search by DOI cross-ref)
-  7. bioRxiv / medRxiv  — preprints (DOI-keyed)
-  8. CORE               — institutional repositories (anonymous,
+  6. arXiv - preprints (search by DOI cross-ref)
+  7. bioRxiv / medRxiv - preprints (DOI-keyed)
+  8. CORE - institutional repositories (anonymous,
                           best-effort; honors $CORE_API_KEY)
 
 Within a provider, ALL candidate URLs are tried (OpenAlex routinely
 returns 3-5 URLs per DOI from different repositories). Candidates
-are sorted by version rank — publishedVersion > acceptedVersion >
-submittedVersion > unknown — so the best URL inside one provider
+are sorted by version rank - publishedVersion > acceptedVersion >
+submittedVersion > unknown - so the best URL inside one provider
 is tried first.
 
 Across providers, the cascade stops at the first hit with rank ≥
@@ -39,7 +39,7 @@ After download:
   - **Title verification** (when pymupdf is installed): extract the
     title from the PDF's first page, compare it via
     `title_similarity` against the expected title from `--with-titles`.
-    Reject the download if the similarity drops below 0.5 — closes
+    Reject the download if the similarity drops below 0.5 - closes
     the wrong-paper gap when the DOI returned a landing page or a
     different article.
 
@@ -51,7 +51,7 @@ Usage:
     # DOIs as CLI args
     python tools/fetch_oa.py 10.1016/j.neubiorev.2012.10.003 10.xxx/yyy
 
-    # DOIs from a file (regex extraction — works on any text file)
+    # DOIs from a file (regex extraction - works on any text file)
     python tools/fetch_oa.py --from-file candidates.txt
 
     # Pipe from suggest_readings:
@@ -119,7 +119,7 @@ DOWNLOAD_TIMEOUT = 60
 TITLE_MATCH_THRESHOLD = 0.5   # below → reject (likely wrong paper / landing page)
 
 
-# Version-rank table — used to prefer publishedVersion over preprints when
+# Version-rank table - used to prefer publishedVersion over preprints when
 # multiple OA versions exist for the same DOI. Values are arbitrary but
 # strictly ordered.
 VERSION_RANKS = {
@@ -236,7 +236,7 @@ def _provider_unpaywall(doi, requests):
 
 
 def _provider_openalex(doi, requests):
-    """Returns list[candidate] — iterates primary_location + every location[*]
+    """Returns list[candidate] - iterates primary_location + every location[*]
     that has a pdf_url. Often 3-5 candidates per DOI vs Unpaywall's 1-2."""
     r = _safe_get(
         requests,
@@ -272,7 +272,7 @@ def _provider_openalex(doi, requests):
 
 
 def _provider_semanticscholar(doi, requests):
-    """Semantic Scholar — covers many author-uploaded PDFs that Unpaywall
+    """Semantic Scholar - covers many author-uploaded PDFs that Unpaywall
     and OpenAlex miss (including PDFs hosted on ResearchGate-style
     personal pages that SS has indexed).
 
@@ -298,7 +298,7 @@ def _provider_semanticscholar(doi, requests):
     url = (oa.get("url") or "").strip()
     if not url:
         return None
-    # SS reports `status` as e.g. "BRONZE", "GREEN", "GOLD", "HYBRID" —
+    # SS reports `status` as e.g. "BRONZE", "GREEN", "GOLD", "HYBRID" - 
     # these are OA-tier labels (Unpaywall-style) not version labels.
     # We can't infer publishedVersion / submittedVersion from that, so
     # we leave version unknown (rank 0). The cascade still tries this
@@ -388,9 +388,9 @@ def _provider_biorxiv(doi, requests):
 
 
 def _provider_core(doi, requests):
-    """CORE.ac.uk — institutional-repo aggregator. Iterates up to 3 results
+    """CORE.ac.uk - institutional-repo aggregator. Iterates up to 3 results
     per DOI; their downloadUrl can be authorVersion, publishedVersion, or
-    submittedVersion — CORE doesn't classify so version stays unknown."""
+    submittedVersion - CORE doesn't classify so version stays unknown."""
     headers = {"User-Agent": _ua()}
     if CORE_API_KEY:
         headers["Authorization"] = f"Bearer {CORE_API_KEY}"
@@ -445,7 +445,7 @@ def _publisher_elife(doi):
 
 
 def _publisher_mdpi(doi):
-    # 10.3390/<journal-slug><id> — MDPI exposes /article/<doi>/pdf
+    # 10.3390/<journal-slug><id> - MDPI exposes /article/<doi>/pdf
     if not doi.startswith("10.3390/"):
         return None
     return f"https://www.mdpi.com/article/{doi}/pdf"
@@ -551,7 +551,7 @@ def extract_pdf_title(path):
 
     Returns the extracted title string or None when we can't extract
     (no pymupdf, broken PDF, no title candidate). When None, the
-    caller MUST NOT reject — verification is optional, not blocking.
+    caller MUST NOT reject - verification is optional, not blocking.
     """
     try:
         import fitz  # pymupdf
@@ -583,7 +583,7 @@ def extract_pdf_title(path):
             and not re.match(r"^(abstract|introduction|methods?|results?|"
                              r"discussion|background|keywords?|page \d+|"
                              r"doi|http|received|accepted|published|"
-                             r"\d{4}\s*[—,-])", ln, re.I)
+                             r"\d{4}\s*[\u2014\u2013,-])", ln, re.I)
         ]
         if not candidates:
             return None
@@ -600,7 +600,7 @@ def verify_pdf_title(path, expected_title, threshold=TITLE_MATCH_THRESHOLD):
 
     Returns (ok, sim_or_None, extracted_or_None):
       - ok=True  : accept the PDF (sim ≥ threshold, OR no expected title given,
-                   OR pymupdf not available — verification skipped)
+                   OR pymupdf not available - verification skipped)
       - ok=False : reject; the PDF is for a different paper / a landing page
     """
     if not expected_title:
@@ -613,7 +613,7 @@ def verify_pdf_title(path, expected_title, threshold=TITLE_MATCH_THRESHOLD):
 
 
 # ----------------------------------------------------------------------
-# fetch_one — cascading provider loop
+# fetch_one - cascading provider loop
 
 # Per-provider hard statuses (no point retrying within this DOI):
 _STATUS_HARD_STOPS = {"invalid_doi"}
@@ -648,7 +648,7 @@ def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
     Strategy:
       1. For each provider, get its candidates (list of {url, version}).
       2. Within a provider, try candidates in descending version-rank
-         order — published > accepted > submitted > unknown.
+         order - published > accepted > submitted > unknown.
       3. On first verified download:
           - rank ≥ ACCEPTED_OR_BETTER (acceptedVersion or
             publishedVersion) → DONE, return immediately.
@@ -785,10 +785,10 @@ def fetch_one(doi, dst, requests, expected_title=None, overwrite=False,
             # already have its best candidate as provisional.
             break
 
-    # End of cascade — commit the provisional if we got one.
+    # End of cascade - commit the provisional if we got one.
     if provisional:
         partial, rank, tmp = provisional
-        partial["note"] = ("no publishedVersion found in cascade — "
+        partial["note"] = ("no publishedVersion found in cascade - "
                            f"keeping {partial.get('version') or 'unknown-version'} "
                            f"from {partial.get('source')}")
         return _finalize(partial, tmp)
@@ -874,7 +874,7 @@ def load_previous_failures(report_path):
         if not doi:
             continue
         # Build a set of providers that returned "found=True but
-        # download/verify failed" — those we'll skip on retry to
+        # download/verify failed" - those we'll skip on retry to
         # avoid re-hitting a known-bad URL. Providers that returned
         # found=False are retried (they may have new data now).
         skip = {
@@ -912,7 +912,7 @@ def _author_email_from_crossref(doi):
 
 def _email_template(title, first_author, journal, year):
     return (
-        f"Subject: Reprint request — {title[:80]}\n\n"
+        f"Subject: Reprint request - {title[:80]}\n\n"
         f"Dear Dr. {first_author or '[corresponding author]'},\n\n"
         f"I am preparing a systematic review and would like to include your "
         f"work \"{title}\" ({journal}, {year}) in the analysis.\n\n"
@@ -953,7 +953,7 @@ def write_missing_md(failed_rows, expected_titles, out_path):
             f"{a.get('source')}({'ok' if a.get('found') else 'no-hit'})"
             for a in (row.get("attempts") or [])
         )
-        lines.append(f"- **Providers tried**: {tried or '—'}")
+        lines.append(f"- **Providers tried**: {tried or ' - '}")
         lines.append(f"- **ResearchGate search**: <{rg_url}>")
         lines.append("")
         lines.append("<details><summary>Reprint-request email</summary>")
@@ -986,7 +986,7 @@ def main():
     ap.add_argument("--overwrite", action="store_true",
                     help="Overwrite existing PDFs.")
     ap.add_argument("--with-titles", default=None,
-                    help="CSV/XLSX with `doi` + `title` columns — enables "
+                    help="CSV/XLSX with `doi` + `title` columns - enables "
                          "post-download title verification (rejects "
                          "wrong-paper PDFs / landing pages).")
     ap.add_argument("--retry-failed", action="store_true",
@@ -1023,7 +1023,7 @@ def main():
                  "--from-stdin, or use --retry-failed.")
 
     if DEFAULT_EMAIL == "contact@example.com":
-        print("  ! UNPAYWALL_EMAIL env var not set — using placeholder. "
+        print("  ! UNPAYWALL_EMAIL env var not set - using placeholder. "
               "Unpaywall + OpenAlex + CORE ask for a valid contact email; "
               "set yours via `export UNPAYWALL_EMAIL=you@example.org`.",
               file=sys.stderr)
@@ -1033,7 +1033,7 @@ def main():
         try:
             import fitz  # noqa: F401
         except ImportError:
-            print("  ! pymupdf (fitz) not installed — title verification "
+            print("  ! pymupdf (fitz) not installed - title verification "
                   "will be SKIPPED for downloaded PDFs. "
                   "Run `pip install pymupdf` to enable wrong-paper detection.",
                   file=sys.stderr)

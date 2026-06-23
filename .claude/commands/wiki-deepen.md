@@ -5,7 +5,7 @@ argument-hint: "<source-slug>"
 
 Re-extract a previously-ingested source to chapter depth.
 
-Arguments: $ARGUMENTS — the source slug (e.g. `cervera-2020`,
+Arguments: $ARGUMENTS - the source slug (e.g. `cervera-2020`,
 `lefaucheur-2014`).
 
 # Procedure
@@ -39,5 +39,5 @@ The sub-agent:
   `ingester` (or `/wiki-batch-ingest`) instead.
 - The sub-agent NEVER overwrites manual edits; it appends and
   expands.
-- Cost: typically 15–30k tokens (one source body + the existing page
+- Cost: typically 15-30k tokens (one source body + the existing page
   + per-claim concept-page propagation).

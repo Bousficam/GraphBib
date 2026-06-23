@@ -1,11 +1,11 @@
 # Intervention Page Format
 
 > The worked example below uses MI-BCI / stroke rehabilitation **for
-> concreteness only**. GraphBib is domain-neutral — replace the example
+> concreteness only**. GraphBib is domain-neutral - replace the example
 > content (and the `domain:` / `intervention_family:` values) with an
 > intervention family from your own field. See `context.md`.
 
-Intervention pages document **treatments** — what is delivered to a
+Intervention pages document **treatments** - what is delivered to a
 patient or participant. Distinct from `methods/` (which documents
 measurement instruments). Use this for interventions tested by multiple
 studies of the same family (the `intervention_family` taxonomy you
@@ -36,20 +36,20 @@ of imagined movement into feedback ..."* ([[paper-x]] p. ?).
 ## Mechanism of Action (proposed)
 Hypothesized active ingredients. Link to relevant [[concepts/...]] pages
 (Neuroplasticity, NeuralControlTheory, Hebbian-learning).
-- Mechanism A — supported by [[paper-a]] (p. ?), [[paper-b]] (p. ?).
-- Mechanism B — proposed but contested ([[paper-c]] p. ?).
+- Mechanism A - supported by [[paper-a]] (p. ?), [[paper-b]] (p. ?).
+- Mechanism B - proposed but contested ([[paper-c]] p. ?).
 
 ## Variants
 Sub-types found in the literature:
-- Variant A — used by [[paper-x]] (p. ?), [[paper-y]] (p. ?).
+- Variant A - used by [[paper-x]] (p. ?), [[paper-y]] (p. ?).
   Distinguishing feature: e.g. "FES feedback contingent on motor imagery".
-- Variant B — used by [[paper-z]] (p. ?). Distinguishing feature: ...
+- Variant B - used by [[paper-z]] (p. ?). Distinguishing feature: ...
 
 ## Protocol Parameters (synthesized across studies)
 Aggregated from RCTs in the wiki:
-- **Sessions**: range — typical (e.g. 12-30, typical 20)
-- **Session duration**: range — typical (e.g. 30-60 min, typical 45)
-- **Total dosage**: range — typical hours of training
+- **Sessions**: range - typical (e.g. 12-30, typical 20)
+- **Session duration**: range - typical (e.g. 30-60 min, typical 45)
+- **Total dosage**: range - typical hours of training
 - **Co-interventions**: usual concurrent therapies
 - **Patient inclusion**: chronicity, baseline severity, lesion criteria
 
@@ -67,12 +67,12 @@ Brief table by design.
 - **MEP amplitude change**: ...
 
 ## Best Practices (consensus)
-- Practice 1 — consensus across [[a]], [[b]], [[c]] (p. ? each).
-- Practice 2 — recommended by [[d]] (p. ?), but contested by [[e]] (p. ?).
+- Practice 1 - consensus across [[a]], [[b]], [[c]] (p. ? each).
+- Practice 2 - recommended by [[d]] (p. ?), but contested by [[e]] (p. ?).
 
 ## Patient Selection
 Sub-group analyses if available.
-- Who benefits more? (e.g. preserved CST integrity per DTI — [[paper-x]] p. ?)
+- Who benefits more? (e.g. preserved CST integrity per DTI - [[paper-x]] p. ?)
 - Who doesn't? (e.g. severe baseline impairment, complete CST disruption)
 
 ## Contraindications & Adverse Events

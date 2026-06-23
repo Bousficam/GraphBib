@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared Crossref helpers — used by both the wiki side (parse_references,
+"""Shared Crossref helpers - used by both the wiki side (parse_references,
 fetch_oa) and the extractor side (screen_fetch_metadata, the upcoming
 /extractor-screen-validate command).
 
@@ -15,7 +15,7 @@ The cache is keyed by operation:
     }
 
 Definitive answers (200 / 404) are cached; transient errors (5xx,
-timeouts) are NOT cached — we stay optimistic on the next call so a
+timeouts) are NOT cached - we stay optimistic on the next call so a
 flaky network doesn't poison the cache.
 
 Public API:
@@ -86,7 +86,7 @@ def norm_title(s):
 
 
 def title_overlap(a, b):
-    """Token-Jaccard on words of length ≥ 4 — used by crossref_search gate."""
+    """Token-Jaccard on words of length ≥ 4 - used by crossref_search gate."""
     ta = set(re.findall(r"\w{4,}", (a or "").lower()))
     tb = set(re.findall(r"\w{4,}", (b or "").lower()))
     if not ta or not tb:
@@ -95,7 +95,7 @@ def title_overlap(a, b):
 
 
 def title_similarity(a, b):
-    """SequenceMatcher ratio on normalized titles. 0..1 — used for verify."""
+    """SequenceMatcher ratio on normalized titles. 0..1 - used for verify."""
     na, nb = norm_title(a), norm_title(b)
     if not na or not nb:
         return 0.0
@@ -103,7 +103,7 @@ def title_similarity(a, b):
 
 
 def slugify(s, max_len=60):
-    """Filesystem-safe slug component — kebab-case, ASCII-only."""
+    """Filesystem-safe slug component - kebab-case, ASCII-only."""
     if not s:
         return ""
     s = unicodedata.normalize("NFKD", str(s))
@@ -135,7 +135,7 @@ def save_cache(cache):
 # Crossref API calls
 
 def _requests():
-    """Lazy import — keeps cold-import time low for callers that don't hit the net."""
+    """Lazy import - keeps cold-import time low for callers that don't hit the net."""
     import requests
     return requests
 
@@ -148,7 +148,7 @@ def crossref_validate(doi, cache=None):
     """Return True if Crossref recognizes the DOI.
 
     Uses /works/{doi}/agency (lightweight, ~5 KB). Caches definitive
-    results (200/404). On transient failure returns True (optimistic —
+    results (200/404). On transient failure returns True (optimistic - 
     don't drop legitimate DOIs because of a flaky network).
     """
     doi = normalize_doi(doi)
@@ -209,7 +209,7 @@ def crossref_metadata(doi, cache=None):
         cache[key] = None
         return None
     if r.status_code != 200:
-        return None  # transient — don't cache
+        return None  # transient - don't cache
 
     try:
         m = r.json().get("message", {})

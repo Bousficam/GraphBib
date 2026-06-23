@@ -1,7 +1,7 @@
 # Standalone Tools
 
 Reference for the Python helpers that complement the agent. These are
-pure scripts — no LLM call unless explicitly noted — and the agent
+pure scripts - no LLM call unless explicitly noted - and the agent
 runs them on user request.
 
 ## Domain configuration
@@ -63,22 +63,22 @@ the batched run.
 ## Replication tracking
 
 Each Academic Paper template includes a `replication_of: "<DOI>"`
-frontmatter field — filled at ingest when the paper explicitly
+frontmatter field - filled at ingest when the paper explicitly
 replicates a prior study. `tools/replication_tracker.py` walks
 `wiki/sources/`, follows the chains, and reports:
 
-- **Replication chains** — original → replication(s), with consistent
+- **Replication chains** - original → replication(s), with consistent
   vs inconsistent findings flagged.
-- **Single-study claims** — concept pages whose `## Empirical Evidence`
+- **Single-study claims** - concept pages whose `## Empirical Evidence`
   rests on one source (a flag for confidence).
-- **Replication candidates** — papers that could plausibly replicate
+- **Replication candidates** - papers that could plausibly replicate
   an existing finding but don't claim it explicitly.
 
 Run periodically; complements `/wiki-lint`.
 
 ## Audit trail (git as history)
 
-The wiki is a git repo — `git log` and `git blame` already provide a
+The wiki is a git repo - `git log` and `git blame` already provide a
 free audit trail. Every ingestion appends to `wiki/log.md` with
 `## [YYYY-MM-DD] ingest | <Title>`, and each commit touches the wiki
 pages the source affected.

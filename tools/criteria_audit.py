@@ -4,24 +4,24 @@
 Catches deterministic problems that would cause biased exclusions or
 disagreement between screeners on the same article:
 
-  1. **PICO completeness** — every PICO row has a non-placeholder
+  1. **PICO completeness** - every PICO row has a non-placeholder
      definition (no `<from Q1>` style stubs left behind).
-  2. **Stage tag presence** — every criterion row has a Stage cell
+  2. **Stage tag presence** - every criterion row has a Stage cell
      ∈ {tiab, fulltext, both}. Missing or unknown values are flagged
      so the screener-tiab agent's testability gate can fire.
-  3. **Tag uniqueness** — every criterion `tag` appears once. Two
+  3. **Tag uniqueness** - every criterion `tag` appears once. Two
      rows with the same tag would collide in the decisions CSV.
-  4. **Vague terms** — criterion text contains weasel words that
+  4. **Vague terms** - criterion text contains weasel words that
      two screeners would interpret differently ("recent", "elderly",
      "severe", "high-quality"…). Listed in VAGUE_TERMS below.
-  5. **Untestable / subjective phrasing** — criterion contains
+  5. **Untestable / subjective phrasing** - criterion contains
      value-laden judgements ("good quality", "appropriate",
      "adequate") that PRISMA forbids from the eligibility bar.
-  6. **Missing 'Verifiable from' column** on the exclusion table —
+  6. **Missing 'Verifiable from' column** on the exclusion table - 
      the column tells the screener where to look in the body; its
      absence is allowed but flagged as a hygiene warning.
 
-The audit is purely textual — no LLM, no network. It surfaces
+The audit is purely textual - no LLM, no network. It surfaces
 findings; the user (or a follow-up LLM pass via the
 `/extractor-screen-validate-criteria` slash command) decides how
 to resolve each.
@@ -30,7 +30,7 @@ Output:
     screening/reports/criteria-audit.md   (markdown with one section
                                             per finding category)
 
-Exit code 0 always — findings are informational, not a hard
+Exit code 0 always - findings are informational, not a hard
 failure (the screening can still run on a flawed criteria.md, just
 with the expected biases).
 
@@ -46,9 +46,9 @@ from pathlib import Path
 
 
 # ----------------------------------------------------------------------
-# Lexicons (domain-neutral — describe LANGUAGE issues, not domain content)
+# Lexicons (domain-neutral - describe LANGUAGE issues, not domain content)
 
-# Weasel words that need quantification. Pure language-level — same
+# Weasel words that need quantification. Pure language-level - same
 # word is vague in any domain.
 VAGUE_TERMS = {
     "recent", "current", "modern", "novel", "new", "old",
@@ -66,7 +66,7 @@ VAGUE_TERMS = {
     "appropriate", "feasible",
 }
 
-# Subjective / value-laden phrases — explicit forbidden in PRISMA
+# Subjective / value-laden phrases - explicit forbidden in PRISMA
 # eligibility criteria (they introduce screener-level disagreement).
 SUBJECTIVE_PHRASES = [
     "high quality", "high-quality",
@@ -81,7 +81,7 @@ SUBJECTIVE_PHRASES = [
 
 # Tokens that mean a placeholder was left in the template
 PLACEHOLDER_PATTERNS = [
-    re.compile(r"<from\s+Q\d+[a-z]?\s*[—-]?[^>]*>", re.I),
+    re.compile(r"<from\s+Q\d+[a-z]?\s*[\u2014\u2013-]?[^>]*>", re.I),
     re.compile(r"<verbatim[^>]*>", re.I),
     re.compile(r"<derived[^>]*>", re.I),
     re.compile(r"<e\.g\.[^>]*>", re.I),
@@ -269,7 +269,7 @@ def check_criterion_text(rows, label):
                                f"differently. (Text: \"{text[:120]}\")",
                 })
                 break  # one vague-term flag per row
-        # Subjective phrasing (substring match — phrases include spaces)
+        # Subjective phrasing (substring match - phrases include spaces)
         for phrase in SUBJECTIVE_PHRASES:
             if phrase.lower() in text.lower():
                 findings.append({
@@ -278,7 +278,7 @@ def check_criterion_text(rows, label):
                     "message": f"{label} criterion `{tag}` uses subjective "
                                f"phrasing `{phrase}`. PRISMA discourages "
                                f"value-laden language at the eligibility "
-                               f"bar — these should be quality-appraisal "
+                               f"bar - these should be quality-appraisal "
                                f"items, not screening criteria.",
                 })
                 break
@@ -316,11 +316,11 @@ def render_report(findings, criteria_path, project):
         "",
         f"Source : `{criteria_path.relative_to(project.parent)}`",
         "",
-        f"- **ERRORS**: {len(by_level['error'])} — these will cause biased "
+        f"- **ERRORS**: {len(by_level['error'])} - these will cause biased "
         "exclusions or screener crashes; fix before running screening.",
-        f"- **WARNINGS**: {len(by_level['warn'])} — language likely to "
+        f"- **WARNINGS**: {len(by_level['warn'])} - language likely to "
         "produce disagreement between screeners; clarify.",
-        f"- **INFO**: {len(by_level['info'])} — hygiene suggestions.",
+        f"- **INFO**: {len(by_level['info'])} - hygiene suggestions.",
         "",
         "Re-run `/extractor-screen-validate-criteria <project>` after "
         "editing `criteria.md` to confirm the audit is clean.",

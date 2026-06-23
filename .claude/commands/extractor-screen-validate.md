@@ -1,5 +1,5 @@
 ---
-description: PRISMA pre-screening DOI gate — validates every DOI in screening/dedup.xlsx against Crossref, recovers missing DOIs via bibliographic search, cross-checks title + year, rehabilitates `anon-YYYY` slugs once a real DOI is recovered. Surfaces mismatches for user audit before /extractor-screen-tiab runs (so the title/abstract screener doesn't decide on a wrong paper). Cached + idempotent.
+description: PRISMA pre-screening DOI gate - validates every DOI in screening/dedup.xlsx against Crossref, recovers missing DOIs via bibliographic search, cross-checks title + year, rehabilitates `anon-YYYY` slugs once a real DOI is recovered. Surfaces mismatches for user audit before /extractor-screen-tiab runs (so the title/abstract screener doesn't decide on a wrong paper). Cached + idempotent.
 argument-hint: "[<vault>/]<project-name>  [--force]"
 ---
 
@@ -11,7 +11,7 @@ Arguments: $ARGUMENTS
 
 Between `/extractor-screen-init` (built `criteria.md`) and
 `/extractor-screen-tiab` (title/abstract pass). The validation gate
-is **strongly recommended** but not mandatory — the screener-tiab
+is **strongly recommended** but not mandatory - the screener-tiab
 agent will still default to `uncertain` on rows with a flagged DOI
 mismatch even if you skip this command. The command makes the
 mismatches **visible** so you can fix them in bulk before screening
@@ -31,14 +31,14 @@ Re-run any time:
 Calls `tools/screen_fetch_metadata.py --validate-only` under the
 hood. Three passes, each cached in `tools/.cache/crossref.json`:
 
-1. **DOI recovery** — for every row with no DOI, search Crossref
+1. **DOI recovery** - for every row with no DOI, search Crossref
    with `<title> <first_author> <year>`. If a hit clears the
    relevance + title-overlap gate, the DOI is written into the row
    and flagged `doi_status=recovered`.
-2. **DOI validation** — for every row WITH a DOI, ping
+2. **DOI validation** - for every row WITH a DOI, ping
    `api.crossref.org/works/{doi}/agency`. Hits flagged `valid`;
    404s flagged `invalid` (Crossref has never registered that DOI).
-3. **Title + year cross-check** — for every valid/recovered DOI,
+3. **Title + year cross-check** - for every valid/recovered DOI,
    fetch Crossref's canonical title + year. SequenceMatcher
    similarity ≥ 0.75 → `doi_title_match=true`; year within ±1 →
    `doi_year_match=true`. Failures are logged as ERROR-level
@@ -48,7 +48,7 @@ A bonus pass runs **slug rehab** for rows that came out of dedup as
 `anon-YYYY` (CSV had no parseable first author): once a DOI is
 recovered or validated, the slug is re-derived as `<family>-<year>`
 from Crossref's first-author family name. This pass is
-**automatically locked** if `tiab-decisions.xlsx` already exists —
+**automatically locked** if `tiab-decisions.xlsx` already exists - 
 renaming slugs after screening would orphan decisions.
 
 # Outputs
@@ -61,7 +61,7 @@ renaming slugs after screening would orphan decisions.
 
 # Procedure
 
-## Step 1 — Resolve the project path
+## Step 1 - Resolve the project path
 
 Parse `$ARGUMENTS`:
 - `<vault>/<project>` or `<project>` (vault auto-detected from
@@ -81,7 +81,7 @@ Refuse if `screening/dedup.xlsx` doesn't exist (instruct user to run
 `/extractor-screen-init` then `python tools/screen_dedupe.py
 <project>` first).
 
-## Step 2 — Run the validation pass
+## Step 2 - Run the validation pass
 
 ```bash
 python tools/screen_fetch_metadata.py <project-path> --validate-only [--force]
@@ -98,17 +98,17 @@ The tool prints a per-status summary to stdout:
     missing: 21
   Slug rehab   : ran (8 renamed)
 ✓ Wrote         project-review/<vault>/<name>/screening/dedup.xlsx
-⚠ DOI warnings  project-review/<vault>/<name>/screening/reports/doi-warnings.md  (3 errors, 21 warnings — audit before /extractor-screen-tiab)
+⚠ DOI warnings  project-review/<vault>/<name>/screening/reports/doi-warnings.md  (3 errors, 21 warnings - audit before /extractor-screen-tiab)
 ✓ Slug renames  project-review/<vault>/<name>/screening/slug-renames.xlsx (8 rows)
 ```
 
-## Step 3 — Surface the audit results to the user
+## Step 3 - Surface the audit results to the user
 
 Read `screening/reports/doi-warnings.md` if it exists.
 
 Display:
 - The count of ERRORs, WARNs, INFOs.
-- The list of ERRORs IN FULL (title-mismatch + invalid DOIs — these
+- The list of ERRORs IN FULL (title-mismatch + invalid DOIs - these
   are the rows the user should NOT trust as-is).
 - A SAMPLE (≤ 10) of WARNs (missing DOIs that Crossref search
   couldn't recover).
@@ -135,19 +135,19 @@ SLUG RENAMES (audit-only; decisions not yet taken so safe):
   ...
 ```
 
-## Step 4 — Offer the user three actions
+## Step 4 - Offer the user three actions
 
 Ask the user what to do BEFORE handing off to `/extractor-screen-tiab`:
 
-1. **Accept** — keep the flags as-is and run T/A screening. The
+1. **Accept** - keep the flags as-is and run T/A screening. The
    screener-tiab agent will auto-mark `uncertain` for every row
    with `doi_title_match=false`, surfacing them at the T/A audit
    gate for manual review.
-2. **Fix one row** — open the user's editor on `dedup.xlsx`, jump
+2. **Fix one row** - open the user's editor on `dedup.xlsx`, jump
    to a specific row, let the user paste the correct DOI. Re-run
    `python tools/screen_fetch_metadata.py <project-path>
    --validate-only --force` to re-validate just that row.
-3. **Drop the bad rows** — for ERROR-level rows the user is
+3. **Drop the bad rows** - for ERROR-level rows the user is
    confident are unrecoverable. Backup `dedup.xlsx` to
    `dedup.before-doi-cleanup.xlsx`, then filter via the shared
    `tabular` helper (handles xlsx natively):
@@ -168,16 +168,16 @@ Ask the user what to do BEFORE handing off to `/extractor-screen-tiab`:
    Log the drops in `screening/reports/doi-warnings.md` under a
    `## Manual drops` section.
 
-Default: **Accept** (option 1) — the validation flags propagate
+Default: **Accept** (option 1) - the validation flags propagate
 into the screener prompts; nothing is lost; the T/A audit gate
 catches anything that needs human eyes.
 
-## Step 5 — Update the log
+## Step 5 - Update the log
 
 Append to `<project-path>/log.md`:
 
 ```markdown
-## YYYY-MM-DD — DOI validation gate
+## YYYY-MM-DD - DOI validation gate
 - Records         : 287
 - Valid           : 251
 - Recovered       : 12  (DOIs filled in via Crossref search)
@@ -201,7 +201,7 @@ After this gate:
   auto-flagged `uncertain` (criterion tag `doi-invalid-no-abstract`).
 - The screener-fulltext agent (pass 2) cross-checks the body's title
   against the row title and returns `wrong-pdf-fetched` if they
-  diverge — the last line of defense if a bad DOI slipped through
+  diverge - the last line of defense if a bad DOI slipped through
   silently.
 
 # Hard constraints

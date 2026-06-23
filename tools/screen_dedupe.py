@@ -59,7 +59,7 @@ COL_ALIASES = {
 CANONICAL_COLS = [
     "slug", "doi", "pmid", "title", "authors", "first_author",
     "year", "journal", "abstract", "source_dbs", "merged_count", "merged_from",
-    # DOI hygiene columns — populated by screen_fetch_metadata.py
+    # DOI hygiene columns - populated by screen_fetch_metadata.py
     # (see /extractor-screen-validate). Always emitted so the schema is
     # stable across runs; left empty when the validation pass hasn't
     # run yet.
@@ -134,7 +134,7 @@ def first_author_lastname(authors_field):
         before, _, _ = first.partition(",")
         before = before.strip()
         if before and " " not in before:
-            # "Lastname, Firstname" — single token before comma.
+            # "Lastname, Firstname" - single token before comma.
             return re.sub(r"[^A-Za-z]", "", before).lower()
         # Else: comma separates authors → keep only the first author chunk.
         first = before
@@ -205,7 +205,7 @@ def read_one_csv(path):
                     if val:
                         row[f"extra__{h}"] = val
             if not row["title"] and not row["doi"] and not row["pmid"]:
-                # nothing identifying — skip silently
+                # nothing identifying - skip silently
                 continue
             rows.append(row)
     return rows

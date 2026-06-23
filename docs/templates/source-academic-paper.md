@@ -2,16 +2,16 @@
 
 Used by default for sources in `raw/<vault>/papers/*`. Also used by chapter
 sub-sources (`raw/<vault>/theses/<slug>/ch*.md`) per the Long Document Ingestion
-workflow — chapters are journal-paper-sized units.
+workflow - chapters are journal-paper-sized units.
 
 The body follows the **IMRAD** structure (Introduction · Methods · Results
 · And Discussion). Each subsection captures a specific extractable item.
-**Omit a subsection only when the paper does not provide that content** —
+**Omit a subsection only when the paper does not provide that content** - 
 do not write "N/A". Empty subsections waste structure; missing
 subsections record reality.
 
 The Indirect Citation Rule and the Depth & Completeness Rules apply
-throughout — see `docs/rules/citation.md` and
+throughout - see `docs/rules/citation.md` and
 `docs/rules/depth-completeness.md`.
 
 ## Frontmatter
@@ -35,12 +35,12 @@ study_design: ""            # RCT | cohort | cross-sectional | review |
                             # simulation | computational | theoretical
 sample_size:                # integer N (or empty)
 population: ""              # specific cohort description (e.g. "chronic stroke patients > 6 mo")
-domain: []                  # field tags — values from context.md vocabulary
-methods: []                 # measurement instruments — values from context.md Methods vocabulary
-interventions: []           # treatments delivered — values from context.md Interventions taxonomy
-intervention_family: ""     # PRINCIPAL therapy family — one of the family keys declared in context.md
+domain: []                  # field tags - values from context.md vocabulary
+methods: []                 # measurement instruments - values from context.md Methods vocabulary
+interventions: []           # treatments delivered - values from context.md Interventions taxonomy
+intervention_family: ""     # PRINCIPAL therapy family - one of the family keys declared in context.md
                             # (left empty for non-interventional studies)
-intervention_subfamily: ""  # paradigm within the family — subfamily value from context.md
+intervention_subfamily: ""  # paradigm within the family - subfamily value from context.md
                             # (drives tier-2 folder in tools/organize_sources.py)
 
 # Quality signals
@@ -70,13 +70,13 @@ cites: []                   # DOIs cited by this paper
 
 ### Background (from cited literature)
 Claims this paper inherits from prior work. **This section must be
-exhaustive** — see `docs/rules/citation.md` (Knowledge construction
-from introductions). Aim 5–15 bullets for an empirical paper, 20+ for a
+exhaustive** - see `docs/rules/citation.md` (Knowledge construction
+from introductions). Aim 5-15 bullets for an empirical paper, 20+ for a
 review or thesis introduction. Each bullet cites the **original** source
 per the Indirect Citation Rule with explicit `reported via [[X]]`
 provenance:
-- Claim from prior work — [[paper-y]] (p. ?), reported via this paper (p. ?, intro).
-- Framework adopted — [[paper-z]] (p. ?), reported via this paper (p. ?).
+- Claim from prior work - [[paper-y]] (p. ?), reported via this paper (p. ?, intro).
+- Framework adopted - [[paper-z]] (p. ?), reported via this paper (p. ?).
 - If the original is not in the wiki: `this paper (p. ?, citing Y, 2018)` and add Y's DOI to `cites:`.
 
 ### Theoretical Framework
@@ -84,10 +84,10 @@ provenance:
 - Reasoning chain leading to the present hypothesis.
 
 ### Gap Identified
-1–2 sentences stating what the literature was missing prior to this paper.
+1-2 sentences stating what the literature was missing prior to this paper.
 
 ### Research Question
-Single sentence — the question the paper explicitly addresses.
+Single sentence - the question the paper explicitly addresses.
 
 ### Hypotheses (if explicit)
 - H1: ... (p. ?)
@@ -104,8 +104,8 @@ Single sentence — the question the paper explicitly addresses.
 - N enrolled / randomized / analyzed / completed.
 - Population profile: chronicity, severity (e.g. baseline FM range),
   lesion side and type, age, sex distribution.
-- **Inclusion criteria** — bullet list.
-- **Exclusion criteria** — bullet list.
+- **Inclusion criteria** - bullet list.
+- **Exclusion criteria** - bullet list.
 - Recruitment setting (single-centre, multi-centre, clinic, registry).
 
 ### Intervention(s)
@@ -141,7 +141,7 @@ For each arm, document:
 - Funding source(s) and conflicts of interest declared.
 
 ### Data and Code Availability
-- Pre-registration: link or registration ID (e.g. OSF, AsPredicted) — p. ?.
+- Pre-registration: link or registration ID (e.g. OSF, AsPredicted) - p. ?.
 - Data: repository link / DOI / "available on request" / "not shared".
 - Code / analysis scripts: repository link, version, license.
 - Raw materials (stimuli, questionnaires): where deposited.
@@ -162,10 +162,10 @@ For each arm, document:
 - Direction of effect.
 
 ### Secondary Outcomes
-- Each one — verbatim with effect size and statistic (p. ?).
+- Each one - verbatim with effect size and statistic (p. ?).
 
 ### Subgroup / Exploratory Analyses
-- Each one — verbatim, with the warning that they're exploratory if so.
+- Each one - verbatim, with the warning that they're exploratory if so.
 
 ### Adverse Events / Safety
 - Number of events per group, severity, attribution to the intervention.
@@ -175,28 +175,28 @@ For each arm, document:
 
 ### Tables and Figures
 For each numbered table or figure cited in the body:
-- **Table 1** (p. ?) — what it summarizes (e.g. "baseline demographics by group");
+- **Table 1** (p. ?) - what it summarizes (e.g. "baseline demographics by group");
   flag any notable rows.
-- **Figure 2** (p. ?) — what it depicts (e.g. "individual ΔFM trajectories
+- **Figure 2** (p. ?) - what it depicts (e.g. "individual ΔFM trajectories
   over 12 weeks by intervention arm").
 - Note any pattern visible only in the figure (outliers, dose-response
   curves, individual variability) that the prose narrative downplays.
 
 Do not skip tables/figures. They often carry information not stated in
-the body text — particularly secondary outcome details, sub-group
+the body text - particularly secondary outcome details, sub-group
 breakdowns, and individual-level variability.
 
 ## Discussion
 
 ### Summary of Findings (authors' framing)
-- 2–3 sentences quoting the authors' own summary of what they found.
+- 2-3 sentences quoting the authors' own summary of what they found.
 
 ### Comparison with Prior Work
 Authors situate their findings against the literature. Apply the
 Indirect Citation Rule with `reported via this paper's discussion`:
-- Aligns with [[paper-y]] (p. ?) on … — reported via this paper's
+- Aligns with [[paper-y]] (p. ?) on … - reported via this paper's
   discussion (p. ?).
-- Differs from [[paper-z]] (p. ?) on … — reported via this paper's
+- Differs from [[paper-z]] (p. ?) on … - reported via this paper's
   discussion (p. ?).
 
 ### Mechanism / Theoretical Implications
@@ -207,7 +207,7 @@ Indirect Citation Rule with `reported via this paper's discussion`:
 
 ### Limitations
 - **Every** limitation acknowledged by the authors (p. ?). Most honest
-  papers list 4–6.
+  papers list 4-6.
 
 ### Generalizability
 - Authors' statements on external validity, applicability to other
@@ -217,7 +217,7 @@ Indirect Citation Rule with `reported via this paper's discussion`:
 - Open questions raised → routed to `wiki/questions/<slug>.md`.
 
 ## Recommendations / Implications
-- Recommendation 1 (p. ?) — target: [clinician | researcher | policy] —
+- Recommendation 1 (p. ?) - target: [clinician | researcher | policy] - 
   routed to `wiki/recommendations/<topic>.md`.
 - Implication for theory of [[ConceptName]] (p. ?).
 
@@ -225,11 +225,11 @@ Indirect Citation Rule with `reported via this paper's discussion`:
 Identify which reporting checklist applies and flag deviations the agent
 notices. Most empirical clinical / behavioural papers should align with one:
 
-- **RCT** → CONSORT — verify: random sequence generation, allocation
+- **RCT** → CONSORT - verify: random sequence generation, allocation
   concealment, blinding, intention-to-treat analysis, CONSORT flow
   diagram present.
 - **Observational (cohort, case-control, cross-sectional)** → STROBE.
-- **Systematic review / meta-analysis** → PRISMA — verify: PRISMA flow
+- **Systematic review / meta-analysis** → PRISMA - verify: PRISMA flow
   diagram, search dates, included databases, risk-of-bias assessment.
 - **Diagnostic accuracy** → STARD.
 - **Quasi-experimental / non-randomized** → TREND.
@@ -247,26 +247,26 @@ state so.
 
 ## Verbatim Quotes
 Minimum 3 quotes from distinct sections (Introduction / Results / Discussion).
-> "Quote here verbatim" — p. N (section)
+> "Quote here verbatim" - p. N (section)
 
 ## Cites (in-wiki + snowball candidates)
 Auto-populated from the paper's References section by
 `tools/parse_references.py`. Wikilinks for papers already in the wiki,
 raw DOIs for snowball candidates.
-- [[paper-y]] — referenced in Background.
-- [[paper-z]] — framework citation in Discussion.
-- 10.xxxx/yyy — *not yet in wiki* (snowball candidate).
-- 10.xxxx/zzz — *not yet in wiki*.
+- [[paper-y]] - referenced in Background.
+- [[paper-z]] - framework citation in Discussion.
+- 10.xxxx/yyy - *not yet in wiki* (snowball candidate).
+- 10.xxxx/zzz - *not yet in wiki*.
 
 ## Cited By
 *(Auto-populated by `tools/update_cited_by.py`: list of `[[paper-slug]]`
 pages whose `cites:` frontmatter contains this paper's DOI.)*
 
 ## Connections
-- [[AuthorName]] — author.
-- [[ConceptName]] — central concept; how this paper uses it.
-- [[methods/MethodName]] — operationalization used.
-- [[interventions/<slug>]] — therapy family.
+- [[AuthorName]] - author.
+- [[ConceptName]] - central concept; how this paper uses it.
+- [[methods/MethodName]] - operationalization used.
+- [[interventions/<slug>]] - therapy family.
 
 ## Contradictions / Agreements
 - Contradicts [[OtherPaper]] on: claim X (this p. ?, other p. ?).
@@ -275,7 +275,7 @@ pages whose `cites:` frontmatter contains this paper's DOI.)*
 ## Extraction Checklist
 Filled by the agent at end of ingest as a self-audit. Each box must be
 checked or annotated with the reason for omission. **Do not skip a box
-just because the section was hard to find** — the absence of an item is
+just because the section was hard to find** - the absence of an item is
 itself information (e.g., no power analysis = quality flag).
 
 - [ ] **Background**: ≥ 5 cited claims with original references and `reported via` provenance.
@@ -301,7 +301,7 @@ itself information (e.g., no power analysis = quality flag).
 - [ ] **Concept / method / intervention pages** updated with per-source description (not bare wikilinks).
 
 If any box remains unchecked **without a noted reason**, the ingest is
-incomplete — re-read the source MD and fill the gap before declaring
+incomplete - re-read the source MD and fill the gap before declaring
 the source page final.
 
 ## How to Cite

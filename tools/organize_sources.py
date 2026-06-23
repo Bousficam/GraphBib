@@ -63,7 +63,7 @@ THESES_DIR = SRC_DIR / "theses"
 # (the Python source of truth used by source routing).
 #
 # Any intervention_family value not in this dict routes the source to
-# articles/general/ by default — safe fallback for partial adaptations.
+# articles/general/ by default - safe fallback for partial adaptations.
 FAMILY_FOLDER = {
     "bci": "bci",
     "tms": "tms",
@@ -153,7 +153,7 @@ def git_mv(old, new, dry_run):
     new.parent.mkdir(parents=True, exist_ok=True)
     if dry_run:
         return "would-move"
-    # git mv — preserves history
+    # git mv - preserves history
     rel_old = old.relative_to(REPO_ROOT)
     rel_new = new.relative_to(REPO_ROOT)
     try:

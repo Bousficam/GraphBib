@@ -7,10 +7,10 @@ adopt an opinion or perspective stance.
 
 Narrative reviews are NOT IMRAD. They are organized **thematically**.
 Their value is the synthesis and the author's expert framing. They
-typically cite 50–200+ works.
+typically cite 50-200+ works.
 
 The Indirect Citation Rule (`docs/rules/citation.md`) applies
-**heavily** — every paragraph synthesizes cited works. The agent should
+**heavily** - every paragraph synthesizes cited works. The agent should
 produce a Background section that exhausts the review's intellectual
 content, with each claim attributed to the originating paper.
 
@@ -33,7 +33,7 @@ source_pdf: "..."
 study_design: "narrative-review"
 prisma_compliant: false               # narrative reviews are not PRISMA
 n_works_cited:                        # rough count from References section
-date_range: "1990–2023"               # approximate span of cited works
+date_range: "1990-2023"               # approximate span of cited works
 domain: []
 methods: []                           # methods discussed
 interventions: []
@@ -59,7 +59,7 @@ paper's structure.
 
 ```markdown
 ## Summary
-2–4 sentence neutral summary including the review's scope, the author's
+2-4 sentence neutral summary including the review's scope, the author's
 perspective, and the headline message.
 
 ## Background / Topic Framing
@@ -68,46 +68,46 @@ perspective, and the headline message.
   Indirect Citation Rule).
 
 ## Themes
-For each thematic section in the review, create a `### Theme — <name>`
+For each thematic section in the review, create a `### Theme - <name>`
 subsection. Capture:
 - The author's framing of the theme.
-- The cited evidence supporting the framing — each bullet citing the
+- The cited evidence supporting the framing - each bullet citing the
   ORIGINAL paper Y, with `reported via this review's section <theme>
   (p. ?)` provenance.
 - Disagreements / open issues within the theme.
 
-### Theme 1 — <name>
-- Author's framing: 1–2 sentences (this review p. ?).
+### Theme 1 - <name>
+- Author's framing: 1-2 sentences (this review p. ?).
 - Evidence: [[paper-a]] (p. ?), reported via this review (p. ?). [[paper-b]]
   (p. ?), reported via this review. …
 - Open issues within this theme: …
 
-### Theme 2 — <name>
+### Theme 2 - <name>
 …
 
-### Theme N — <name>
+### Theme N - <name>
 …
 
 ## Author's Synthesis / Position
 Narrative reviews often advocate a perspective. Capture the author's
 own claims separately:
-- Claim 1 — this review's authors at p. ? (no external attribution —
+- Claim 1 - this review's authors at p. ? (no external attribution - 
   this is their original framing).
-- Claim 2 — this review at p. ?.
+- Claim 2 - this review at p. ?.
 
 These claims are subject to scrutiny: are they supported by the
 evidence presented in `## Themes`? Flag tensions if any.
 
 ## Open Issues / Controversies
-- Disagreement 1 — reported in this review's discussion (p. ?), with
+- Disagreement 1 - reported in this review's discussion (p. ?), with
   protagonists [[paper-x]] vs [[paper-y]].
-- Disagreement 2 — see [[questions/<slug>]] (route to a question page).
+- Disagreement 2 - see [[questions/<slug>]] (route to a question page).
 
 ## Future Research Directions
 - Open questions raised → routed to `wiki/questions/<slug>.md`.
 
 ## Author's Implications / Recommendations
-- Recommendation 1 (p. ?) — routed to `wiki/recommendations/<topic>.md`
+- Recommendation 1 (p. ?) - routed to `wiki/recommendations/<topic>.md`
   with explicit "narrative review, lower evidence weight" annotation.
 
 ## Limitations of the Review
@@ -120,7 +120,7 @@ Narrative reviews acknowledge their non-systematic nature. Capture:
 ## Reporting Standard Alignment
 - **Standard**: none formal. Note that narrative reviews are NOT
   expected to follow PRISMA. SANRA (Scale for the Assessment of
-  Narrative Review Articles) can be used to evaluate quality —
+  Narrative Review Articles) can be used to evaluate quality - 
   surface SANRA-relevant items if useful (justification, aim, search
   description, referencing, scientific reasoning, presentation of
   evidence).
@@ -131,7 +131,7 @@ Narrative reviews acknowledge their non-systematic nature. Capture:
 Minimum 3 quotes from distinct themes/sections.
 
 ## Cites (in-wiki + snowball candidates)
-For narrative reviews the `cites:` list can be huge (50–200+). Surface
+For narrative reviews the `cites:` list can be huge (50-200+). Surface
 the high-frequency citations (cited multiple times throughout the
 review) as priority snowball candidates.
 
@@ -139,10 +139,10 @@ review) as priority snowball candidates.
 *(Auto-populated.)*
 
 ## Connections
-- [[ConceptName]] — central concept the review revolves around.
-- [[methods/...]] / [[interventions/...]] — methods/treatments
+- [[ConceptName]] - central concept the review revolves around.
+- [[methods/...]] / [[interventions/...]] - methods/treatments
   discussed.
-- [[AuthorName]] — author's prior body of work; narrative reviews
+- [[AuthorName]] - author's prior body of work; narrative reviews
   often build on the author's own line of research.
 
 ## Contradictions / Agreements
@@ -151,7 +151,7 @@ review) as priority snowball candidates.
 
 ## Extraction Checklist
 - [ ] **Background**: 5+ cited claims with `reported via` provenance.
-- [ ] **Themes** identified and named (typically 3–8 in a substantive
+- [ ] **Themes** identified and named (typically 3-8 in a substantive
       review).
 - [ ] **Each theme** has cited evidence (≥ 3 sources) AND a clear
       framing statement.

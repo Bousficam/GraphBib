@@ -95,7 +95,7 @@
     },
     "severity_scale": {
       "name": "Fugl-Meyer Upper Extremity",
-      "regex": "Fugl[-\\s]?Meyer.{0,40}?(\\d{1,2})\\s*[-–]\\s*(\\d{1,2})"
+      "regex": "Fugl[-\\s]?Meyer.{0,40}?(\\d{1,2})\\s*[-\u2013]\\s*(\\d{1,2})"
     }
   }
 }

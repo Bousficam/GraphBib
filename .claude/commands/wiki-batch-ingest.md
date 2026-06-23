@@ -9,10 +9,10 @@ processing a freshly-converted PDF library (output of `/wiki-convert`).
 
 Arguments: $ARGUMENTS
 
-- The first argument is `DIR` — the directory containing the source `.md`
+- The first argument is `DIR` - the directory containing the source `.md`
   files to ingest (e.g. `raw/<vault>/papers/`, `raw/<vault>/papers/articles/bci/`,
   or `raw/<vault>/theses/<slug>/`).
-- The second argument, if provided, is `BATCH_SIZE` — number of papers
+- The second argument, if provided, is `BATCH_SIZE` - number of papers
   to ingest before confirming with the user (default: 5).
 
 # Procedure
@@ -20,11 +20,11 @@ Arguments: $ARGUMENTS
 1. **Discover**: list `*.md` files under `DIR` (recursive). Skip files
    whose corresponding `wiki/sources/.../<slug>.md` already exists
    (idempotent; user can re-trigger via `source-extender` for those).
-   Sort by file size ascending — shortest papers first to fail fast.
+   Sort by file size ascending - shortest papers first to fail fast.
 
 2. **Confirm scope**: report
    `"Found N markdown files to ingest under <DIR>. M already in the
-   wiki, P new to ingest. Batch size B. Proceed? [Y/n]"` — wait for
+   wiki, P new to ingest. Batch size B. Proceed? [Y/n]"` - wait for
    user confirmation before starting.
 
 3. **For each batch of B files**:
@@ -66,7 +66,7 @@ Arguments: $ARGUMENTS
 - Batch size: 5 (good trade-off between feedback and throughput).
 - Sort: shortest-first (fail fast on bad PDFs).
 - Skip already-ingested: yes (idempotent).
-- Concurrency: serial (one ingester at a time — sub-agents run sequentially).
+- Concurrency: serial (one ingester at a time - sub-agents run sequentially).
 
 # Failure handling
 
@@ -74,7 +74,7 @@ Arguments: $ARGUMENTS
   stop the batch; the failure is logged and the next file proceeds.
 - Network errors or sub-agent timeouts: log the slug to a "deferred"
   list and surface it in the final summary.
-- The user can re-run `/wiki-batch-ingest` later — already-ingested
+- The user can re-run `/wiki-batch-ingest` later - already-ingested
   files are skipped, so only the deferred and newly added files get
   processed.
 
@@ -83,7 +83,7 @@ Arguments: $ARGUMENTS
 - Each ingester invocation has its own context window, so a long
   CLAUDE.md / templates load is amortized over the sub-agent's
   workload, not the parent's.
-- The parent agent (you) stays orchestrator: don't ingest yourself —
+- The parent agent (you) stays orchestrator: don't ingest yourself - 
   delegate.
 - For theses (`raw/<vault>/theses/<slug>/`), the parent ingestion order
   matters: ingest the parent thesis MD FIRST, then chapters in

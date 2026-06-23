@@ -1,12 +1,12 @@
 ---
-description: Forward-citation snowball from one specific source — find recent papers that cite it and rank by impact.
+description: Forward-citation snowball from one specific source - find recent papers that cite it and rank by impact.
 argument-hint: "<source-slug>"
 ---
 
-Explore the descendants of one paper — what's been published recently
+Explore the descendants of one paper - what's been published recently
 that builds on this work?
 
-Arguments: $ARGUMENTS — the source slug to snowball forward from
+Arguments: $ARGUMENTS - the source slug to snowball forward from
 (e.g. `lefaucheur-2014`, `cervera-2020`).
 
 # Procedure
@@ -25,7 +25,7 @@ The sub-agent:
 - Calls OpenAlex `/works/<id>/cited_by_api_url` to list papers
   citing this source, sorted by `cited_by_count` DESC.
 - Filters: passes if velocity ≥ 2.5 AND venue h-index ≥ 30 (high-
-  impact recent papers only — for one-source forward, co-citation
+  impact recent papers only - for one-source forward, co-citation
   isn't applicable since we're not aggregating).
 - Returns a tiered list (Tier 1 / Tier 2 / Tier 3).
 

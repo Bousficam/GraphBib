@@ -8,34 +8,34 @@ The catalog of every wiki page. Updated on every ingest.
 # Wiki Index
 
 ## Overview
-- [Overview](overview.md) — living synthesis
+- [Overview](overview.md) - living synthesis
 
-## Sources — Papers
-- [Paper Title](sources/<slug>.md) — one-line summary (Year, Journal)
+## Sources - Papers
+- [Paper Title](sources/<slug>.md) - one-line summary (Year, Journal)
 
-## Sources — Theses
-- [Thesis Title](sources/<slug>.md) — one-line summary (Year, University)
+## Sources - Theses
+- [Thesis Title](sources/<slug>.md) - one-line summary (Year, University)
 
 ## Concepts
-- [Concept Name](concepts/<Name>.md) — one-line definition
+- [Concept Name](concepts/<Name>.md) - one-line definition
 
 ## Methods
-- [Method Name](methods/<Name>.md) — what it measures
+- [Method Name](methods/<Name>.md) - what it measures
 
 ## Interventions
-- [Intervention Name](interventions/<slug>.md) — therapy family, target outcome
+- [Intervention Name](interventions/<slug>.md) - therapy family, target outcome
 
 ## Recommendations
-- [Topic](recommendations/<topic>.md) — one-line scope
+- [Topic](recommendations/<topic>.md) - one-line scope
 
 ## Questions
-- [Question](questions/<slug>.md) — status
+- [Question](questions/<slug>.md) - status
 
 ## Entities
-- [Entity Name](entities/<Name>.md) — one-line description
+- [Entity Name](entities/<Name>.md) - one-line description
 
 ## Syntheses
-- [Title](syntheses/<slug>.md) — what question it answers
+- [Title](syntheses/<slug>.md) - what question it answers
 ```
 
 ## `wiki/log.md`

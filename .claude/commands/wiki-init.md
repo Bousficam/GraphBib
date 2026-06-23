@@ -1,5 +1,5 @@
 ---
-description: Initialize a fresh vault — create wiki/<vault-name>/ AND raw/<vault-name>/ with the standard sub-folders + seed index.md / log.md / overview.md. Multi-vault aware — each invocation adds one new vault on both sides.
+description: Initialize a fresh vault - create wiki/<vault-name>/ AND raw/<vault-name>/ with the standard sub-folders + seed index.md / log.md / overview.md. Multi-vault aware - each invocation adds one new vault on both sides.
 argument-hint: "<vault-name>"
 ---
 
@@ -19,13 +19,13 @@ wiki/                           ← parent (not opened directly in Obsidian)
 │   └── ...
 
 raw/                            ← parent (parallel to wiki/, NOT an Obsidian vault)
-├── <vault-1>/                  ← raw inputs for vault-1 — papers, theses, books, notes
+├── <vault-1>/                  ← raw inputs for vault-1 - papers, theses, books, notes
 │   ├── papers/, theses/, books/, notes/
 ├── <vault-2>/
 │   └── ...
 ```
 
-Each `wiki/<vault>/` and `raw/<vault>/` pair is independent — its own
+Each `wiki/<vault>/` and `raw/<vault>/` pair is independent - its own
 sources, raw inputs, citation graph. The agent operates on one vault
 at a time, resolved via this priority (handled by
 `tools/_lib.py:_detect_active_vault` AND `_detect_active_raw`):
@@ -42,12 +42,12 @@ wiki is the ingested output of the SAME research domain. Setting
 `$WIKI_VAULT=BCINET` resolves both `wiki/BCINET/` and `raw/BCINET/`.
 
 The `project-review/` orchestrator is independent (see
-`/extractor-init`) — it has its own vault scoping and is NOT created
+`/extractor-init`) - it has its own vault scoping and is NOT created
 or read by this command.
 
 # Procedure
 
-## Step 1 — Confirm scope
+## Step 1 - Confirm scope
 
 Parse `$ARGUMENTS`:
 - Required: `<vault-name>` (kebab-case, no slashes, no spaces).
@@ -67,7 +67,7 @@ Refuse names that:
 - Are repo top-level dirs: `raw`, `pdf2md`, `tools`, `docs`,
   `.claude`, `graph`, `project-review`, `wiki`
 
-## Step 2 — Detect existing layout
+## Step 2 - Detect existing layout
 
 ```bash
 ls -la wiki/ raw/ 2>&1 | head -30
@@ -92,7 +92,7 @@ directly at the root) → Ask the user:
 >       (rename to `wiki/<existing-vault-name>/` and
 >       `raw/<existing-vault-name>/`), then create the new vault
 >       alongside.
->   [2] Skip — keep using the flat layout (legacy mode stays
+>   [2] Skip - keep using the flat layout (legacy mode stays
 >       supported, but you can only have one vault).
 >   [3] Cancel.*
 
@@ -116,7 +116,7 @@ mv raw/notes  raw/<migration-target>/   # if present
 
 Then proceed to Step 3 for the new vault.
 
-## Step 3 — Create the vault directory structure
+## Step 3 - Create the vault directory structure
 
 ```bash
 mkdir -p raw/<vault>/papers raw/<vault>/theses raw/<vault>/books raw/<vault>/notes
@@ -128,23 +128,23 @@ mkdir -p wiki/<vault>/syntheses
 
 The `raw/<vault>/` tree is created in lockstep with the wiki vault.
 
-## Step 4 — Seed the three top-level vault files
+## Step 4 - Seed the three top-level vault files
 
 Create `wiki/<vault>/index.md`:
 
 ```markdown
-# <vault> — Wiki Index
+# <vault> - Wiki Index
 
 ## Overview
-- [Overview](overview.md) — living synthesis
+- [Overview](overview.md) - living synthesis
 
-## Sources — Papers
-*(empty — populated on ingest)*
+## Sources - Papers
+*(empty - populated on ingest)*
 
-## Sources — Theses
+## Sources - Theses
 *(empty)*
 
-## Sources — Books
+## Sources - Books
 *(empty)*
 
 ## Concepts
@@ -172,7 +172,7 @@ Create `wiki/<vault>/index.md`:
 Create `wiki/<vault>/log.md`:
 
 ```markdown
-# <vault> — Wiki Log
+# <vault> - Wiki Log
 
 Append-only chronological record of every wiki operation. Format:
 `## [YYYY-MM-DD] <operation> | <title>`
@@ -184,7 +184,7 @@ Create `wiki/<vault>/overview.md`:
 
 ```markdown
 ---
-title: "<vault> — Wiki Overview"
+title: "<vault> - Wiki Overview"
 type: synthesis
 last_updated: <today>
 sources: []
@@ -194,7 +194,7 @@ sources: []
 Living synthesis across all sources ingested into the `<vault>` vault.
 
 ## Key Findings (synthesized)
-*(empty — populated as the vault grows)*
+*(empty - populated as the vault grows)*
 
 ## Major Concepts
 *(none yet)*
@@ -209,16 +209,16 @@ Living synthesis across all sources ingested into the `<vault>` vault.
 *(none yet)*
 ```
 
-## Step 5 — Verify
+## Step 5 - Verify
 
 ```bash
 find raw/<vault>/ wiki/<vault>/ -type d | sort
 ```
 
-## Step 6 — Suggest next steps + activation guidance
+## Step 6 - Suggest next steps + activation guidance
 
 If this is the **only vault** (`wiki/` and `raw/` had no other
-vaults), no further config needed — tools auto-detect it on both
+vaults), no further config needed - tools auto-detect it on both
 sides.
 
 If this is the **second+ vault**, tell the user:
@@ -246,7 +246,7 @@ Vault `<vault>` initialized. Suggested next steps:
    (ingest goes into wiki/<vault>/sources/)
 
 If you have a research focus already, edit context.md (at the repo
-root) to reflect it — the agent uses the domain context for template
+root) to reflect it - the agent uses the domain context for template
 selection and concept naming conventions. Per-vault context lives at
 wiki/<vault>/context.md (overrides the root context.md when present).
 ```
@@ -254,7 +254,7 @@ wiki/<vault>/context.md (overrides the root context.md when present).
 # Hard constraints
 
 - **NEVER overwrite an existing `wiki/<vault>/index.md`,
-  `log.md`, or `overview.md`** — refuse and ask the user to remove
+  `log.md`, or `overview.md`** - refuse and ask the user to remove
   the vault folder first.
 - **NEVER create the vault structure outside `wiki/`** (refuse paths
   with `/`, including `wiki/sub/sub2`).
@@ -265,12 +265,12 @@ wiki/<vault>/context.md (overrides the root context.md when present).
 
 # Notes
 
-- `raw/` and `wiki/` are gitignored by default — they hold YOUR
+- `raw/` and `wiki/` are gitignored by default - they hold YOUR
   content, not committed to the repo. Adjust `.gitignore` if you
   want to commit your vault(s) to a personal fork.
 - This command is safe to re-run on a vault that already has files;
   it never overwrites existing files, only creates missing folders.
 - For pre-multi-vault wikis (legacy `wiki/sources/` at the root), no
-  immediate action required — `tools/_lib.py` keeps treating
+  immediate action required - `tools/_lib.py` keeps treating
   `wiki/` itself as a single implicit vault. Migrate when you're
   ready to have a second domain.

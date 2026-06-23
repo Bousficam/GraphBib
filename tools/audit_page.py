@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit trail — git blame for a wiki page, mapped to ingest commits.
+"""Audit trail - git blame for a wiki page, mapped to ingest commits.
 
 For a given wiki page, runs `git blame` and groups each line by the
 commit that introduced it. Cross-references commits with
@@ -104,7 +104,7 @@ def main():
         c = b.get("commit", "?")
         by_commit.setdefault(c, []).append(b)
 
-    print(f"# Audit trail — {p.relative_to(REPO_ROOT)}")
+    print(f"# Audit trail - {p.relative_to(REPO_ROOT)}")
     if args.section:
         print(f"_Section: ## {args.section}_\n")
     print(f"\n{len(by_commit)} distinct commits across {len(blocks)} lines.\n")
@@ -122,7 +122,7 @@ def main():
         if date and date in log_index:
             ops = [t for op, t in log_index[date] if op == "ingest"]
             if ops:
-                log_match = f" — ingest: {ops[0]}"
+                log_match = f" - ingest: {ops[0]}"
         print(f"## {commit} ({date}) {author}")
         print(f"_{summary}_{log_match}")
         print(f"_{len(items)} lines_\n")

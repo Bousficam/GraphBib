@@ -1,5 +1,5 @@
 ---
-description: Wiki maintenance pass — runs lint then delegates fixes to librarian. Use weekly or after each batch ingestion.
+description: Wiki maintenance pass - runs lint then delegates fixes to librarian. Use weekly or after each batch ingestion.
 argument-hint: "[--lint-only | --auto-fix-only]"
 ---
 
@@ -7,16 +7,16 @@ End-to-end maintenance: detect issues then act on them.
 
 Arguments: $ARGUMENTS
 
-- (no argument) — full pass: `lint` then `librarian`.
-- `--lint-only` — diagnostic only, no fixes.
-- `--auto-fix-only` — skip lint, run only librarian's Phase 1 (auto
+- (no argument) - full pass: `lint` then `librarian`.
+- `--lint-only` - diagnostic only, no fixes.
+- `--auto-fix-only` - skip lint, run only librarian's Phase 1 (auto
   upkeep: update_cited_by, parse_references --validate,
   organize_sources --promote, coverage_report). Useful as a quick
   daily refresh.
 
 # Procedure
 
-## Phase 1 — Diagnose
+## Phase 1 - Diagnose
 
 Unless `--auto-fix-only`, delegate to lint:
 
@@ -36,7 +36,7 @@ Run /wiki-maintain (without --lint-only) to delegate fixes to
 librarian, or address findings manually.
 ```
 
-## Phase 2 — Act
+## Phase 2 - Act
 
 If not `--lint-only`, delegate to librarian:
 
@@ -56,12 +56,12 @@ The sub-agent:
 If `--auto-fix-only`, skip the lint and ask librarian to run only
 Phase 1.
 
-## Phase 3 — Recap
+## Phase 3 - Recap
 
 The sub-agents return their own summaries; assemble a unified one:
 
 ```
-=== /wiki-maintain — <date> ===
+=== /wiki-maintain - <date> ===
 
 Lint findings: <BLOCKING>/<WARNING>/<INFO>
 Auto-fixed (no LLM): <count>
@@ -74,7 +74,7 @@ Specialists invoked:
   - …
 
 Pending user input:
-  - <issue> — Suggested action: <action>
+  - <issue> - Suggested action: <action>
   - …
 
 Next session: <suggestions, e.g. re-run after the user-confirmed
@@ -94,4 +94,4 @@ actions are applied>
 
 - Idempotent. Re-running this multiple times in a day is safe and
   mostly free.
-- Each sub-agent has its own context window — the parent stays light.
+- Each sub-agent has its own context window - the parent stays light.

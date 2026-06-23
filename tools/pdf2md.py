@@ -14,7 +14,7 @@ Backends:
     auto          →  arXiv inputs use arxiv2md; PDFs use marker (fallback: pymupdf4llm)
     arxiv2md      →  Best for arXiv papers (uses structured source, not PDF)
     marker        →  Best for complex multi-column academic PDFs
-    pymupdf4llm   →  Fast, lightweight, no GPU — good for native-text PDFs
+    pymupdf4llm   →  Fast, lightweight, no GPU - good for native-text PDFs
 
 Examples:
     python tools/pdf2md.py 2401.12345
@@ -195,7 +195,7 @@ def main():
     output = resolve_output(args.input, arxiv_id, args.output)
     backend = args.backend
 
-    print(f"\npdf2md — LLM Wiki Agent")
+    print(f"\npdf2md - LLM Wiki Agent")
     print(f"  Input:   {args.input}")
     print(f"  Output:  {output.relative_to(REPO_ROOT)}")
 
@@ -233,7 +233,7 @@ def main():
 
     print(f"\nDone. Now ingest with:")
     print(f"  python tools/ingest.py {output.relative_to(REPO_ROOT)}")
-    print(f"  — or in your agent: ingest {output.relative_to(REPO_ROOT)}")
+    print(f" - or in your agent: ingest {output.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

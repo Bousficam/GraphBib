@@ -3,9 +3,9 @@
 
 Three phases, each opt-in via a flag:
 
-    Phase 1 — Extract       (offline, regex)         default
-    Phase 2 — Validate      (Crossref agency check)  --validate
-    Phase 3 — Curate broken (Crossref free-text)     --curate
+    Phase 1 - Extract       (offline, regex)         default
+    Phase 2 - Validate      (Crossref agency check)  --validate
+    Phase 3 - Curate broken (Crossref free-text)     --curate
 
 Modes:
 
@@ -27,7 +27,7 @@ Modes:
         # added to cites: and tagged in cites_curated.
 
 Cache:
-    tools/.cache/doi_validation.json — DOIs validated once never re-checked.
+    tools/.cache/doi_validation.json - DOIs validated once never re-checked.
     Delete this file to force re-validation.
 
 Frontmatter fields written (only if non-empty):
@@ -56,7 +56,7 @@ from crossref import (  # noqa: E402
 
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
-# Legacy cache file kept for migration — the new shared cache is
+# Legacy cache file kept for migration - the new shared cache is
 # tools/.cache/crossref.json (managed by tools/crossref.py).
 CACHE_FILE = CACHE_DIR / "doi_validation.json"
 
@@ -118,7 +118,7 @@ def split_references(refs_text):
     """Split a references block into individual reference entries.
 
     Tries three strategies in order:
-      1. Lines starting with [N] / N. / (N) — IEEE / numbered / Vancouver.
+      1. Lines starting with [N] / N. / (N) - IEEE / numbered / Vancouver.
       2. Blank lines as separators.
       3. Fallback: return whole block as one entry.
     """
@@ -139,7 +139,7 @@ def split_references(refs_text):
         chunks = re.split(r"\n\s*\n", refs_text)
         entries = [" ".join(c.split()) for c in chunks if len(c.strip()) >= MIN_ENTRY_LEN]
         if len(entries) <= 1:
-            # Single block — leave as-is
+            # Single block - leave as-is
             entries = [" ".join(refs_text.split())] if refs_text.strip() else []
 
     return [e for e in entries if len(e) >= MIN_ENTRY_LEN]
@@ -149,7 +149,7 @@ def split_references(refs_text):
 #
 # Cache is shared across all GraphBib tools via `tools/.cache/crossref.json`
 # (managed by `tools/crossref.py`). The legacy `doi_validation.json` file
-# is no longer read or written — re-runs after this refactor pay one
+# is no longer read or written - re-runs after this refactor pay one
 # Crossref hit per DOI to repopulate the new cache, then are free
 # forever.
 #
@@ -273,7 +273,7 @@ def main():
         mds = [p]
 
     print(
-        f"{len(mds)} markdown file(s) — "
+        f"{len(mds)} markdown file(s) - "
         f"validate={do_validate} curate={do_curate}",
         file=sys.stderr,
     )

@@ -11,7 +11,7 @@ Triggered by: *"query: <question>"* or `/wiki-query`. Sub-agent:
 1. Read `wiki/index.md` to identify candidate pages.
 2. Read those pages with the Read tool.
 3. Synthesize an answer with **inline citations as
-   `[[source-slug]] (p. N)`** — the Citation Rule applies to query
+   `[[source-slug]] (p. N)`** - the Citation Rule applies to query
    answers too.
 4. End the answer with an APA bibliography (one entry per cited source,
    pulled from each source page's `citation_apa` field).
@@ -33,7 +33,7 @@ citation-ready.
 3. Produce a structured review with this layout:
 
    ```markdown
-   # <Topic> — Literature Review (YYYY-MM-DD)
+   # <Topic> - Literature Review (YYYY-MM-DD)
 
    ## Background and key concepts
    Narrative grounded in [[concepts/...]] pages, every claim cited.
@@ -54,7 +54,7 @@ citation-ready.
    Generated from the `citation_apa` field of each cited source.
    ```
 
-4. Apply the Citation Rule — *no claim without a source*.
+4. Apply the Citation Rule - *no claim without a source*.
 5. Ask the user whether to file as
    `wiki/syntheses/<topic>-review.md`.
 
@@ -62,9 +62,9 @@ citation-ready.
 
 Triggered by: *"cite: <topic>"* or `/wiki-cite`.
 
-Returns 3–5 APA-formatted citations from the wiki most relevant to the
+Returns 3-5 APA-formatted citations from the wiki most relevant to the
 topic, with one-sentence relevance rationale per citation. No body,
-just references — useful when drafting a paragraph and needing
+just references - useful when drafting a paragraph and needing
 cite-ready refs.
 
 ## Lint Workflow
@@ -76,27 +76,27 @@ Triggered by: *"lint the wiki"* or `/wiki-lint`. Sub-agent: `lint`
 Use Grep and Read tools to check for:
 
 **Structural / wiki-wide**
-- **Orphan pages** — wiki pages with no inbound `[[links]]`.
-- **Broken links** — `[[wikilinks]]` pointing to pages that don't
+- **Orphan pages** - wiki pages with no inbound `[[links]]`.
+- **Broken links** - `[[wikilinks]]` pointing to pages that don't
   exist.
-- **Missing entity pages** — entities mentioned in 3+ pages but
+- **Missing entity pages** - entities mentioned in 3+ pages but
   lacking their own page.
-- **Stale summaries** — pages older than the most recent source they
+- **Stale summaries** - pages older than the most recent source they
   cite.
 
 **Academic-specific**
-- **Missing DOI** — sources without `doi` (excluding theses, where
+- **Missing DOI** - sources without `doi` (excluding theses, where
   DOI may legitimately be empty if not archived).
-- **Missing `citation_apa`** — sources where this field is empty.
-- **Uncited claims** — bullets in `## Key Findings`,
-  `## Recommendations`, `## Summary` that don't contain `(p. ` —
+- **Missing `citation_apa`** - sources where this field is empty.
+- **Uncited claims** - bullets in `## Key Findings`,
+  `## Recommendations`, `## Summary` that don't contain `(p. ` - 
   likely uncited.
 - **Missing `study_design`** in source frontmatter.
-- **Conflicting concept definitions** — same concept defined
+- **Conflicting concept definitions** - same concept defined
   incompatibly across pages (use LLM semantic check).
-- **Snowball debt** — references in any thesis's
+- **Snowball debt** - references in any thesis's
   `## Notable References` marked ☐ for >30 days.
-- **Data gaps** — surface as candidate `[[questions/...]]` pages.
+- **Data gaps** - surface as candidate `[[questions/...]]` pages.
 
 Output a lint report and ask whether to save to `wiki/lint-report.md`.
 
@@ -106,12 +106,12 @@ Triggered by: *"health"* or `/wiki-health`.
 
 Run: `python tools/health.py` (or `python tools/health.py --json`).
 
-Fast structural integrity checks — **zero LLM calls**, safe every
+Fast structural integrity checks - **zero LLM calls**, safe every
 session:
 
-- **Empty / stub files** — pages with no content beyond frontmatter.
-- **Index sync** — `wiki/index.md` entries vs actual files on disk.
-- **Log coverage** — source pages missing a corresponding `ingest`
+- **Empty / stub files** - pages with no content beyond frontmatter.
+- **Index sync** - `wiki/index.md` entries vs actual files on disk.
+- **Log coverage** - source pages missing a corresponding `ingest`
   entry in `wiki/log.md`.
 
 Output a health report. Use `--save` to write to
@@ -124,11 +124,11 @@ Output a health report. Use `--save` to write to
 | **Scope** | Structural integrity | Content quality (incl. citation hygiene) |
 | **LLM calls** | Zero | Yes |
 | **Cost** | Free | Tokens |
-| **Frequency** | Every session | Every 10–15 ingests |
+| **Frequency** | Every session | Every 10-15 ingests |
 | **Tool** | `tools/health.py` | `tools/lint.py` |
 | **Run order** | First | After health passes |
 
-> Run `health` first — linting an empty file wastes tokens.
+> Run `health` first - linting an empty file wastes tokens.
 
 ## Graph Workflow
 

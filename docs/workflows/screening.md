@@ -59,7 +59,7 @@ slash commands + two screener sub-agents. Fully PRISMA 2020 compliant
 ```
 
 The PRISMA flowchart at `screening/reports/prisma-flowchart.md` is
-regenerated from disk at every checkpoint — counts are deterministic,
+regenerated from disk at every checkpoint - counts are deterministic,
 never hand-maintained.
 
 ---
@@ -74,7 +74,7 @@ never hand-maintained.
   second pass (full text) with verbatim evidence per exclusion.
 
 Skip this workflow if you already have a fixed list of slugs to
-extract — go straight to `/extractor-table`.
+extract - go straight to `/extractor-table`.
 
 ---
 
@@ -95,16 +95,16 @@ Expected columns (case-insensitive; all optional except `title`):
 | `pmid`     | `pubmed_id`                                            |
 | `abstract` | `Abstract`, `ab`                                       |
 | `journal`  | `source`, `jt`, `venue`                                |
-| `source_db`| `Database`, `db` — auto-filled from filename if absent |
+| `source_db`| `Database`, `db` - auto-filled from filename if absent |
 
 Any extra columns are preserved verbatim under their original header
 in `dedup.csv` (prefixed `extra__`).
 
 ---
 
-## Pass 1 — Title / Abstract
+## Pass 1 - Title / Abstract
 
-### Step 1 — Deduplicate
+### Step 1 - Deduplicate
 
 ```bash
 python tools/screen_dedupe.py project-review/<vault>/<name>
@@ -112,9 +112,9 @@ python tools/screen_dedupe.py project-review/<vault>/<name>
 
 Identifier priority (highest wins):
 
-1. **DOI** — normalized (strip `https://doi.org/`, lowercase)
-2. **PMID** — digits only
-3. **Fuzzy** (when DOI and PMID are both empty) — normalized title +
+1. **DOI** - normalized (strip `https://doi.org/`, lowercase)
+2. **PMID** - digits only
+3. **Fuzzy** (when DOI and PMID are both empty) - normalized title +
    first-author lastname + year, SequenceMatcher ratio ≥ 0.92 on the
    title
 
@@ -125,7 +125,7 @@ inputs.
 
 Pass `--strict` to skip fuzzy matching (DOI + PMID only).
 
-### Step 2 — Fetch missing abstracts
+### Step 2 - Fetch missing abstracts
 
 ```bash
 python tools/screen_fetch_metadata.py project-review/<vault>/<name>
@@ -139,10 +139,10 @@ Cascade per record (stops at first success):
 
 Set `UNPAYWALL_EMAIL=<you@…>` in env for the polite pool (recommended).
 
-Cached in `tools/.cache/screen_metadata.json` — keyed by `doi:<…>` or
+Cached in `tools/.cache/screen_metadata.json` - keyed by `doi:<…>` or
 `pmid:<…>`. Re-runs are free unless `--force`.
 
-### Step 3 — Judge each record (LLM)
+### Step 3 - Judge each record (LLM)
 
 For each row of `dedup.csv`, the parent orchestrator spawns
 `screener-tiab` with:
@@ -156,7 +156,7 @@ The sub-agent returns ONE line:
 ```
 
 with `decision ∈ {include, exclude, uncertain}`. `uncertain` defaults
-to **retrieve** (PRISMA practice — better over-include at T/A than
+to **retrieve** (PRISMA practice - better over-include at T/A than
 miss a study).
 
 Results land in `screening/tiab-decisions.csv` with columns:
@@ -166,7 +166,7 @@ slug, doi, pmid, title, year, journal, decision, reason,
 screener_note, timestamp
 ```
 
-### Step 4 — User audit gate
+### Step 4 - User audit gate
 
 The orchestrator forces an audit pass before fetching PDFs:
 - Sample (default 10% or 20 max), all `uncertain` rows, OR all
@@ -174,7 +174,7 @@ The orchestrator forces an audit pass before fetching PDFs:
 - Per row: `keep / flip-to-include / flip-to-exclude`
 - Flips are logged in `tiab-report.md`'s `## Manual overrides` section
 
-### Step 5 — Auto-fetch PDFs for included articles
+### Step 5 - Auto-fetch PDFs for included articles
 
 ```bash
 python tools/fetch_oa.py --from-stdin \
@@ -218,35 +218,35 @@ Re-runs only the DOIs that didn't succeed last time, and skips the
 providers that already returned bad URLs (tracked in the report's
 `attempts` array).
 
-### Step 6 — Convert PDFs → MD (for pass 2 reading)
+### Step 6 - Convert PDFs → MD (for pass 2 reading)
 
 For every fresh PDF without a MD counterpart, the orchestrator runs
 the project's conversion entrypoint (see
 `docs/workflows/conversion.md`) into
 `screening/1st-pass/markdown/<slug>.md`.
 
-### Step 7 — Reports
+### Step 7 - Reports
 
-- `screening/reports/tiab-report.md` — narrative summary, exclusion
+- `screening/reports/tiab-report.md` - narrative summary, exclusion
   breakdown, manual overrides, errors
-- `screening/reports/prisma-flowchart.md` — regenerated via
+- `screening/reports/prisma-flowchart.md` - regenerated via
   `tools/screen_prisma.py`
 
 ---
 
-## Pass 2 — Full text
+## Pass 2 - Full text
 
-### Step 1 — Determine candidates
+### Step 1 - Determine candidates
 
 The full-text pass operates on rows of `tiab-decisions.csv` with
 `decision ∈ {include, uncertain}` AND a body available
 (MD in `1st-pass/markdown/<slug>.md`).
 
 Articles without a body are recorded with `decision = not-assessed`,
-`tag = body-missing` — they show up under "Reports not retrieved" in
+`tag = body-missing` - they show up under "Reports not retrieved" in
 the PRISMA flowchart, NOT as exclusions.
 
-### Step 2 — Judge each candidate (LLM)
+### Step 2 - Judge each candidate (LLM)
 
 For each candidate, the orchestrator spawns `screener-fulltext` with:
 - the project's `criteria.md`
@@ -260,10 +260,10 @@ Discussion) and returns ONE line:
 <decision> | <tag>; "<verbatim excerpt>"; <source location>
 ```
 
-(for `exclude` — `include` has empty reason; `uncertain` is rare at
+(for `exclude` - `include` has empty reason; `uncertain` is rare at
 full text and reserved for truncated PDFs).
 
-The verbatim excerpt + location is mandatory for every exclusion —
+The verbatim excerpt + location is mandatory for every exclusion - 
 that's what makes the screening auditable.
 
 Results land in `screening/fulltext-decisions.csv` with columns:
@@ -273,29 +273,29 @@ slug, doi, pmid, title, decision, tag, excerpt, location,
 screener_note, timestamp
 ```
 
-### Step 3 — User audit gate
+### Step 3 - User audit gate
 
 - Default: all `uncertain` + 10% sample of `exclude` (with the
   verbatim excerpt + location surfaced for verification)
 - Per row: `keep / flip-to-include / flip-to-exclude / view-body`
 - Flips logged in `fulltext-report.md`
 
-### Step 4 — Stage included articles for extraction
+### Step 4 - Stage included articles for extraction
 
 For each row with `decision = include`, the orchestrator copies
 `screening/1st-pass/markdown/<slug>.md` to
 `extraction/articles/<slug>.md` (cp, never mv). The screening
 register is preserved.
 
-### Step 5 — Reports
+### Step 5 - Reports
 
-- `screening/reports/fulltext-report.md` — exclusion breakdown
+- `screening/reports/fulltext-report.md` - exclusion breakdown
   grouped by criterion tag, with every verbatim excerpt
-- `screening/reports/prisma-flowchart.md` — regenerated
+- `screening/reports/prisma-flowchart.md` - regenerated
 
 ---
 
-## Decision rules — what each agent does
+## Decision rules - what each agent does
 
 ### `screener-tiab` (haiku)
 
@@ -308,7 +308,7 @@ register is preserved.
   - `<reason>` = short criterion tag from `criteria.md`
     (e.g. `wrong-population`, `not-RCT`).
   - `<side_use>` ∈ {empty, intro, discussion, method, reco, general}
-    — only filled for `exclude`. Flags articles excluded from
+ - only filled for `exclude`. Flags articles excluded from
     extraction but worth citing in the review.
 
 ### `screener-fulltext` (sonnet)
@@ -320,44 +320,44 @@ register is preserved.
 - **Output format**: `<decision> | <reason> | <side_use>`.
   - `<reason>` for excludes: `<tag>; "<verbatim excerpt>"; <source location>`.
   - `<side_use>` for excludes: bare category OR
-    `<category>; "<quote>"; <location>` (preferred — auditable).
+    `<category>; "<quote>"; <location>` (preferred - auditable).
   - The verbatim excerpt + location is non-negotiable for the
-    `<reason>` field — the parent rejects malformed responses.
+    `<reason>` field - the parent rejects malformed responses.
 
 Both sub-agents:
 - Read `background/notes.md` at session start when present (domain
   primer authored by the user)
 - Never use external knowledge to fill in what the article doesn't
   say (background notes are domain context, NOT a license to guess)
-- Never invent criterion tags — tags come from `criteria.md`
-- Never invent side categories — only the 5 listed are valid
+- Never invent criterion tags - tags come from `criteria.md`
+- Never invent side categories - only the 5 listed are valid
 - Output ONE line per invocation, parsed strictly by the orchestrator
 
 ---
 
-## Background folder — sub-agent context
+## Background folder - sub-agent context
 
 The optional `background/` folder at the project root holds the
 user's domain primer:
 
 ```
 project-review/<vault>/<name>/background/
-├── notes.md       # user-authored summary — THIS is what sub-agents read
+├── notes.md       # user-authored summary - THIS is what sub-agents read
 ├── raw/           # PDFs the user dropped (seminal works, prior reviews)
 └── markdown/      # converted MDs (or user-dropped MDs)
 ```
 
 **Only `notes.md` is consumed by the sub-agents.** It's the user's
-distilled summary — under 800 words is a healthy target. Topics to
+distilled summary - under 800 words is a healthy target. Topics to
 include:
 
-- Motivation — why this review exists
+- Motivation - why this review exists
 - Seminal works (author-year + one-liner)
 - Glossary / terminology disambiguation (e.g. what "chronic" means
   in this corpus)
 - Domain priors (e.g. unit conventions, ITT preference)
 
-The PDFs in `background/raw/` are for the user's reference only —
+The PDFs in `background/raw/` are for the user's reference only - 
 the sub-agents do NOT read them per invocation (cost prohibitive).
 If the user wants a PDF's content to influence decisions, they
 distill it into `notes.md`.
@@ -380,7 +380,7 @@ pre-organized for the writing phase.
 |--------------|-------------------------------------------------------------------------|
 | `intro`      | Introduction / motivation / background                                  |
 | `discussion` | Discussion / interpretation / comparison with other interventions       |
-| `method`     | Methods — validates a scale / technique used by included studies        |
+| `method`     | Methods - validates a scale / technique used by included studies        |
 | `reco`       | Clinical / practice recommendation worth citing                         |
 | `general`    | Side-useful but the category is unclear                                 |
 
@@ -389,7 +389,7 @@ pre-organized for the writing phase.
 | Stage                  | What happens                                                                  |
 |------------------------|-------------------------------------------------------------------------------|
 | T/A pass (screener-tiab) | Flags side-useful excludes from abstract alone (speculative, conservative). |
-| `/extractor-screen-tiab` Phase 4b | Lists speculative T/A side flags in `extraction/biblio/side/<cat>/pending.md` (no copy — no body yet). |
+| `/extractor-screen-tiab` Phase 4b | Lists speculative T/A side flags in `extraction/biblio/side/<cat>/pending.md` (no copy - no body yet). |
 | Full-text pass (screener-fulltext) | Re-evaluates side-use from the body, with verbatim excerpt + location for audit. |
 | `/extractor-screen-fulltext` Phase 5b   | Copies the article MD (+ PDF if present) to `extraction/biblio/side/<cat>/<slug>.md` and appends a row to `extraction/biblio/side/<cat>/index.md`. |
 | User audit gate              | `set-side <cat>` / `clear-side` override the screener's category.       |
@@ -453,7 +453,7 @@ Generated by `tools/screen_prisma.py`. Reads:
 - `screening/fulltext-decisions.csv` → reports assessed + included + excluded with reasons
 
 Outputs a Mermaid flowchart + a summary table at
-`screening/reports/prisma-flowchart.md`. Idempotent — re-run any time
+`screening/reports/prisma-flowchart.md`. Idempotent - re-run any time
 to refresh.
 
 ```mermaid
@@ -485,7 +485,7 @@ flowchart TD
   Pass 2 NEVER decides from abstract alone. The audit trail
   distinguishes which evidence drove which decision.
 - **Every full-text exclusion has a verbatim excerpt + source
-  location.** No naked "wrong-population" rows — `screener-fulltext`
+  location.** No naked "wrong-population" rows - `screener-fulltext`
   refuses, the orchestrator logs as `error` if it ever happens.
 - **PRISMA flowchart is the source of truth for counts.**
   Regenerated from disk at every milestone. Never hand-edited.
@@ -495,7 +495,7 @@ flowchart TD
 - **Included articles are COPIED, never moved.** The screening
   register (PDFs in `1st-pass/raw/`, MDs in `1st-pass/markdown/`)
   stays intact even after extraction starts.
-- **Side-flagged articles are COPIED, never moved.** Same rule —
+- **Side-flagged articles are COPIED, never moved.** Same rule - 
   `screening/1st-pass/` is the authoritative source; everything
   else is a copy for portability.
 - **`background/notes.md` is read by sub-agents BUT NEVER overrides
@@ -509,11 +509,11 @@ flowchart TD
 
 | Action                                | Safe to re-run? |
 |---------------------------------------|-----------------|
-| `screen_dedupe.py`                    | Yes — overwrites `dedup.csv`, deterministic |
-| `screen_fetch_metadata.py`            | Yes — cached, only fetches missing |
-| `/extractor-screen-tiab` after edits to `criteria.md` | Requires `--reset-tiab` (explicit) — protects existing decisions |
+| `screen_dedupe.py`                    | Yes - overwrites `dedup.csv`, deterministic |
+| `screen_fetch_metadata.py`            | Yes - cached, only fetches missing |
+| `/extractor-screen-tiab` after edits to `criteria.md` | Requires `--reset-tiab` (explicit) - protects existing decisions |
 | `/extractor-screen-fulltext` re-run        | `--reset` discards prior decisions; default appends new ones for `--only <slug>` mode |
-| `tools/screen_prisma.py`              | Yes — pure read-and-render |
+| `tools/screen_prisma.py`              | Yes - pure read-and-render |
 
 The two CSVs (`tiab-decisions.csv`, `fulltext-decisions.csv`) are the
 audit trail. Treat them as append-only between runs unless the user
@@ -523,9 +523,9 @@ explicitly asks for a reset.
 
 ## Cost notes
 
-- **Pass 1** is `haiku`-only, ~100–300 tokens per record. A 2000-record
+- **Pass 1** is `haiku`-only, ~100-300 tokens per record. A 2000-record
   screening costs roughly the same as a single ingest.
-- **Pass 2** is `sonnet`-only, ~2k–5k tokens per article. 100 full-text
+- **Pass 2** is `sonnet`-only, ~2k-5k tokens per article. 100 full-text
   assessments ≈ one `/wiki-review` run.
 - **Metadata fetches** (PubMed, OpenAlex, Crossref) are free,
   rate-limited, and cached.

@@ -119,7 +119,7 @@ def parse_json_from_response(text: str) -> dict:
 def update_index(new_entry: str, section: str = "Sources"):
     content = read_file(INDEX_FILE)
     if not content:
-        content = "# Wiki Index\n\n## Overview\n- [Overview](overview.md) — living synthesis\n\n## Sources\n\n## Entities\n\n## Concepts\n\n## Syntheses\n"
+        content = "# Wiki Index\n\n## Overview\n- [Overview](overview.md) - living synthesis\n\n## Sources\n\n## Entities\n\n## Concepts\n\n## Syntheses\n"
     section_header = f"## {section}"
     if section_header in content:
         content = content.replace(section_header + "\n", section_header + "\n" + new_entry + "\n")
@@ -237,7 +237,7 @@ def ingest(source_path: str, auto_convert: bool = True):
             print(f"  Skipping non-.md file (--no-convert): {source.name}")
             return
         if source.suffix.lower() not in CONVERTIBLE_EXTENSIONS:
-            print(f"  ⚠️  Unsupported format: {source.suffix} — skipping {source.name}")
+            print(f"  ⚠️  Unsupported format: {source.suffix} - skipping {source.name}")
             print(f"       Supported: {', '.join(sorted(ALL_SUPPORTED_EXTENSIONS))}")
             return
         print(f"  Converting {source.name} to markdown...")
@@ -259,7 +259,7 @@ Schema and conventions:
 {schema}
 
 Current wiki state (index + recent pages):
-{wiki_context if wiki_context else "(wiki is empty — this is the first source)"}
+{wiki_context if wiki_context else "(wiki is empty - this is the first source)"}
 
 New source to ingest (file: {source.relative_to(REPO_ROOT) if source.is_relative_to(REPO_ROOT) else source.name}):
 === SOURCE START ===
@@ -272,8 +272,8 @@ Return ONLY a valid JSON object with these fields (no markdown fences, no prose 
 {{
   "title": "Human-readable title for this source",
   "slug": "kebab-case-slug-for-filename",
-  "source_page": "full markdown content for wiki/sources/<slug>.md — use the source page format from the schema. CRITICAL: Aggressively convert key people, products, concepts and projects into [[Wikilinks]] inline in the text. Omitting [[ ]] for known terms is a failure.",
-  "index_entry": "- [Title](sources/slug.md) — one-line summary",
+  "source_page": "full markdown content for wiki/sources/<slug>.md - use the source page format from the schema. CRITICAL: Aggressively convert key people, products, concepts and projects into [[Wikilinks]] inline in the text. Omitting [[ ]] for known terms is a failure.",
+  "index_entry": "- [Title](sources/slug.md) - one-line summary",
   "overview_update": "full updated content for wiki/overview.md, or null if no update needed",
   "entity_pages": [
     {{"path": "entities/EntityName.md", "content": "full markdown content"}}
@@ -361,7 +361,7 @@ Return ONLY a valid JSON object with these fields (no markdown fences, no prose 
         if len(validation["unindexed"]) > 10:
             print(f"           ... and {len(validation['unindexed']) - 10} more")
     if not validation["broken_links"] and not validation["unindexed"]:
-        print("  ✓ Validation passed — no broken links, all pages indexed")
+        print("  ✓ Validation passed - no broken links, all pages indexed")
     print()
 
 

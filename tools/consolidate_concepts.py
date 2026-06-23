@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Batched concept consolidation — extend concept pages from accumulated
+"""Batched concept consolidation - extend concept pages from accumulated
 sources, periodically rather than per-ingest.
 
 Rationale
 =========
 
 Per-ingest concept extension makes Claude re-read the concept page on
-EVERY new source that touches it (~5–10 k tokens per concept × N
+EVERY new source that touches it (~5-10 k tokens per concept × N
 concepts × M ingests). For a homogeneous corpus (50 MI-BCI papers),
 this dominates the ingestion cost without proportional quality gain
-— the page is rebuilt 50 times.
+ - the page is rebuilt 50 times.
 
 Alternative workflow (this tool):
   1. During routine ingest, the agent skips deep concept extension and
@@ -31,7 +31,7 @@ Cost comparison (50 papers × 5 concepts each):
 Modes
 =====
 
-    # Inventory — list which concepts have unconsolidated sources
+    # Inventory - list which concepts have unconsolidated sources
     python tools/consolidate_concepts.py --report
 
     # Consolidate one concept (re-reads ALL its sources)
@@ -59,7 +59,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from _lib import REPO_ROOT, SRC_DIR, WIKI_DIR, WIKILINK_RE, load_sources, parse_fm  # noqa: E402
 
 CONCEPTS_DIR = WIKI_DIR / "concepts"
-DEFAULT_LLM_MODEL = "claude-sonnet-4-6"  # synthesis tier — quality matters
+DEFAULT_LLM_MODEL = "claude-sonnet-4-6"  # synthesis tier - quality matters
 LLM_MAX_TOKENS = 6000
 LLM_SLEEP_SEC = 0.1
 
@@ -124,7 +124,7 @@ def llm_consolidate(concept_text, concept_slug, source_blobs, dry_run):
     )
 
     system_block = (
-        "You maintain academic concept pages (1500–3500 word chapter-style).\n"
+        "You maintain academic concept pages (1500-3500 word chapter-style).\n"
         "Each concept page is enriched incrementally as new sources touch it.\n\n"
         "Rules:\n"
         "- Apply the Indirect Citation Rule strictly: each new claim cites the\n"
@@ -262,7 +262,7 @@ def main():
     elif args.since:
         slugs = filter_recent_concepts(sources, args.since)
         if slugs is None:
-            sys.exit("git log failed — are you in a git repo?")
+            sys.exit("git log failed - are you in a git repo?")
         targets = [CONCEPTS_DIR / f"{s}.md" for s in sorted(slugs)
                    if (CONCEPTS_DIR / f"{s}.md").is_file()]
         if not targets:

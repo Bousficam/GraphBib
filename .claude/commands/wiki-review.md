@@ -1,11 +1,11 @@
 ---
-description: Generate a structured literature review on a topic from the wiki — Background / Methods / Findings / Recommendations / Open Questions / APA bibliography. Saves to wiki/syntheses/. Sonnet by default; pass --opus for higher-quality long-form synthesis on complex or high-stakes topics.
+description: Generate a structured literature review on a topic from the wiki - Background / Methods / Findings / Recommendations / Open Questions / APA bibliography. Saves to wiki/syntheses/. Sonnet by default; pass --opus for higher-quality long-form synthesis on complex or high-stakes topics.
 argument-hint: "<topic>  [--opus]"
 ---
 
 Produce a citation-rigorous literature review on the given topic.
 
-Arguments: $ARGUMENTS — the topic (free text) + optional `--opus`
+Arguments: $ARGUMENTS - the topic (free text) + optional `--opus`
 flag at the end.
 
 Examples:
@@ -15,7 +15,7 @@ Examples:
 
 # Model selection
 
-By **default the `reviewer` sub-agent runs on Sonnet** — fast, cheap,
+By **default the `reviewer` sub-agent runs on Sonnet** - fast, cheap,
 solid quality for routine reviews.
 
 Pass **`--opus`** at the end of the topic to upgrade for that one
@@ -76,7 +76,7 @@ The sub-agent:
 - The review file is overwritten on re-runs (the synthesis is
   regenerated from the current wiki state). Manual edits to the
   saved file should be made after the agent finishes, not before.
-- Word count target: 1500–4000 words depending on topic breadth.
+- Word count target: 1500-4000 words depending on topic breadth.
 - Confirm the model in your end-of-run recap: *"Review on '<topic>'
   written via <Sonnet | Opus> to wiki/syntheses/<slug>.md"* so the
   user knows what was used.

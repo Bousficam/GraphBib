@@ -197,9 +197,9 @@ def render(report):
             lines.append(f"- **{title}**")
             lines.append(f"  {authors} · {journal} ({year})")
             if doi:
-                lines.append(f"  DOI: `{doi}` — https://doi.org/{doi}")
+                lines.append(f"  DOI: `{doi}` - https://doi.org/{doi}")
             if it.get("pmid"):
-                lines.append(f"  PMID: {it['pmid']} — https://pubmed.ncbi.nlm.nih.gov/{it['pmid']}/")
+                lines.append(f"  PMID: {it['pmid']} - https://pubmed.ncbi.nlm.nih.gov/{it['pmid']}/")
             lines.append("")
     return "\n".join(lines)
 
@@ -216,7 +216,7 @@ def main():
         if CONFIG_FILE.exists():
             sys.exit(f"{CONFIG_FILE} already exists.")
         CONFIG_FILE.write_text(STARTER_CONFIG, encoding="utf-8")
-        print(f"  ✓ {CONFIG_FILE.relative_to(REPO_ROOT)} created — edit and re-run.", file=sys.stderr)
+        print(f"  ✓ {CONFIG_FILE.relative_to(REPO_ROOT)} created - edit and re-run.", file=sys.stderr)
         return
 
     if not CONFIG_FILE.exists():

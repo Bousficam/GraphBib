@@ -1,5 +1,5 @@
 ---
-description: Find and resolve redundant concept / method / intervention pages — runs the deterministic pre-filter, then delegates to the deduplicator sub-agent.
+description: Find and resolve redundant concept / method / intervention pages - runs the deterministic pre-filter, then delegates to the deduplicator sub-agent.
 argument-hint: "[--kind concepts|methods|interventions] [--min-score 0.35] [--top N]"
 ---
 
@@ -9,7 +9,7 @@ Arguments: $ARGUMENTS
 
 # Procedure
 
-## Step 1 — Deterministic pre-filter (no LLM tokens)
+## Step 1 - Deterministic pre-filter (no LLM tokens)
 
 ```bash
 python tools/find_redundancy.py $ARGUMENTS
@@ -23,23 +23,23 @@ signals (title overlap, alias match, co-citation, tag Jaccard,
 text overlap) cross per-signal thresholds.
 
 Common overrides:
-- `--kind concepts` — restrict to one folder
-- `--min-score 0.5` — tighter (fewer candidates, less recall)
-- `--min-score 0.25` — looser (more candidates, more LLM cost)
-- `--top 20` — cap output to top-N highest-scoring pairs
+- `--kind concepts` - restrict to one folder
+- `--min-score 0.5` - tighter (fewer candidates, less recall)
+- `--min-score 0.25` - looser (more candidates, more LLM cost)
+- `--top 20` - cap output to top-N highest-scoring pairs
 
 If zero candidates: report "no redundancy detected above threshold"
 and stop. Tell the user they can lower `--min-score` if they want
 to widen the net.
 
-## Step 2 — Show the user the candidate list
+## Step 2 - Show the user the candidate list
 
 Surface the human summary from Step 1 (already printed by the
 script) and ask before delegating: *"K candidate pairs found. Run
 the `deduplicator` agent on them? It'll cost roughly K × 15 k tokens
 for the judgment pass. [Y/n]"*.
 
-## Step 3 — Delegate to the deduplicator sub-agent
+## Step 3 - Delegate to the deduplicator sub-agent
 
 Use the `Agent` tool with `subagent_type=deduplicator`. Pass the
 path to `tools/.cache/redundancy_candidates.json` so the agent
@@ -53,7 +53,7 @@ doesn't re-run the pre-filter. The agent will:
    (for merges) or by writing new pages directly (for extractions).
 6. Append decisions to `wiki/log.md`.
 
-## Step 4 — Post-deduplication housekeeping
+## Step 4 - Post-deduplication housekeeping
 
 After the deduplicator completes, suggest these follow-ups:
 
@@ -75,14 +75,14 @@ rewrite).
 | Mechanical merge (`merge_pages.py --apply`) | 0 tokens |
 
 A typical run on a 200-page wiki surfaces 10-30 candidates and costs
-150-500 k tokens — comparable to ingesting one long paper.
+150-500 k tokens - comparable to ingesting one long paper.
 
 # Hard constraints
 
 - **NEVER skip user confirmation** for individual merge / extract
   actions, even when invoked non-interactively. Each destructive
   operation gets its own confirmation.
-- **NEVER run on `wiki/sources/`** — source-level duplication is
+- **NEVER run on `wiki/sources/`** - source-level duplication is
   handled by `source-remover`, not this workflow.
 - The pre-filter is a hint, not a verdict. The agent does the
   judgment; the user does the approval.

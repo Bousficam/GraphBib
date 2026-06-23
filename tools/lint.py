@@ -141,7 +141,7 @@ def load_graph_data() -> dict | None:
     try:
         return json.loads(GRAPH_JSON.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, IOError):
-        print("  [warn] graph.json is corrupted — skipping graph-aware checks")
+        print("  [warn] graph.json is corrupted - skipping graph-aware checks")
         return None
 
 
@@ -295,9 +295,9 @@ def run_lint():
         print(f"    fragile bridges: {len(fragile_bridges)}")
         print(f"    isolated communities: {len(isolated_comms)}")
     elif graph_data:
-        print("  [skip] graph.json has no data — skipping graph-aware checks")
+        print("  [skip] graph.json has no data - skipping graph-aware checks")
     else:
-        print("  [skip] no graph.json — run build_graph.py first for graph-aware checks")
+        print("  [skip] no graph.json - run build_graph.py first for graph-aware checks")
 
     # Build context for semantic checks (contradictions, gaps)
     # Use a sample of pages to stay within context limits
@@ -311,7 +311,7 @@ def run_lint():
     prompt = f"""You are linting an LLM Wiki. Review the pages below and identify:
 1. Contradictions between pages (claims that conflict)
 2. Stale content (summaries that newer sources have superseded)
-3. Data gaps (important questions the wiki can't answer — suggest specific sources to find)
+3. Data gaps (important questions the wiki can't answer - suggest specific sources to find)
 4. Concepts mentioned but lacking depth
 
 Wiki pages (sample of {len(sample)} pages):
@@ -323,13 +323,13 @@ Return a markdown lint report with these sections:
 ## Data Gaps & Suggested Sources
 ## Concepts Needing More Depth
 
-Be specific — name the exact pages and claims involved.
+Be specific - name the exact pages and claims involved.
 """
     semantic_report = call_llm(prompt, "LLM_MODEL", "claude-3-5-sonnet-latest", max_tokens=3000)
 
     # Compose full report
     report_lines = [
-        f"# Wiki Lint Report — {today}",
+        f"# Wiki Lint Report - {today}",
         "",
         f"Scanned {len(pages)} pages.",
         "",
@@ -346,7 +346,7 @@ Be specific — name the exact pages and claims involved.
     if broken:
         report_lines.append("### Broken Wikilinks")
         for page, link in broken:
-            report_lines.append(f"- `{page.relative_to(REPO_ROOT)}` links to `[[{link}]]` — not found")
+            report_lines.append(f"- `{page.relative_to(REPO_ROOT)}` links to `[[{link}]]` - not found")
         report_lines.append("")
 
     if missing_entities:
@@ -361,13 +361,13 @@ Be specific — name the exact pages and claims involved.
         report_lines.append("")
 
     if sparse_pages:
-        report_lines.append(f"### Sparse Pages — Low Outbound Link Density ({len(sparse_pages)} pages)")
+        report_lines.append(f"### Sparse Pages - Low Outbound Link Density ({len(sparse_pages)} pages)")
         report_lines.append("These pages have fewer than 2 outbound wikilinks. Add connections to prevent orphan accumulation:")
         report_lines.append("")
         report_lines.append("| Page | Outbound Links | Existing Links |")
         report_lines.append("|---|---|---|")
         for sp in sparse_pages:
-            existing = ", ".join(f"`[[{l}]]`" for l in sp["links"]) if sp["links"] else "—"
+            existing = ", ".join(f"`[[{l}]]`" for l in sp["links"]) if sp["links"] else " - "
             report_lines.append(f"| `{sp['path']}` | {sp['outbound_links']} | {existing} |")
         report_lines.append("")
 
@@ -395,23 +395,23 @@ Be specific — name the exact pages and claims involved.
                 status = "🔴 stub" if hs["content_len"] < 250 else "🟡 thin"
                 report_lines.append(f"| `{hs['path']}` | {hs['degree']} | {hs['content_len']} chars | {status} |")
         else:
-            report_lines.append("No hub stubs detected — all high-degree nodes have sufficient content.")
+            report_lines.append("No hub stubs detected - all high-degree nodes have sufficient content.")
         report_lines.append("")
 
         # Fragile bridges
         report_lines.append(f"### Fragile Bridges ({len(fragile_bridges)} community pairs)")
         if fragile_bridges:
-            report_lines.append("These community connections rely on a single edge — one broken link isolates them:")
+            report_lines.append("These community connections rely on a single edge - one broken link isolates them:")
             for fb in fragile_bridges:
                 report_lines.append(f"- Community {fb['comm_a']} ↔ Community {fb['comm_b']} via `{fb['bridge_from']}` → `{fb['bridge_to']}`")
         else:
-            report_lines.append("No fragile bridges — all community connections have redundant links.")
+            report_lines.append("No fragile bridges - all community connections have redundant links.")
         report_lines.append("")
 
         # Isolated communities
         report_lines.append(f"### Isolated Communities ({len(isolated_comms)} communities)")
         if isolated_comms:
-            report_lines.append("These communities have zero external connections — knowledge silos:")
+            report_lines.append("These communities have zero external connections - knowledge silos:")
             report_lines.append("")
             report_lines.append("| Community | Nodes | Members |")
             report_lines.append("|---|---|---|")
@@ -421,7 +421,7 @@ Be specific — name the exact pages and claims involved.
                     members_str += ", …"
                 report_lines.append(f"| {ic['community_id']} | {ic['node_count']} | {members_str} |")
         else:
-            report_lines.append("No isolated communities — all clusters have external connections.")
+            report_lines.append("No isolated communities - all clusters have external connections.")
         report_lines.append("")
 
     report_lines.append("---")

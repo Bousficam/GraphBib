@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Find redundancy candidates among wiki/concepts/, wiki/methods/, wiki/interventions/.
 
-Deterministic pre-filter — emits a ranked list of candidate page pairs
+Deterministic pre-filter - emits a ranked list of candidate page pairs
 that *might* be duplicates or overlapping topics. The LLM sub-agent
 `deduplicator` then judges each candidate and proposes a merge,
 extraction, or "keep separate".
@@ -11,15 +11,15 @@ pages, this script reduces 19 900 possible pairs to typically 10-30
 that an agent actually needs to read.
 
 Signals (combined, no LLM):
-  1. **Title / alias overlap** — same slug stems, aliased name match,
+  1. **Title / alias overlap** - same slug stems, aliased name match,
      SequenceMatcher.ratio > 0.75 between titles.
-  2. **Tag Jaccard** — |tags_a ∩ tags_b| / |tags_a ∪ tags_b|.
-  3. **Co-citation Jaccard** — pages that wikilink to BOTH a and b
+  2. **Tag Jaccard** - |tags_a ∩ tags_b| / |tags_a ∪ tags_b|.
+  3. **Co-citation Jaccard** - pages that wikilink to BOTH a and b
      (the strongest signal: two concepts cited by the same papers
      are probably the same concept).
-  4. **Shared outlinks Jaccard** — pages that BOTH a and b wikilink
+  4. **Shared outlinks Jaccard** - pages that BOTH a and b wikilink
      to (weak signal of topical proximity).
-  5. **First-paragraph word-set Jaccard** — overlap of content
+  5. **First-paragraph word-set Jaccard** - overlap of content
      vocabulary in the first ~1000 chars, after stopword removal.
 
 A candidate pair is emitted if any of these passes a per-signal
@@ -273,7 +273,7 @@ def main():
         print(f"Cache: {out}")
         return
 
-    print(f"{len(candidates)} candidate(s) — sorted by score, top to read first:\n")
+    print(f"{len(candidates)} candidate(s) - sorted by score, top to read first:\n")
     for i, c in enumerate(candidates, 1):
         print(f"{i:>2}. [{c['kind']}]  {c['a']['slug']}  ↔  {c['b']['slug']}   (score {c['score']})")
         for r in c["rationale"]:

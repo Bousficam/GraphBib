@@ -34,5 +34,5 @@ in the corresponding template under `docs/templates/`:
 
 Bibliographic frontmatter on source pages (`title`, `authors`,
 `journal`, `year`, `doi`, `volume`, `issue`, `pages`) is copied
-**verbatim** from the source PDF — never inferred, never reformatted.
+**verbatim** from the source PDF - never inferred, never reformatted.
 This is non-negotiable; see `docs/rules/citation.md`.

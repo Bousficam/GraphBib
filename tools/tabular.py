@@ -4,7 +4,7 @@
 XLSX is the default format for every persisted table on the
 Extractor side (dedup.xlsx, slug-renames.xlsx, tiab-decisions.xlsx,
 fulltext-decisions.xlsx, prisma-counts.xlsx). CSV stays available
-as an on-demand export — handy for pandas/R/grep workflows and as a
+as an on-demand export - handy for pandas/R/grep workflows and as a
 migration fallback for legacy projects.
 
 Public API:
@@ -12,7 +12,7 @@ Public API:
     read_records(path)
         Return (headers, list[dict]). Auto-detects format by suffix.
         If `path` ends with .xlsx but the file is missing, falls
-        back to the sibling .csv — supports projects upgraded from
+        back to the sibling .csv - supports projects upgraded from
         the pre-xlsx layout.
 
     write_records(records, headers, path, *, styled=True)
@@ -69,7 +69,7 @@ def detect_format(path):
 
 
 def _read_csv_with_encoding_fallback(path):
-    """Open CSV trying common encodings — Excel-on-Windows defaults to cp1252."""
+    """Open CSV trying common encodings - Excel-on-Windows defaults to cp1252."""
     for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
             with open(path, newline="", encoding=encoding) as f:

@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""DTI metrics aggregator — surface diffusion-metric reports across the corpus.
+"""DTI metrics aggregator - surface diffusion-metric reports across the corpus.
 
 For each source whose `methods:` includes `DTI` or `Tractography`, scans
 the body for diffusion metric mentions (FA / MD / AD / RD or whatever your
 domain declares) and the tract / region they qualify. Outputs a
 tract-by-tract aggregate.
 
-The metric and tract vocabulary is NOT hardcoded — it is read from
+The metric and tract vocabulary is NOT hardcoded - it is read from
 `tools/data/domain.json` (`dti_metrics` and `tracts` sections). The shipped
 default is the neutral baseline (empty), so this tool only does something
 once a domain pack is configured. See `tools/data/domain.stroke.example.json`
 for a neuroimaging example.
 
-Heuristic extraction — surfaces what's reportable; manual curation
+Heuristic extraction - surfaces what's reportable; manual curation
 recommended before drawing conclusions.
 
 Usage:
@@ -90,7 +90,7 @@ def extract_dti_observations(body, metric_re, normalize, tract_lexicon):
                 sd = float(m.group(3))
             except ValueError:
                 pass
-        # Sanity: FA in 0–1 (only enforced when the canonical metric is FA)
+        # Sanity: FA in 0-1 (only enforced when the canonical metric is FA)
         if metric == "FA" and not (0 <= val <= 1):
             continue
         tract = detect_tract_in_window(body, m.start(), tract_lexicon)
@@ -132,9 +132,9 @@ def main():
     else:
         for (tract, metric), obs in sorted(by_tract.items(), key=lambda t: (t[0][0], t[0][1])):
             vals = [o[1] for o in obs]
-            lines.append(f"## {tract} — {metric}")
+            lines.append(f"## {tract} - {metric}")
             lines.append("")
-            lines.append(f"- {len(obs)} observations, range {min(vals):.3f}–{max(vals):.3f}, mean {sum(vals)/len(vals):.3f}")
+            lines.append(f"- {len(obs)} observations, range {min(vals):.3f}-{max(vals):.3f}, mean {sum(vals)/len(vals):.3f}")
             lines.append("")
             for slug, v, sd in obs[:15]:
                 tail = f" ± {sd:.3f}" if sd is not None else ""

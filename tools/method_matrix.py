@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Method comparison matrix — tabulate sources × methods or interventions.
+"""Method comparison matrix - tabulate sources × methods or interventions.
 
 For a target outcome or domain, output a Markdown table:
 

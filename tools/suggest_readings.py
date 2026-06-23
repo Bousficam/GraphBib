@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Suggest complementary readings for the wiki — internal snowball or
+"""Suggest complementary readings for the wiki - internal snowball or
 external forward-citation discovery.
 
 Two modes:
 
-INTERNAL (default) — backward snowball
+INTERNAL (default) - backward snowball
     Walks `wiki/sources/`, aggregates each source's `cites:` frontmatter,
     surfaces DOIs cited by 2+ wiki sources but not yet in the wiki.
 
@@ -12,7 +12,7 @@ INTERNAL (default) — backward snowball
     python tools/suggest_readings.py --all
     python tools/suggest_readings.py MotorImagery --enrich   # +Crossref meta
 
-EXTERNAL — forward citation discovery via OpenAlex
+EXTERNAL - forward citation discovery via OpenAlex
     For each wiki source with a DOI, lists the top-50 papers citing it
     (by cited_by_count). Aggregates co-citations across the wiki and
     ranks candidates by:
@@ -215,7 +215,7 @@ def passes_filter(co_cit, vel, venue_h, year, current_year,
     if year is None:
         return False
     if (current_year - year) < 1:
-        # Too recent to judge on velocity — only co-citation matters
+        # Too recent to judge on velocity - only co-citation matters
         return co_cit >= min_co_cit
     if co_cit >= min_co_cit:
         return True
@@ -288,7 +288,7 @@ def forward_mode(args, sources):
         s for s in sources if (s["fm"].get("doi") or "").strip()
     ]
     if not sources_with_doi:
-        sys.exit("No source has a doi: in its frontmatter — cannot query OpenAlex.")
+        sys.exit("No source has a doi: in its frontmatter - cannot query OpenAlex.")
 
     cache = load_openalex_cache()
     current_year = dt.date.today().year
@@ -374,7 +374,7 @@ def main():
     ap.add_argument("--all", action="store_true",
                     help="Internal mode, wiki-wide (no concept filter).")
     ap.add_argument("--forward", action="store_true",
-                    help="External mode — forward citations via OpenAlex.")
+                    help="External mode - forward citations via OpenAlex.")
     ap.add_argument("--min", type=int, default=2,
                     help="Internal mode: minimum citation count (default 2).")
     ap.add_argument("--enrich", action="store_true",

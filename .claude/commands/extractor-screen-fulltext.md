@@ -1,5 +1,5 @@
 ---
-description: Run PRISMA pass 2 — full-text screening. For each PDF in `screening/1st-pass/raw/` (converted to MD on demand), delegates one decision to the `screener-fulltext` sub-agent against `screening/criteria.md`. Writes per-pass report + updates the PRISMA flowchart. Final list of included articles is staged for `/extractor-table`.
+description: Run PRISMA pass 2 - full-text screening. For each PDF in `screening/1st-pass/raw/` (converted to MD on demand), delegates one decision to the `screener-fulltext` sub-agent against `screening/criteria.md`. Writes per-pass report + updates the PRISMA flowchart. Final list of included articles is staged for `/extractor-table`.
 argument-hint: "<project-name>  [--limit N]  [--only <slug>]  [--reset]"
 ---
 
@@ -26,7 +26,7 @@ If `tiab-decisions.xlsx` is missing, refuse and tell the user to run
 
 # Procedure
 
-## Phase 0 — Parse args, verify state
+## Phase 0 - Parse args, verify state
 
 Parse `$ARGUMENTS`:
 - First positional = project name
@@ -55,7 +55,7 @@ Will full-text-screen N candidates:
 Proceed? [Y/n]
 ```
 
-## Phase 1 — Ensure each candidate has a MD body
+## Phase 1 - Ensure each candidate has a MD body
 
 For each candidate whose `screening/1st-pass/markdown/<slug>.md` is
 missing but whose `screening/1st-pass/raw/<slug>.pdf` is present,
@@ -70,10 +70,10 @@ python pdf2md/marker_convert.py \
 (See `docs/workflows/conversion.md` for the canonical entrypoint in
 your install.)
 
-Skip if `marker` is unavailable — log the conversion gap and continue
+Skip if `marker` is unavailable - log the conversion gap and continue
 with whatever MDs already exist.
 
-## Phase 2 — Screen each candidate (delegate to `screener-fulltext`)
+## Phase 2 - Screen each candidate (delegate to `screener-fulltext`)
 
 For each candidate with an available MD body:
 
@@ -92,7 +92,7 @@ Spawn `screener-fulltext` with:
   wrong-pdf-fetched | ` and the orchestrator surfaces the slug for
   manual re-fetch.
 
-The sub-agent returns ONE line — either the standard 3-field
+The sub-agent returns ONE line - either the standard 3-field
 format (for exclusions / uncertain) or the 4-field format with
 metadata harvest (for includes):
 
@@ -103,7 +103,7 @@ metadata harvest (for includes):
 
 where:
 - `<reason>` for exclusions is **one or more** triplets of the shape
-  `<tag>; "<verbatim excerpt>"; <source location>` (mandatory — see
+  `<tag>; "<verbatim excerpt>"; <source location>` (mandatory - see
   `.claude/agents/screener-fulltext.md`). Multiple triplets are
   joined by ` ;; ` (space-semicolon-semicolon-space). The FIRST
   triplet is the primary PRISMA exclusion motive; the rest are
@@ -111,7 +111,7 @@ where:
 - `<side_use>` is optional. When non-empty, it has either the bare
   category (`intro`, `discussion`, `method`, `reco`, `general`) OR
   the augmented form `<category>; "<quote>"; <location>` (preferred
-  — auditable).
+ - auditable).
 - `<metadata-json>` (4th field, ONLY for `decision = include`) is
   a single-line JSON object with keys `sites`, `recruitment_start`,
   `recruitment_end`, `team`, `n`, `registration`. The screener-fulltext
@@ -119,7 +119,7 @@ where:
   in Phase 4b can flag suspected dataset reuse. Empty object `{}`
   is valid (body too sparse to harvest).
 
-**Batch in parallel**: 3–5 sub-agents at a time (sonnet — heavier
+**Batch in parallel**: 3-5 sub-agents at a time (sonnet - heavier
 than the T/A pass).
 
 Parse each output strictly:
@@ -145,7 +145,7 @@ Parse each output strictly:
    still recorded, just without overlap-detection metadata).
 
 Append each result to `screening/fulltext-decisions.xlsx` with columns
-in this order — **slug first, then what the agent did (decision +
+in this order - **slug first, then what the agent did (decision +
 evidence), then article context** (so audit gates show the verdict
 before the metadata):
 
@@ -162,13 +162,13 @@ registration) as a single-line JSON string. Exclusions and
 uncertains leave the cell empty.
 
 Use `tabular.append_record` from `tools/tabular.py` to append each
-row — it handles xlsx natively and creates the file with the
+row - it handles xlsx natively and creates the file with the
 styled header on the first call. Legacy CSVs written before this
 reorder are still parsed correctly (both `tabular.read_records`
-and pandas key off the header row, not column position) — only
+and pandas key off the header row, not column position) - only
 newly-written rows follow the new order. Legacy decisions written
 before the multi-reason format have an empty `reasons_secondary`
-cell, which the audit gate displays as `—`.
+cell, which the audit gate displays as ` - `.
 
 For `include`, the tag/excerpt/location columns are empty,
 `reasons_secondary` is empty, and side_* are empty. For
@@ -178,21 +178,21 @@ reasons; side_* are filled only when the screener flagged the
 article.
 
 For articles without a body (`not-retrieved`), record a row with
-`decision = not-assessed` and `tag = body-missing` — they will show
+`decision = not-assessed` and `tag = body-missing` - they will show
 up in the "Reports not retrieved" branch of the PRISMA flowchart.
 
-## Phase 2b — User audit gate (mandatory)
+## Phase 2b - User audit gate (mandatory)
 
 After all candidates are screened, show the user:
 
 ```
-✓ Full-text screening complete — N candidates judged
+✓ Full-text screening complete - N candidates judged
 
 Decision breakdown:
   include       : K
   exclude       : K
   uncertain     : K
-  not-assessed  : K   (no body — manual fetch still pending)
+  not-assessed  : K   (no body - manual fetch still pending)
 
 Side-use flags (within excludes):
   intro       : K
@@ -213,8 +213,8 @@ Options:
   [u]   Show all `uncertain` rows
   [e]   Show all `exclude` rows (with verbatim excerpts)
   [side] Audit all rows with a side_use flag (verify category + quote)
-  [c]   Continue — write reports & flowchart
-  [s]   Stop here — re-run later
+  [c]   Continue - write reports & flowchart
+  [s]   Stop here - re-run later
 ```
 
 Default = `a`. For each audited row, display in this order
@@ -223,17 +223,17 @@ Default = `a`. For each audited row, display in this order
 ```
 <slug>
   decision           : <decision>
-  primary motive     : <tag or "—">
-    excerpt          : "<verbatim excerpt or "—">"
-    location         : <location or "—">
-  reasons_secondary  : <reasons_secondary or "—">   ← full ";;"-joined list
-  side_use           : <side_use or "—">
-    side_excerpt     : "<side_excerpt or "—">"
-    side_location    : <side_location or "—">
-  note               : <screener_note or "—">
+  primary motive     : <tag or " - ">
+    excerpt          : "<verbatim excerpt or " - ">"
+    location         : <location or " - ">
+  reasons_secondary  : <reasons_secondary or " - ">   ← full ";;"-joined list
+  side_use           : <side_use or " - ">
+    side_excerpt     : "<side_excerpt or " - ">"
+    side_location    : <side_location or " - ">
+  note               : <screener_note or " - ">
   ─
-  doi                : <doi or "—">
-  pmid               : <pmid or "—">
+  doi                : <doi or " - ">
+  pmid               : <pmid or " - ">
   title              : <title>
 ```
 
@@ -249,12 +249,12 @@ keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / vi
   logged under `## Manual overrides` in
   `screening/reports/fulltext-report.md`
 
-## Phase 3 — Write the per-pass report
+## Phase 3 - Write the per-pass report
 
 `screening/reports/fulltext-report.md`:
 
 ```markdown
-# Full-text screening report — <project-name>
+# Full-text screening report - <project-name>
 
 > Auto-generated by `/extractor-screen-fulltext` on YYYY-MM-DD.
 
@@ -271,21 +271,21 @@ keep / flip-to-include / flip-to-exclude / set-side <category> / clear-side / vi
 
 > PRISMA flowchart counts articles ONCE under their PRIMARY
 > exclusion motive. The "also fires on" annotation surfaces every
-> additional criterion the article violated — kept transparent for
+> additional criterion the article violated - kept transparent for
 > audit, but not double-counted in the per-criterion totals.
 
 ### wrong-population (n = K)
-- **<slug-1>** — "<verbatim excerpt>" (Methods §"Participants")
+- **<slug-1>** - "<verbatim excerpt>" (Methods §"Participants")
   - also fires on: `not-RCT`, `n-too-small`
-- **<slug-2>** — "<excerpt>" (Table 1)
+- **<slug-2>** - "<excerpt>" (Table 1)
 - …
 
 ### not-RCT (n = K)
-- **<slug-3>** — "<excerpt>" (Methods §"Study design")
+- **<slug-3>** - "<excerpt>" (Methods §"Study design")
   - also fires on: `wrong-outcome`
 - …
 
-(One subsection per criterion tag — each article appears under its
+(One subsection per criterion tag - each article appears under its
 PRIMARY motive only; secondary motives appear as a sub-bullet for
 transparency. Total count across subsections = total full-text
 exclusions, not the sum of individual criterion firings.)
@@ -299,7 +299,7 @@ exclusions, not the sum of individual criterion firings.)
 - <slug>: <raw sub-agent output>
 ```
 
-## Phase 4 — Update PRISMA flowchart
+## Phase 4 - Update PRISMA flowchart
 
 ```bash
 python tools/screen_prisma.py project-review/<vault>/<name>
@@ -309,33 +309,33 @@ Now both passes are reflected in the chart: identified → after-dedup
 → T/A screened → reports sought → reports retrieved → reports
 assessed → included.
 
-## Phase 4b — Overlap audit (suspected dataset reuse)
+## Phase 4b - Overlap audit (suspected dataset reuse)
 
 Two papers reporting the same trial / same cohort would
 double-count patients in the review. The screener-fulltext agent
 harvested dataset metadata (sites, recruitment window, team, n,
-trial registration) for every include — now we cluster.
+trial registration) for every include - now we cluster.
 
 ```bash
 python tools/screen_overlap.py project-review/<vault>/<name>
 ```
 
 Writes:
-- `screening/reports/overlap-clusters.md` — suspected pairs
+- `screening/reports/overlap-clusters.md` - suspected pairs
   grouped by confidence (HIGH = same trial registration, MEDIUM =
   same team + overlapping recruitment window + similar n, LOW =
   shared site + overlapping window).
-- `screening/overlap-decisions.xlsx` — audit trail stub, filled
+- `screening/overlap-decisions.xlsx` - audit trail stub, filled
   in by the user at the gate below.
 
-If no clusters were detected, print `✓ No overlap signals — N
+If no clusters were detected, print `✓ No overlap signals - N
 includes appear to come from distinct cohorts.` and skip to
 Phase 5.
 
 If clusters were detected, surface them to the user:
 
 ```
-⚠ Overlap audit — K suspected pairs (Confidence: H high / M medium / L low)
+⚠ Overlap audit - K suspected pairs (Confidence: H high / M medium / L low)
 
    HIGH (same trial registration):
      a-2020 ↔ a-2021  evidence: NCT02093924
@@ -348,14 +348,14 @@ If clusters were detected, surface them to the user:
      c-2019 ↔ d-2019  evidence: sites=hospital x, window=59%
 
 For each cluster, decide:
-  [k1] keep-both    — distinct cohorts despite the signal (rare for HIGH)
-  [p1] pick-one     — one paper supersedes the other (keep the more recent
+  [k1] keep-both - distinct cohorts despite the signal (rare for HIGH)
+  [p1] pick-one - one paper supersedes the other (keep the more recent
                       or more complete report; the other is excluded with
                       tag `overlapping-dataset`)
-  [m1] merge        — both papers report partial views of the same study;
+  [m1] merge - both papers report partial views of the same study;
                       keep both for extraction but flag the dependency
                       (one extraction row spans both papers)
-  [s1] skip         — defer the decision for later, keep both for now
+  [s1] skip - defer the decision for later, keep both for now
 ```
 
 For each pair, capture the user's choice in
@@ -376,18 +376,18 @@ optional `rationale`). Then apply the action:
 Log all actions under `## Overlap audit` of
 `screening/reports/fulltext-report.md`.
 
-## Phase 5 — Stage included articles + side references
+## Phase 5 - Stage included articles + side references
 
-### 5a — Included → extraction/articles/
+### 5a - Included → extraction/articles/
 
 For each row in `fulltext-decisions.xlsx` with `decision = include`:
 - Copy `screening/1st-pass/markdown/<slug>.md` to
   `project-review/<vault>/<name>/extraction/articles/<slug>.md` (cp, never mv
-  — the screening register stays intact).
+ - the screening register stays intact).
 - Update (or create) `project-review/<vault>/<name>/contexte.md`'s
   `## Source list` block with the slug if it isn't already listed.
 
-### 5b — Side-flagged excludes → extraction/biblio/side/<category>/
+### 5b - Side-flagged excludes → extraction/biblio/side/<category>/
 
 For each row in `fulltext-decisions.xlsx` with `decision = exclude`
 AND `side_use ≠ empty`:
@@ -401,7 +401,7 @@ AND `side_use ≠ empty`:
   if absent):
 
 ```markdown
-# Side references — <category>
+# Side references - <category>
 
 > Articles excluded from extraction but flagged as worth citing in
 > this section of the review. Auto-populated by
@@ -413,7 +413,7 @@ AND `side_use ≠ empty`:
 | <slug> | <side_excerpt> | <side_location> | <doi> | <title> |
 ```
 
-T/A-only side flags (rows with no body) are NOT copied here — they
+T/A-only side flags (rows with no body) are NOT copied here - they
 were never read in full, so the recommendation is speculative.
 They stay listed in
 `extraction/biblio/side/<category>/pending.md` (from `/extractor-screen-tiab`
@@ -424,7 +424,7 @@ This lets the user run `/extractor-table project-review/<vault>/<name>/`
 straight away without an extra manual copy step, with side
 references pre-organized by where they belong in the review.
 
-## Phase 6 — Final guidance
+## Phase 6 - Final guidance
 
 ```
 ✓ Full-text screening done.
@@ -441,13 +441,13 @@ Next step:
 
 # Hard constraints
 
-- **NEVER screen an article whose T/A decision was `exclude`** — those
+- **NEVER screen an article whose T/A decision was `exclude`** - those
   articles are out by definition. If the user wants to re-judge one,
   they must flip it to `include` in `tiab-decisions.xlsx` first
   (manually or via the T/A audit gate's flip option).
 - **NEVER use the abstract alone to decide at full text.** If the body
   is unavailable, the decision is `not-assessed` with
-  `tag = body-missing` — NOT `uncertain` and NOT a re-cast of the T/A
+  `tag = body-missing` - NOT `uncertain` and NOT a re-cast of the T/A
   decision.
 - **NEVER allow an `exclude` without a verbatim excerpt + location.**
   The sub-agent's contract requires it; the parent verifies and logs
@@ -461,7 +461,7 @@ Next step:
   through Phase 2b.
 - **PASS `background/notes.md` to every screener-fulltext
   invocation** when the file exists and is non-empty. Consistency
-  across decisions matters. If absent or empty, skip silently — do
+  across decisions matters. If absent or empty, skip silently - do
   NOT fabricate context.
 - **NEVER auto-copy a side-flagged article if the audit gate
   rejected it** (`clear-side` action). Side staging in Phase 5b

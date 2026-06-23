@@ -15,12 +15,12 @@ is its own sub-folder, **OUTSIDE the wiki / Obsidian vault**:
 
 ```
 GraphBib/                            ← repo root
-├── wiki/                            ← Obsidian vault — UNRELATED to this command
+├── wiki/                            ← Obsidian vault - UNRELATED to this command
 ├── raw/, docs/, tools/, …           ← agent infrastructure
 └── project-review/                  ← container for all review projects
     ├── mibci/                       ← THIS COMMAND operates on a sub-folder
     │   ├── contexte.md              #   shared scope (screening + extraction)
-    │   ├── screening/               #   PRISMA screening — driven by /extractor-screen-* (not this cmd)
+    │   ├── screening/               #   PRISMA screening - driven by /extractor-screen-* (not this cmd)
     │   │   ├── criteria.md
     │   │   ├── identified/, 1st-pass/, reports/
     │   │   ├── tiab-decisions.csv
@@ -32,14 +32,14 @@ GraphBib/                            ← repo root
     │       └── output/
     │           ├── extraction-detailed.xlsx  # verbatim + units (audit)
     │           └── extraction-coded.xlsx     # strict per-instruction (publication-ready)
-    ├── tms-dose-response/           ← project 2 — independent
-    └── dti-biomarkers/              ← project N — independent
+    ├── tms-dose-response/           ← project 2 - independent
+    └── dti-biomarkers/              ← project N - independent
 ```
 
 **Backward compatibility**: projects bootstrapped before the
 screening phase used a **flat layout** (template at the project
 root, no `extraction/` sub-folder). `tools/extract_data.py` detects
-both layouts automatically — flat-layout projects keep working
+both layouts automatically - flat-layout projects keep working
 without migration.
 
 **The project folder is NOT part of any Obsidian vault.** `wiki/` is
@@ -58,7 +58,7 @@ assumed layout. When it's a single `.xlsx`/`.csv`, the legacy
 "one-template, sibling output" mode applies (outputs land alongside
 the template, no `contexte.md` / no `instructions.md`).
 
-**Refuse** to operate on a folder that lives inside `wiki/` — that
+**Refuse** to operate on a folder that lives inside `wiki/` - that
 would conflate the knowledge graph with an extraction artifact.
 
 # Template format (2-row)
@@ -66,7 +66,7 @@ would conflate the knowledge graph with an extraction artifact.
 | Row | What |
 |---|---|
 | 1 | Column headers (variable names) |
-| 2 | Instructions per column — polymorphic content |
+| 2 | Instructions per column - polymorphic content |
 | 3+ | One row per source (slug in first column) |
 
 Row 2 cell content drives extraction:
@@ -78,16 +78,16 @@ Row 2 cell content drives extraction:
 | `a, b, other` | nominal | **open** (the `other` token signals openness) | `acute, subacute, other` |
 | `a, b, c` (no `...` / `other`) | nominal | **strict** | `acute, subacute, chronic` |
 | `0=label, 1=label` | ordinal coded | strict | `0=low, 1=high` |
-| `(int)` / `(integer)` / `(count)` / `(n)` | int | — | `(int)` → bare integer, rounds if source decimal |
-| `(years)` / `(0-100)` / `(mV)` | float | — | `(years)` → number + unit verbatim |
-| Sentence (3+ words) | NL (text or quant) | — | `Fugl-Meyer UE baseline mean, intervention arm only` |
-| **Empty** | implicit | — | **Agent ASKS in Phase 1** |
+| `(int)` / `(integer)` / `(count)` / `(n)` | int | - | `(int)` → bare integer, rounds if source decimal |
+| `(years)` / `(0-100)` / `(mV)` | float | - | `(years)` → number + unit verbatim |
+| Sentence (3+ words) | NL (text or quant) | - | `Fugl-Meyer UE baseline mean, intervention arm only` |
+| **Empty** | implicit | - | **Agent ASKS in Phase 1** |
 
 # Procedure
 
-## Phase 0 — Bootstrap or locate the project
+## Phase 0 - Bootstrap or locate the project
 
-**A. `$ARGUMENTS` is a folder path** — use as project root. The path
+**A. `$ARGUMENTS` is a folder path** - use as project root. The path
 resolver in `tools/extract_data.py:resolve_project_paths` auto-detects
 which layout is in use:
 
@@ -101,11 +101,11 @@ which layout is in use:
 
 If neither is found, the command refuses.
 
-**B. `$ARGUMENTS` is a template file** — legacy single-file mode. The
+**B. `$ARGUMENTS` is a template file** - legacy single-file mode. The
 template path is the spec; outputs land alongside; no
 `contexte.md` / `instructions.md` involvement.
 
-**C. `$ARGUMENTS` starts with `--from-source <SR-slug>`** — bootstrap
+**C. `$ARGUMENTS` starts with `--from-source <SR-slug>`** - bootstrap
 a new (phased) project folder:
 
 ```bash
@@ -119,7 +119,7 @@ Then prompt the user to fill row 2 (or skip and let Phase 1 handle
 empty instructions interactively), and re-invoke
 `/extractor-table project-review/<SR-slug>/`.
 
-## Phase 1 — Comprehension debrief (the gate)
+## Phase 1 - Comprehension debrief (the gate)
 
 ```bash
 python tools/extract_data.py <template> --analyze --instructions-row 1
@@ -133,7 +133,7 @@ to the user with all four properties visible:
 ```
 Template analyzed: <path>  (N columns, M data rows)
 
-CLEAR — I'll extract these confidently:
+CLEAR - I'll extract these confidently:
   • year             nominal int        (e.g. 2024)
   • n_intervention   type_hint int      (will round if source decimal)
   • baseline_FM      type_hint float    (range 0-66, units stripped in coded output)
@@ -147,8 +147,8 @@ CLEAR — I'll extract these confidently:
                                           of planned sessions"
 
 NEEDS YOUR CLARIFICATION (empty / ambiguous / closure unclear):
-  • adherence_pct    instruction empty — what should I extract?
-  • dropout_reasons  instruction "list main reasons" — how many max?
+  • adherence_pct    instruction empty - what should I extract?
+  • dropout_reasons  instruction "list main reasons" - how many max?
                                           verbatim quotes or paraphrase?
   • intervention     CLOSURE? Currently inferred as OPEN (because of "..."),
                                           but for a strict scoping review
@@ -160,8 +160,8 @@ question**. For **closure ambiguity** specifically, ask the user:
 
   > *"Column `<name>` has the allowed values [a, b, c]. If a paper
   > reports a value not in this list (e.g. 'mixed BCI' or 'sham +
-  > standard PT'), should I (1) **strict** — drop the cell in the
-  > coded output, OR (2) **open** — keep the novel value verbatim
+  > standard PT'), should I (1) **strict** - drop the cell in the
+  > coded output, OR (2) **open** - keep the novel value verbatim
   > and flag it for you to widen the spec later?"*
 
 Closed-by-default is safer for clean coded output; open-by-default
@@ -185,7 +185,7 @@ instructions.md captures the WHY of each decision plus edge cases
 the user mentioned. Format for `instructions.md`:
 
 ```markdown
-# Extraction instructions — <project name>
+# Extraction instructions - <project name>
 
 > Updated YYYY-MM-DD by the extraction agent.
 
@@ -198,16 +198,16 @@ than participants, infer participant-level adherence as the lowest
 session-completion threshold. If only "X dropped out" is reported,
 compute (N - X) / N × 100.
 
-**Edge cases**: Per-protocol vs intention-to-treat — prefer ITT.
+**Edge cases**: Per-protocol vs intention-to-treat - prefer ITT.
 
 ## cost
 ...
 ```
 
-This file becomes the durable spec — version-controlled, editable,
+This file becomes the durable spec - version-controlled, editable,
 and survives template re-generation.
 
-## Phase 1b — Ambiguity tagging + end-of-batch resolution
+## Phase 1b - Ambiguity tagging + end-of-batch resolution
 
 During **Phase 2 and Phase 3**, the extractor **never pauses mid-article**.
 Instead it tags ambiguous cells and resolves them with the user at the
@@ -215,7 +215,7 @@ end of the batch.
 
 ### Triggers (tag, do not pause)
 
-1. **Strict categorical — no match**: the article reports a value not
+1. **Strict categorical - no match**: the article reports a value not
    in the allowed list and the instruction is STRICT (no `| ...`)
 2. **Ambiguous instruction for this article**: the article presents
    information in a format not anticipated by the instruction
@@ -229,7 +229,7 @@ end of the batch.
 Record the cell in the detailed output as:
 
 ```
-À PRÉCISER — [verbatim excerpt from article]
+À PRÉCISER - [verbatim excerpt from article]
 ```
 
 Continue extraction of all remaining cells and articles without
@@ -239,11 +239,11 @@ interruption. Keep an internal list of all tagged cells:
 ### End-of-batch resolution (after ALL articles extracted)
 
 After Phase 2/3 complete, if any cells were tagged, present them
-grouped by **column** (not by article) — because a column-level fix
+grouped by **column** (not by article) - because a column-level fix
 applies to all articles at once:
 
 ```
-⚠️ À préciser — N cellules après extraction du batch
+⚠️ À préciser - N cellules après extraction du batch
 
 Colonne [col-name]  (K articles concernés)
   • [slug-1] : "[verbatim-1]"
@@ -259,7 +259,7 @@ Colonne [col-name]  (K articles concernés)
 ```
 
 Present one column at a time. Default action is **always to adapt the
-instruction** — the agent proposes the new instruction text directly.
+instruction** - the agent proposes the new instruction text directly.
 The user confirms, edits the proposal, or explicitly ignores.
 
 Present one column at a time. Wait for answer before next column.
@@ -268,16 +268,16 @@ Present one column at a time. Wait for answer before next column.
 
 - **Y** (default): Update `template.xlsx` row 2 AND `instructions.md`
   immediately. Re-extract only the tagged cells for that column.
-  Confirm: `✓ Instruction mise à jour — K cellules ré-extraites.`
+  Confirm: `✓ Instruction mise à jour - K cellules ré-extraites.`
 - **modifier la proposition**: user pastes corrected instruction text →
   apply that text instead, then re-extract.
-- **ignorer**: Leave `À préciser — [verbatim]` in the detailed output;
+- **ignorer**: Leave `À préciser - [verbatim]` in the detailed output;
   write `NR` in the coded output. No instruction change.
 
-## Phase 1b — Article resolution (locate PDF and MD for each article)
+## Phase 1b - Article resolution (locate PDF and MD for each article)
 
 Before eligibility check or extraction, **locate and copy** the source
-files for each article in the source list. Never move files — always copy.
+files for each article in the source list. Never move files - always copy.
 
 For brevity below, `<biblio>` denotes:
 - `extraction/biblio/` in the phased layout
@@ -287,8 +287,8 @@ The path resolver picks the right one automatically.
 
 ### Resolution order (per article)
 
-**Step 1 — PDF**
-1. Look for PDF in `<biblio>/raw/<slug>.pdf` — already copied, nothing to do.
+**Step 1 - PDF**
+1. Look for PDF in `<biblio>/raw/<slug>.pdf` - already copied, nothing to do.
 2. If the project has a screening phase and the PDF is there, copy from
    `screening/1st-pass/raw/<slug>.pdf` instead (don't re-download).
 3. If absent, read `source_pdf:` from the wiki source page frontmatter.
@@ -298,8 +298,8 @@ The path resolver picks the right one automatically.
 5. If found (exact or fuzzy), **copy** to `<biblio>/raw/<slug>.pdf`.
 6. If not found anywhere → note `PDF: not found` in the project log.
 
-**Step 2 — Markdown**
-1. Look for MD in `<biblio>/markdown/<slug>.md` — already copied, nothing to do.
+**Step 2 - Markdown**
+1. Look for MD in `<biblio>/markdown/<slug>.md` - already copied, nothing to do.
 2. If the project has a screening phase, prefer
    `screening/1st-pass/markdown/<slug>.md`.
 3. If absent, look in `wiki/sources/` (recurse sub-folders) for `<slug>.md`.
@@ -316,10 +316,10 @@ Extraction reads from `<biblio>/markdown/<slug>.md` when available
 (portable, self-contained). Falls back to `wiki/sources/<slug>.md`
 directly if the copy is missing.
 
-## Phase 1c — Eligibility check (article belongs in this review?)
+## Phase 1c - Eligibility check (article belongs in this review?)
 
 Before extracting each article, verify that it should be in this review
-at all — i.e. that it was not included by mistake during screening.
+at all - i.e. that it was not included by mistake during screening.
 
 This check is **not** about the values inside the article. It checks
 whether the article's characteristics match the **review's own
@@ -327,11 +327,11 @@ eligibility criteria**, as declared in `contexte.md`.
 
 ### What to read
 
-1. `contexte.md` — review type, research question, primary outcomes,
+1. `contexte.md` - review type, research question, primary outcomes,
    population scope, domain notes. These define what an eligible article
    looks like for THIS review.
 
-2. The source page frontmatter and Summary section — population,
+2. The source page frontmatter and Summary section - population,
    intervention family, study design, domain tags.
 
 ### Check logic
@@ -341,9 +341,9 @@ scope. Flag if there is a clear mismatch:
 
 | Review criterion (contexte.md) | Source characteristic to check |
 |---|---|
-| Intervention: MI-BCI | `intervention_family` / Summary — is BCI the intervention? |
-| Population: stroke patients | `domain` / `population` — is it stroke? Not SCI, epilepsy, healthy? |
-| Outcome: motor rehabilitation | `domain` — is motor rehab the goal? |
+| Intervention: MI-BCI | `intervention_family` / Summary - is BCI the intervention? |
+| Population: stroke patients | `domain` / `population` - is it stroke? Not SCI, epilepsy, healthy? |
+| Outcome: motor rehabilitation | `domain` - is motor rehab the goal? |
 | Any other scope constraints declared in contexte.md | Corresponding frontmatter / Summary field |
 
 ### If a mismatch is found
@@ -351,7 +351,7 @@ scope. Flag if there is a clear mismatch:
 Tag the article **before** extraction begins:
 
 ```
-⚠️ ELIGIBILITY CHECK — <slug>
+⚠️ ELIGIBILITY CHECK - <slug>
   Problème : [description du mismatch avec le périmètre de la review]
   Article  : [caractéristique de l'article qui pose problème]
   Review   : [critère de la review non satisfait]
@@ -369,10 +369,10 @@ until the user answers):
 
 **Note**: when the project has a screening phase that already
 produced `screening/fulltext-decisions.csv`, this in-extraction
-eligibility check should rarely fire — the screening pass already
+eligibility check should rarely fire - the screening pass already
 filtered. Use it as a safety net for late corrections.
 
-## Phase 2 — Deterministic extraction (free, 0 tokens)
+## Phase 2 - Deterministic extraction (free, 0 tokens)
 
 ```bash
 python tools/extract_data.py --project <folder> --instructions-row 1
@@ -411,7 +411,7 @@ is what you feed to R / Python / Excel pivot tables.
 Reports per-cell method counts; if many cells stay empty (>30%),
 suggest Phase 3.
 
-## Phase 3 — LLM extraction (opt-in, costs tokens)
+## Phase 3 - LLM extraction (opt-in, costs tokens)
 
 ```bash
 python tools/extract_data.py --project <folder> --instructions-row 1 --llm
@@ -424,7 +424,7 @@ with the LLM fills.
 LLM cache: keyed by (slug, column, instruction-hash); re-runs on
 unchanged instructions are free.
 
-## Phase 4 — Recap and audit
+## Phase 4 - Recap and audit
 
 Print:
 
@@ -439,39 +439,39 @@ Per-cell method:
 
 Spot-check guidance: open both files side by side, compare a few rows
 to catch any mis-coding (a categorical value that didn't match any
-allowed label will appear blank in the coded file — that's the signal
+allowed label will appear blank in the coded file - that's the signal
 to refine the instruction).
 
-## Phase 5 — Adaptive refinement proposals (the new feedback loop)
+## Phase 5 - Adaptive refinement proposals (the new feedback loop)
 
 **Read the detailed output and look for patterns** that suggest the
 column spec should evolve:
 
 ### Triggers to surface
 
-1. **Variable should be added** — when the same kind of information
+1. **Variable should be added** - when the same kind of information
    appears in many sources but no column captures it.
    - *"7/12 papers report a baseline NIHSS but you have no `baseline_nihss`
      column. Add it?"*
 
-2. **Variable should be split** — when one column accumulates
+2. **Variable should be split** - when one column accumulates
    heterogeneous content.
    - *"`intervention_dose` values include frequency (Hz), intensity (%),
      and session count mixed. Split into `frequency_hz`, `intensity_pct`,
      `n_sessions`?"*
 
-3. **Instruction needs refinement** — when extraction is inconsistent.
+3. **Instruction needs refinement** - when extraction is inconsistent.
    - *"`follow_up_duration` has 4 cells in weeks, 3 in months, 2 in
      'end of treatment'. Refine to 'weeks only, convert if needed' and
      re-extract?"*
 
-4. **Allowed-values mismatch** — when a categorical column has cells
+4. **Allowed-values mismatch** - when a categorical column has cells
    blank in the coded output but populated in the detailed.
    - *"`design`: 'controlled clinical trial' in [kim-2018] didn't match
      any allowed value. Add 'CCT' to the scale, or refine
      [kim-2018]'s extraction?"*
 
-5. **Many `not reported`** — when extraction success rate < 30% for a
+5. **Many `not reported`** - when extraction success rate < 30% for a
    column.
    - *"`adverse_events`: 9 of 12 cells are 'not reported'. Is this column
      answerable from this corpus, or should the instruction be relaxed
@@ -528,9 +528,9 @@ Append the decisions to `<folder>/log.md` (audit trail).
 
 | File | When | Editable by user? |
 |---|---|---|
-| `template.xlsx` row 2 | After Phase 1 confirmation | Yes — re-run triggers re-debrief |
-| `instructions.md` | After Phase 1 confirmation | Yes — long-form spec |
-| `output/extraction-detailed.xlsx` | Phase 2 + 3 | No — regenerated each run |
-| `output/extraction-coded.xlsx` | Phase 2 + 3 | No — regenerated each run |
+| `template.xlsx` row 2 | After Phase 1 confirmation | Yes - re-run triggers re-debrief |
+| `instructions.md` | After Phase 1 confirmation | Yes - long-form spec |
+| `output/extraction-detailed.xlsx` | Phase 2 + 3 | No - regenerated each run |
+| `output/extraction-coded.xlsx` | Phase 2 + 3 | No - regenerated each run |
 | `log.md` | Phase 5 decisions | Append-only audit trail |
-| `contexte.md` | Bootstrap (not auto-managed) | Yes — narrative scope |
+| `contexte.md` | Bootstrap (not auto-managed) | Yes - narrative scope |

@@ -1,5 +1,5 @@
 ---
-description: End-to-end reading discovery — suggest-reading → fetch-reading → conversion → ingest, with user confirmation between phases.
+description: End-to-end reading discovery - suggest-reading → fetch-reading → conversion → ingest, with user confirmation between phases.
 argument-hint: "[<ConceptName> | --all]"
 ---
 
@@ -14,7 +14,7 @@ Arguments: $ARGUMENTS
 
 # Procedure
 
-## Phase 1 — Suggest readings
+## Phase 1 - Suggest readings
 
 Delegate to the `suggest-reading` sub-agent:
 
@@ -32,7 +32,7 @@ Output: tiered reading list (Tier 1 / Tier 2 / Tier 3) with rationale.
 Surface the list to the user and ask: *"Which tiers should I fetch?
 [1] / [1+2] / [all] / [skip]"*. Wait for choice.
 
-## Phase 2 — Fetch open-access PDFs
+## Phase 2 - Fetch open-access PDFs
 
 If the user picked tiers, extract the DOIs and delegate to
 `fetch-reading`:
@@ -48,7 +48,7 @@ ones for manual fetch. Reports per-DOI status.
 If the user skipped Phase 2, stop and tell them to fetch manually
 when ready.
 
-## Phase 3 — Convert (optional, opt-in)
+## Phase 3 - Convert (optional, opt-in)
 
 If new PDFs are downloaded, ask: *"Run the conversion pipeline now?
 [Y/n]"*. If yes:
@@ -65,7 +65,7 @@ has `MISTRAL_API_KEY`.)
 
 If the user skipped, tell them to run `/wiki-convert` later.
 
-## Phase 4 — Ingest (opt-in)
+## Phase 4 - Ingest (opt-in)
 
 If the conversion produced new MDs, ask: *"Ingest the new sources
 now? [Y/n]"*. If yes:
@@ -81,10 +81,10 @@ batch confirmation.
 
 If the user skipped, tell them to run `/wiki-batch-ingest` later.
 
-## Phase 5 — Recap
+## Phase 5 - Recap
 
 ```
-=== Discovery session — <date> ===
+=== Discovery session - <date> ===
 
 Scope: <concept | wiki-wide>
 
@@ -95,7 +95,7 @@ Phase 1 (suggest-reading):
 
 Phase 2 (fetch-reading):
   - Downloaded: <N>
-  - Paywalled (manual fetch): <M> — see report
+  - Paywalled (manual fetch): <M> - see report
   - Errors: <K>
 
 Phase 3 (conversion):
@@ -129,7 +129,7 @@ Suggested follow-ups:
 
 # Notes
 
-- Each sub-agent has its own context window — the parent (you) stays
+- Each sub-agent has its own context window - the parent (you) stays
   light, only orchestrating.
 - Phases 3 and 4 are confirmable independently, so the user can pause
   for review (e.g. inspect downloaded PDFs before triggering the

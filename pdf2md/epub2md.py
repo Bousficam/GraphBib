@@ -3,7 +3,7 @@
 
 Cible les livres académiques au format EPUB (monographies, volumes
 édités, handbooks, textbooks). EPUB est un format zip XHTML+CSS+OPF
-qui préserve la structure de chapitres mieux qu'un PDF — pandoc en
+qui préserve la structure de chapitres mieux qu'un PDF - pandoc en
 extrait du Markdown propre avec footnotes, équations, et headings de
 chapitre que `pdf2md/split_thesis.py` peut ensuite splitter.
 
@@ -44,7 +44,7 @@ ingérables séparément, utiliser :
 
     python pdf2md/split_thesis.py raw/books/<slug>.md
 
-(le script split_thesis.py est agnostique au type — il découpe par
+(le script split_thesis.py est agnostique au type - il découpe par
 headings de chapitre et fonctionne tel quel sur les livres).
 """
 import argparse
@@ -59,7 +59,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-MIN_CHARS = 500  # plus permissif que pdf2md_marker — un chapitre court reste valide
+MIN_CHARS = 500  # plus permissif que pdf2md_marker - un chapitre court reste valide
 
 OPF_NS = {
     "opf": "http://www.idpf.org/2007/opf",
@@ -225,13 +225,13 @@ def pick_engine(requested: str | None) -> tuple[str, callable]:
     """Resolve which engine to use. Returns (backend_label, convert_fn)."""
     if requested == "pandoc":
         if not shutil.which("pandoc"):
-            sys.exit("pandoc not found in PATH — install with `apt install pandoc` or `brew install pandoc`")
+            sys.exit("pandoc not found in PATH - install with `apt install pandoc` or `brew install pandoc`")
         return ("pandoc-epub", convert_pandoc)
     if requested == "markitdown":
         try:
             import markitdown  # noqa: F401
         except ImportError:
-            sys.exit("markitdown not installed — `pip install markitdown`")
+            sys.exit("markitdown not installed - `pip install markitdown`")
         return ("markitdown-epub", convert_markitdown)
 
     if shutil.which("pandoc"):

@@ -18,7 +18,7 @@ Multi-vault resolution
      to set $WIKI_VAULT)
   5. Empty                     → REPO_ROOT/wiki/
 
-`RAW_DIR` mirrors the wiki vault — the raw inputs for a vault live at
+`RAW_DIR` mirrors the wiki vault - the raw inputs for a vault live at
 `raw/<vault>/{papers,theses,books,notes}/`. Detection follows the same
 $WIKI_VAULT env var and falls back to the same auto-detection rules:
 
@@ -31,7 +31,7 @@ $WIKI_VAULT env var and falls back to the same auto-detection rules:
   5. Empty               → REPO_ROOT/raw/
 
 Wiki and raw share the same vault name (they describe the same
-research domain — raw is the input, wiki is the ingested output).
+research domain - raw is the input, wiki is the ingested output).
 """
 import json
 import os
@@ -69,7 +69,7 @@ def _detect_active_vault():
 
 
 def _detect_active_raw():
-    """Return (raw_dir, mode) — same modes as `_detect_active_vault`.
+    """Return (raw_dir, mode) - same modes as `_detect_active_vault`.
 
     Uses the same $WIKI_VAULT env var as the wiki side since raw and
     wiki share the vault concept (raw = inputs, wiki = ingested
@@ -176,7 +176,7 @@ def load_domain(section_name=None):
     Returns the whole config dict (keys starting with `_` stripped), or one
     section if `section_name` is given. Returns {} when the file is missing,
     unparseable, or the section is absent. The shipped default is the neutral
-    baseline (all sections empty) — domain-specific tools should detect an
+    baseline (all sections empty) - domain-specific tools should detect an
     empty section and print a helpful "configure domain.json" message rather
     than assuming a domain.
     """

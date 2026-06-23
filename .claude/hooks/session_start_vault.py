@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SessionStart hook — vault selection prompt.
+"""SessionStart hook - vault selection prompt.
 
 When the repo holds multiple wiki vaults (or the wiki/raw layout is
 ambiguous), inject `additionalContext` telling Claude to ask the user
@@ -49,7 +49,7 @@ message = (
     "Once chosen, persist it for the whole session by merging into "
     ".claude/settings.local.json:\n\n"
     '  { "env": { "WIKI_VAULT": "<chosen-vault>" } }\n\n'
-    "(merge with the existing settings.local.json — do NOT clobber "
+    "(merge with the existing settings.local.json - do NOT clobber "
     "the permissions block).\n\n"
     "Alternative: prefix every Bash tool call with "
     "WIKI_VAULT=<chosen-vault>. The settings.local.json route is "

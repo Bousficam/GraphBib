@@ -1,6 +1,6 @@
 # Long Document Ingestion (Theses ≥ 100 pages, Books, Edited Volumes)
 
-A 100–300 page thesis or a 400-page edited handbook cannot be
+A 100-300 page thesis or a 400-page edited handbook cannot be
 ingested in a single pass without losing depth: the agent skims,
 condenses chapters into bullets, and the source page is superficial.
 **Solution: split first, ingest chapter by chapter, aggregate at
@@ -13,7 +13,7 @@ chapters use `docs/templates/source-academic-paper.md` with the
 `parent_book` / `book_editors` / `pages_in_book` extra fields
 documented in `source-book.md`.
 
-## Step 0 — Split
+## Step 0 - Split
 
 After the conversion pipeline produces `raw/<vault>/theses/<slug>.md`, run:
 
@@ -45,7 +45,7 @@ Each chapter file inherits the parent's frontmatter and adds:
 If chapter detection fails (no clear headings), edit the parent MD to
 add `# Chapter N: Title` markers manually before splitting.
 
-## Step 1 — Ingest the parent
+## Step 1 - Ingest the parent
 
 ```
 ingest raw/<vault>/theses/<slug>.md
@@ -58,17 +58,17 @@ thesis-level synthesis. Per-chapter content is intentionally deferred:
 - Frontmatter (full bibliographic metadata)
 - `## Abstract` (verbatim)
 - `## Research Questions`, `## Hypotheses`, `## Theoretical Framework`
-- `## Chapters Summary` — one bullet per chapter linking to the
+- `## Chapters Summary` - one bullet per chapter linking to the
   per-chapter source page (e.g. `[[<slug>-ch04-mi-bci-rct]]`)
 - `## Cross-Chapter Synthesis`
 - `## Recommendations / Implications` (thesis-level)
-- `## Notable References (citation snowball)` — full bibliography
+- `## Notable References (citation snowball)` - full bibliography
 - `## How to Cite`
 
 `## Methods`, `## Results`, `## Background` are **deliberately empty**
 on the parent and live on the chapter pages instead.
 
-## Step 2 — Ingest each chapter
+## Step 2 - Ingest each chapter
 
 ```
 ingest raw/<vault>/theses/<slug>/ch01-introduction.md
@@ -86,12 +86,12 @@ Each chapter is ingested as a regular source. The agent uses the
 - The Indirect Citation Rule applies normally.
 - For an Introduction / Literature Review chapter, the `## Background`
   section will be unusually large (20+ bullets). Apply Knowledge
-  Construction from Introductions strictly — every cited claim →
+  Construction from Introductions strictly - every cited claim →
   bullet → routed to the relevant concept pages.
 - For empirical chapters, the chapter is treated as one study (own
   Methods, Results, Discussion).
 
-## Step 3 — Aggregate
+## Step 3 - Aggregate
 
 After all chapters are ingested:
 
@@ -110,5 +110,5 @@ literature review chapter is fully extracted into concept pages.
 
 - Theses < 60 pages: single-pass ingest is fine.
 - Cumulative theses (collection of pre-published papers): each paper
-  is often already in the wiki as a journal article — the thesis
+  is often already in the wiki as a journal article - the thesis
   itself becomes a thin parent linking to those existing source pages.

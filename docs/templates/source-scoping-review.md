@@ -4,7 +4,7 @@ Use for sources where the study design is `scoping-review`. Detection
 cues: "scoping review", "PRISMA-ScR", "we mapped the literature",
 "identify gaps", "clarify concepts", explicitly NO pooling of effects.
 
-A scoping review **maps** the literature on a topic — it identifies
+A scoping review **maps** the literature on a topic - it identifies
 the volume, scope, range of evidence, and gaps without pooling
 effects or evaluating quality at a study level. The output is often a
 typology, a gap analysis, or a concept map.
@@ -34,7 +34,7 @@ prisma_scr_compliant: true
 n_studies_included: 0
 n_works_cited:                       # rough count from References (often
                                      # larger than n_studies_included)
-date_range: "1990–2023"
+date_range: "1990-2023"
 domain: []
 methods: []
 interventions: []
@@ -54,13 +54,13 @@ cites: []
 
 ```markdown
 ## Summary
-2–4 sentence neutral summary: scope of the map, key categories
+2-4 sentence neutral summary: scope of the map, key categories
 identified, headline gap(s).
 
 ## Introduction
 
 ### Background (from cited literature)
-Exhaustive — see `docs/rules/citation.md`. Aim 10–25 bullets for a
+Exhaustive - see `docs/rules/citation.md`. Aim 10-25 bullets for a
 substantive scoping review. Each bullet cites the original Y per the
 Indirect Citation Rule.
 
@@ -87,7 +87,7 @@ Use a **PCC framework** (Population, Concept, Context) rather than PICO.
 - **Databases**: PubMed, Embase, CINAHL, PsycINFO, Web of Science,
   Cochrane CENTRAL, grey literature (OpenGrey, Google Scholar
   first 100), conference proceedings.
-- **Date range**: from–to.
+- **Date range**: from-to.
 - **Search terms**: full block if reproducible.
 - **Hand-searching**: reference lists, citation chasing.
 - **Date last searched**: YYYY-MM-DD.
@@ -98,7 +98,7 @@ Use a **PCC framework** (Population, Concept, Context) rather than PICO.
   - Concept (the focal idea being mapped)
   - Context (clinical / research / geographic / methodological)
 - **Exclusion**:
-  - Study designs excluded (often none — scoping reviews are
+  - Study designs excluded (often none - scoping reviews are
     inclusive).
   - Languages, time period, etc.
 
@@ -108,7 +108,7 @@ Use a **PCC framework** (Population, Concept, Context) rather than PICO.
 - Software used (Covidence, Rayyan).
 
 ### Data Charting (Charting the Data)
-Scoping reviews don't "extract" — they **chart**. The charting form
+Scoping reviews don't "extract" - they **chart**. The charting form
 typically captures:
 - Study characteristics (year, country, design).
 - Concept operationalization.
@@ -190,7 +190,7 @@ Apply the Indirect Citation Rule.
 ## Recommendations / Implications
 Routed to `wiki/recommendations/<topic>.md`. Scoping reviews often
 recommend specific future SR/MA topics, registries, methodological
-work — capture each.
+work - capture each.
 
 ## Reporting Standard Alignment
 - **Standard**: PRISMA-ScR (PRISMA extension for Scoping Reviews).
@@ -210,9 +210,9 @@ identified is a high-priority snowball direction.
 *(Auto-populated.)*
 
 ## Connections
-- [[ConceptName]] — central concept being mapped (often gives the
+- [[ConceptName]] - central concept being mapped (often gives the
   review its raison d'être).
-- [[methods/...]] / [[interventions/...]] — methods / treatments
+- [[methods/...]] / [[interventions/...]] - methods / treatments
   charted.
 
 ## Contradictions / Agreements

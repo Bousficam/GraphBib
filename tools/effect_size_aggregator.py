@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Effect size aggregator — surface outcome-scale changes across sources.
+"""Effect size aggregator - surface outcome-scale changes across sources.
 
 Heuristic regex extraction over `wiki/sources/`. Surfaces:
 
@@ -9,13 +9,13 @@ Heuristic regex extraction over `wiki/sources/`. Surfaces:
 
 Output: per-outcome aggregated table, grouped by intervention family.
 
-The outcome-scale vocabulary is NOT hardcoded — it is read from
+The outcome-scale vocabulary is NOT hardcoded - it is read from
 `tools/data/domain.json` (`outcome_scales` section). The shipped default
 is the neutral baseline (empty), so this tool only does something once a
 domain pack declaring outcome scales is configured. See
 `tools/data/domain.stroke.example.json` for a clinical example.
 
-This is heuristic — meant to surface "look here" candidates for manual
+This is heuristic - meant to surface "look here" candidates for manual
 synthesis, not to replace a meta-analysis tool.
 
 Usage:
@@ -126,7 +126,7 @@ def main():
                         parts.append(f"d/g/η={eff['cohen']}")
                     if eff["p"]:
                         parts.append(f"p={eff['p']}")
-                    lines.append(f"- [[{o['slug']}]] — {', '.join(parts)}")
+                    lines.append(f"- [[{o['slug']}]] - {', '.join(parts)}")
                     lines.append(f"  > {o['sentence']}")
                 if len(items) > 10:
                     lines.append(f"- … and {len(items) - 10} more")

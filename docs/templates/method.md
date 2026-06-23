@@ -26,17 +26,17 @@ last_updated: YYYY-MM-DD
 *"EEG records ..."* ([[paper-x]] p. ?).
 
 ## When to Use It
-- Use case 1 — established in [[paper-a]] (p. ?), [[paper-b]] (p. ?).
-- Use case 2 — emerging, see [[paper-c]] (p. ?).
+- Use case 1 - established in [[paper-a]] (p. ?), [[paper-b]] (p. ?).
+- Use case 2 - emerging, see [[paper-c]] (p. ?).
 
 ## Best Practices
 Synthesized recommendations across the wiki's sources:
-- Practice 1 — consensus across [[paper-a]], [[paper-b]] (p. ? each).
-- Practice 2 — [[paper-c]] recommends ... (p. ?), but [[paper-d]]
+- Practice 1 - consensus across [[paper-a]], [[paper-b]] (p. ? each).
+- Practice 2 - [[paper-c]] recommends ... (p. ?), but [[paper-d]]
   disagrees (p. ?).
 
 ## Common Pitfalls
-- Pitfall 1 — flagged by [[paper-x]] (p. ?).
+- Pitfall 1 - flagged by [[paper-x]] (p. ?).
 
 ## Variants / Sub-Methods
 - Variant A → [[methods/EEG-ERD]]
@@ -44,7 +44,7 @@ Synthesized recommendations across the wiki's sources:
 
 ## Used In This Wiki
 *(Auto-populated: [[source-slug]] entries that report using this method.
-Each entry MUST include a 1–2 sentence description of how that source
-used the method — parameters, sample, deviations from standard
-protocol — not just a bare wikilink.)*
+Each entry MUST include a 1-2 sentence description of how that source
+used the method - parameters, sample, deviations from standard
+protocol - not just a bare wikilink.)*
 ```

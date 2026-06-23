@@ -2,7 +2,7 @@
 
 `wiki/overview.md` is a living synthesis across all sources. Refreshed
 at the appropriate ingest step when synthesis warrants revision. The
-Citation Rule applies under `## Key Findings (synthesized)` — pure
+Citation Rule applies under `## Key Findings (synthesized)` - pure
 scope/meta sentences need no citation.
 
 ```markdown
@@ -14,7 +14,7 @@ sources: []                 # auto-populated: all sources synthesized here
 ---
 
 ## Scope
-1-3 sentences: what this wiki covers (no citation needed — meta).
+1-3 sentences: what this wiki covers (no citation needed - meta).
 
 ## Key Findings (synthesized)
 Cross-source claims, **each with citations**:
@@ -36,6 +36,6 @@ Linked to question pages:
 
 ## Recent Updates
 Append-only mini-log of synthesis-affecting ingests:
-- YYYY-MM-DD : ingested [[new-paper]] — refined Finding X
-- YYYY-MM-DD : ingested [[new-thesis]] — added Debate 2
+- YYYY-MM-DD : ingested [[new-paper]] - refined Finding X
+- YYYY-MM-DD : ingested [[new-thesis]] - added Debate 2
 ```

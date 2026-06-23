@@ -10,13 +10,13 @@ Usage:
     python tools/build_graph.py --open        # open graph.html in browser after build
 
 Outputs:
-    graph/graph.json    — node/edge data (cached by SHA256)
-    graph/graph.html    — interactive vis.js visualization
+    graph/graph.json - node/edge data (cached by SHA256)
+    graph/graph.html - interactive vis.js visualization
 
 Edge types:
-    EXTRACTED   — explicit [[wikilink]] in a page
-    INFERRED    — Claude-detected implicit relationship
-    AMBIGUOUS   — low-confidence inferred relationship
+    EXTRACTED - explicit [[wikilink]] in a page
+    INFERRED - Claude-detected implicit relationship
+    AMBIGUOUS - low-confidence inferred relationship
 """
 
 import re
@@ -256,7 +256,7 @@ def build_inferred_edges(pages: list[Path], existing_edges: list[dict], cache: d
             changed_pages.append(p)
 
     if not changed_pages:
-        print("  no changed pages — skipping semantic inference")
+        print("  no changed pages - skipping semantic inference")
         return new_edges
 
     total_pages = len(changed_pages)
@@ -456,7 +456,7 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
     n_edges = len(edges)
 
     if n_nodes == 0:
-        return f"# Graph Insights Report — {today}\n\nWiki is empty — nothing to report.\n"
+        return f"# Graph Insights Report - {today}\n\nWiki is empty - nothing to report.\n"
 
     # Build NetworkX graph for analysis
     G = nx.Graph()
@@ -516,11 +516,11 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
 
     # --- Build report ---
     lines = [
-        f"# Graph Insights Report — {today}",
+        f"# Graph Insights Report - {today}",
         "",
         "## Health Summary",
-        f"- **{n_nodes}** nodes, **{n_edges}** edges ({edges_per_node:.2f} edges/node — {health})",
-        f"- **{orphan_count}** orphan nodes ({orphan_pct:.1f}%) — target: <10%",
+        f"- **{n_nodes}** nodes, **{n_edges}** edges ({edges_per_node:.2f} edges/node - {health})",
+        f"- **{orphan_count}** orphan nodes ({orphan_pct:.1f}%) - target: <10%",
         f"- **{community_count}** communities",
         f"- Link density: {density:.4f}",
         "",
@@ -533,7 +533,7 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
         for o in orphans:
             lines.append(f"- `{o}`")
     else:
-        lines.append("No orphan nodes — excellent!")
+        lines.append("No orphan nodes - excellent!")
     lines.append("")
 
     # God nodes section
@@ -548,17 +548,17 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
             comm = communities.get(node_id, -1)
             lines.append(f"| `{node_id}` | {deg} | {edge_pct:.1f}% | {comm} |")
     else:
-        lines.append("No god nodes detected — degree distribution is balanced.")
+        lines.append("No god nodes detected - degree distribution is balanced.")
     lines.append("")
 
     # Fragile bridges section
     lines.append("## 🟡 Fragile Bridges")
     if fragile_bridges:
-        lines.append("Community pairs connected by only 1 edge — one deleted link breaks them:")
+        lines.append("Community pairs connected by only 1 edge - one deleted link breaks them:")
         for (ca, cb), edge in fragile_bridges:
             lines.append(f"- Community {ca} ↔ Community {cb} via `{edge['from']}` → `{edge['to']}`")
     else:
-        lines.append("No fragile bridges — all community connections are redundant.")
+        lines.append("No fragile bridges - all community connections are redundant.")
     lines.append("")
 
     # Community overview
@@ -585,7 +585,7 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
     lines.append("## 🟠 Phantom Hubs (referenced but non-existent pages)")
     if phantoms:
         lines.append("These pages are referenced by 2+ existing pages but don't exist yet.")
-        lines.append("They represent strong page creation signals — prioritize by reference count:")
+        lines.append("They represent strong page creation signals - prioritize by reference count:")
         lines.append("")
         lines.append("| Page Name | References | Referenced By |")
         lines.append("|---|---|---|")
@@ -595,7 +595,7 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
                 refs_preview += ", …"
             lines.append(f"| `[[{ph['name']}]]` | {ph['ref_count']} | {refs_preview} |")
     elif pages:
-        lines.append("No phantom hubs — all referenced pages exist.")
+        lines.append("No phantom hubs - all referenced pages exist.")
     else:
         lines.append("Phantom hub detection skipped (no page data available).")
     lines.append("")
@@ -609,9 +609,9 @@ def generate_report(nodes: list[dict], edges: list[dict], communities: dict[str,
     if fragile_bridges:
         actions.append(f"{len(actions)+1}. Strengthen fragile bridges with cross-references")
     if phantoms:
-        actions.append(f"{len(actions)+1}. Create pages for top phantom hubs (start with `[[{phantoms[0]['name']}]]` — {phantoms[0]['ref_count']} references)")
+        actions.append(f"{len(actions)+1}. Create pages for top phantom hubs (start with `[[{phantoms[0]['name']}]]` - {phantoms[0]['ref_count']} references)")
     if not actions:
-        actions.append("1. Graph is in good shape — maintain current linking practices")
+        actions.append("1. Graph is in good shape - maintain current linking practices")
     lines.extend(actions)
     lines.append("")
 
@@ -642,7 +642,7 @@ def render_html(nodes: list[dict], edges: list[dict]) -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LLM Wiki — Knowledge Graph</title>
+<title>LLM Wiki - Knowledge Graph</title>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
   body {{ margin: 0; background: #1a1a2e; font-family: 'Inter', sans-serif; color: #eee; }}

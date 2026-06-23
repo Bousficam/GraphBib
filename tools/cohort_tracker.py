@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Participant cohort tracker — aggregate participant profiles across sources.
+"""Participant cohort tracker - aggregate participant profiles across sources.
 
 Walks `wiki/sources/`, reads `population:` and `sample_size:` from each
 source's frontmatter (always available, domain-neutral), plus optional
 surface-level descriptor extraction from the body.
 
-The descriptor vocabulary is NOT hardcoded — it is read from
+The descriptor vocabulary is NOT hardcoded - it is read from
 `tools/data/domain.json` (`cohort` section: `chronicity`, `side`, `lesion`
 groups, and a `severity_scale`). The shipped default is the neutral
 baseline (empty): the tool still reports pooled sample sizes and the
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from _lib import REPO_ROOT, WIKI_DIR, compile_fragments, load_domain, load_sources  # noqa: E402
 
 _COHORT = load_domain("cohort")
-# {group_key: {category: compiled regex}} — only groups declared in domain.json
+# {group_key: {category: compiled regex}} - only groups declared in domain.json
 DESCRIPTOR_GROUPS = {
     grp: compile_fragments(_COHORT.get(grp, {}))
     for grp in ("chronicity", "side", "lesion")
@@ -120,8 +120,8 @@ def main():
         lows = [r[0] for r in sev_ranges]
         highs = [r[1] for r in sev_ranges]
         lines.append(f"### Baseline {SEVERITY_NAME or 'severity'}")
-        lines.append(f"- Lowest reported: {min(lows)}–{min(highs)}")
-        lines.append(f"- Highest reported: {max(lows)}–{max(highs)}")
+        lines.append(f"- Lowest reported: {min(lows)}-{min(highs)}")
+        lines.append(f"- Highest reported: {max(lows)}-{max(highs)}")
         lines.append(f"- Sources reporting a range: {len(sev_ranges)} / {n_total}")
         lines.append("")
 

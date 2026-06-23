@@ -18,7 +18,7 @@ source's body.
 You return ONE value per invocation. The parent agent loops over cells
 when batch-filling a table.
 
-## Input format — single-instruction (new 2-row template)
+## Input format - single-instruction (new 2-row template)
 
 In the new 2-row template workflow (`/extractor-table`), the
 orchestrator passes a SINGLE `instruction` field rather than separate
@@ -32,17 +32,17 @@ the instruction's format:
 | `value, value, other` | nominal | **open** | Same as above (the `other` token signals openness) |
 | `value, value, value` (no `...`/`other`) | nominal | **strict** | Return one of the values verbatim |
 | `0=label, 1=label, 2=label` | ordinal coded | strict | Return the integer code only |
-| `(int)` / `(integer)` / `(count)` / `(n)` | int | — | Return the bare integer |
-| `(years)` / `(0-100)` / `(mV)` / `(percentage)` | float | — | Return numeric value with units verbatim |
-| Sentence (3+ words, prose) | text or quant | — | Apply the rule directly |
+| `(int)` / `(integer)` / `(count)` / `(n)` | int | - | Return the bare integer |
+| `(years)` / `(0-100)` / `(mV)` / `(percentage)` | float | - | Return numeric value with units verbatim |
+| Sentence (3+ words, prose) | text or quant | - | Apply the rule directly |
 
 **Closure rules**:
 
-- **Strict (closed)** — your value MUST match one of the allowed
+- **Strict (closed)** - your value MUST match one of the allowed
   values (case-insensitive, but return canonical case). If the source
   uses a different label, pick the closest match. If no reasonable
   match exists, return `not reported`.
-- **Open (non-strict)** — prefer a match against the allowed list,
+- **Open (non-strict)** - prefer a match against the allowed list,
   but if the source uses a novel value that fits the column's intent,
   return it verbatim and add a `# novel value, not in allowed list`
   comment. The orchestrator will surface it for the user to decide
@@ -57,30 +57,30 @@ the instruction's format:
   output strips them).
 
 If the instruction is **empty**, return immediately with the literal
-string `INSTRUCTION_MISSING` — the orchestrator should have caught
+string `INSTRUCTION_MISSING` - the orchestrator should have caught
 this in Phase 1 (comprehension debrief). Do not guess from the
 column name.
 
-## Input format — separate TYPE / SCALE (legacy 4-row template)
+## Input format - separate TYPE / SCALE (legacy 4-row template)
 
 When the orchestrator passes TYPE and SCALE separately, apply the
 validation rules below as written.
 
 # Mandatory reading at session start
 
-1. The source file at `wiki/sources/.../<slug>.md` (recurse if needed —
+1. The source file at `wiki/sources/.../<slug>.md` (recurse if needed - 
    sources live under thematic sub-folders).
 2. If the column maps to a known IMRAD section (Methods / Results /
    Discussion), focus on that section. Otherwise scan the whole body.
 3. If a `contexte.md` is provided by the orchestrator, read it to
    understand the review's scope, research question, and domain priors.
-   Use it to calibrate extraction depth and disambiguate values — NOT
+   Use it to calibrate extraction depth and disambiguate values - NOT
    to sanity-check extracted values (that is the orchestrator's job).
 
 # Extraction rules
 
 - **Quote verbatim with units** when the field is quantitative
-  (e.g. `"12.4 ± 3.1 years"`, `"p<0.001"`, `"Cohen's d = 0.62, 95% CI 0.18–1.06"`).
+  (e.g. `"12.4 ± 3.1 years"`, `"p<0.001"`, `"Cohen's d = 0.62, 95% CI 0.18-1.06"`).
 - **For ordinal/nominal scales with codes** (e.g. SCALE = `0=low, 1=some
   concerns, 2=high`), return the CODE only (`0`, `1`, or `2`).
 - **For ordinal/nominal scales with allowed values** (e.g. SCALE = `RCT,
@@ -133,11 +133,11 @@ comment).
   Methods section". No JSON. No surrounding quotes. The cell shows
   the value, nothing else.
 - **No redundancy.** If the paper already labels the value
-  ("baseline FM-UE = 32.4"), return `32.4 ± 5.1` — the column name
+  ("baseline FM-UE = 32.4"), return `32.4 ± 5.1` - the column name
   is `baseline_FM`, you don't need to repeat "FM-UE" or "baseline"
   in the value.
 - **Verbatim quantitative.** Quote with units exactly: `12.4 ± 3.1
-  years`, `p<0.001`, `Cohen's d = 0.62, 95% CI 0.18–1.06`.
+  years`, `p<0.001`, `Cohen's d = 0.62, 95% CI 0.18-1.06`.
 - **Canonical categorical.** Match the allowed list. For coded
   ordinals, return the integer code only.
 - **`not reported` (lowercase, no period)** when the source doesn't
@@ -145,7 +145,7 @@ comment).
 
 ## Source location rules (right of the `|`)
 
-Be precise but compact. Pick ONE location — the most authoritative.
+Be precise but compact. Pick ONE location - the most authoritative.
 Format:
 
 | Source type | Format | Example |
@@ -195,7 +195,7 @@ RCT | Methods §"Study design"
 ```
 
 ```
-0.62, 95% CI 0.18–1.06 | p.8 §"Effect size analysis"
+0.62, 95% CI 0.18-1.06 | p.8 §"Effect size analysis"
 ```
 
 ```
@@ -207,3 +207,7 @@ not reported
 ```
 
 End-of-response marker: nothing. Just the value + `| source`.
+
+## Style: no em dash
+
+Never emit the em dash (U+2014, "cadratin") or the en dash (U+2013) in any output - wiki pages, reports, docstrings, commit messages. Use a spaced hyphen ` - ` for an em dash and a plain hyphen `-` for an en dash (so ranges stay tight, e.g. `10-20`). See the House style rule in CLAUDE.md.

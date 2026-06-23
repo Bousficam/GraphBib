@@ -12,7 +12,7 @@ source page using `docs/templates/source-academic-paper.md`. The parent's
 the parent and live on the chapter pages instead.
 
 For short theses (< 60 pages), or when chapters can't be cleanly
-detected, ingest the thesis as a single source — fill the full template
+detected, ingest the thesis as a single source - fill the full template
 below.
 
 ## Frontmatter
@@ -71,12 +71,12 @@ Verbatim abstract from the thesis frontmatter.
 - H1: ... (p. ?)
 
 ## Theoretical Framework
-- Anchored in [[ConceptName]] — how the thesis builds on it (p. ?)
+- Anchored in [[ConceptName]] - how the thesis builds on it (p. ?)
 - Contributes to [[FrameworkName]]
 
 ## Chapters Summary
 
-### Chapter X — <title> (p. NN-NN)
+### Chapter X - <title> (p. NN-NN)
 - **Design**: ...
 - **Methods**: → [[methods/...]]
 - **Key findings**: ... (p. ?)
@@ -93,7 +93,7 @@ The thesis's overall argument, integrating chapters (p. ?).
 
 ## Notable References (citation snowball)
 High-value references this thesis builds on. Format:
-- *Author, A. (Year).* Title. *Journal*, V(I), pp. — relevance
+- *Author, A. (Year).* Title. *Journal*, V(I), pp. - relevance
 - ☐ not yet in wiki
 - ✓ [[already-ingested-slug]]
 
@@ -110,12 +110,12 @@ otherwise.
 thesis's DOI.)*
 
 ## Verbatim Quotes
-> "..." — p. N
+> "..." - p. N
 
 ## Connections
-- [[AdvisorName]] — advisor
-- [[ConceptName]] — central concept
-- [[methods/MethodName]] — used technique
+- [[AdvisorName]] - advisor
+- [[ConceptName]] - central concept
+- [[methods/MethodName]] - used technique
 
 ## Contradictions / Agreements
 - ...

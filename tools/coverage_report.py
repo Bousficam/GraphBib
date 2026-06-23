@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Coverage report — surface where the wiki is thin.
+"""Coverage report - surface where the wiki is thin.
 
 Walks the wiki and reports on:
 
   - Concept pages by depth (stub / page / chapter):
       stub    = < 500 words
-      page    = 500–1500 words
+      page    = 500-1500 words
       chapter = >= 1500 words
   - Concepts mentioned ≥ 3 times in sources but still stubs (priority expansions)
   - Method/intervention pages without a `## Used In This Wiki` populated section
@@ -93,7 +93,7 @@ def main():
     lines = ["# Coverage Report", ""]
 
     # ---- Concepts depth ----
-    lines.append("## Concepts — depth distribution")
+    lines.append("## Concepts - depth distribution")
     lines.append("")
     if not concepts:
         lines.append("*(No concept pages yet.)*")
@@ -118,10 +118,10 @@ def main():
             priorities.append((n, c["slug"], c["wc"]))
     priorities.sort(reverse=True)
     if not priorities:
-        lines.append("*(None — every well-mentioned concept has at least page-depth.)*")
+        lines.append("*(None - every well-mentioned concept has at least page-depth.)*")
     else:
         for n, slug, wc in priorities[:20]:
-            lines.append(f"- [[{slug}]] — {n} sources, {wc} words")
+            lines.append(f"- [[{slug}]] - {n} sources, {wc} words")
     lines.append("")
 
     # ---- Methods/Interventions without Used-In population ----

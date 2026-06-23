@@ -4,12 +4,12 @@
 `.xlsx` or CSV) from `wiki/sources/`. Three filling layers applied per
 cell, in order:
 
-1. **Frontmatter** (always on) — known column headers map to YAML
+1. **Frontmatter** (always on) - known column headers map to YAML
    fields (title, authors, year, doi, study_design, …).
-2. **Body regex** (always on) — built-in patterns for clinical fields
+2. **Body regex** (always on) - built-in patterns for clinical fields
    (n per arm, age mean, baseline FM, ΔFM, p-value, Cohen's d, CI,
    trial-registration ID, …).
-3. **LLM** (`--llm`) — for cells still empty AND with a per-column
+3. **LLM** (`--llm`) - for cells still empty AND with a per-column
    rule provided in an `INSTRUCTIONS` row, calls Claude via litellm.
    Cached in `tools/.cache/extract_llm.json`.
 
@@ -28,9 +28,9 @@ SCALE         | (YYYY)       | 0=low, 1=some concerns, 2=high   | RCT, cohort, c
 cervera-2020  |              |                                  |
 ```
 
-- **INSTRUCTIONS** — natural-language extraction rule per column.
-- **TYPE** — `quantitative` | `ordinal` | `nominal` | `text`.
-- **SCALE** — quantitative: unit hint `(years)`; ordinal/nominal coded
+- **INSTRUCTIONS** - natural-language extraction rule per column.
+- **TYPE** - `quantitative` | `ordinal` | `nominal` | `text`.
+- **SCALE** - quantitative: unit hint `(years)`; ordinal/nominal coded
   `0=low, 1=high` (LLM returns the code); enum `RCT, cohort` (LLM
   returns one verbatim); text: leave empty.
 

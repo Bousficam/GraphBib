@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Mistral Document AI / OCR — convert PDFs that marker failed on.
+"""Mistral Document AI / OCR - convert PDFs that marker failed on.
 
 Opt-in tier between marker (free, primary) and pymupdf4llm (free, last
 resort). Mistral's OCR API handles complex tables, equations, and
-scanned PDFs robustly — the corner cases that break Surya inside marker.
+scanned PDFs robustly - the corner cases that break Surya inside marker.
 
 Usage
 =====
@@ -15,7 +15,7 @@ Usage
     python pdf2md/pdf2md_mistral.py SRC DST --files Fatigue/borghini2014.pdf
 
     # Skip files already covered by Mistral in a previous run
-    # (default: idempotent — already-converted .md files are skipped)
+    # (default: idempotent - already-converted .md files are skipped)
     python pdf2md/pdf2md_mistral.py SRC DST --force   # re-run anyway
 
 API key
@@ -30,9 +30,9 @@ Cost
 
 Mistral charges per page; the experimental plan is free with rate
 limits. The script paces itself at ~2 requests/second by default
-(--sleep override). On a 698-PDF corpus, expect ~10–20 % to need
+(--sleep override). On a 698-PDF corpus, expect ~10-20 % to need
 Mistral (the entries marker errored on or produced suspicious output
-for) → ~70–140 PDFs through the API.
+for) → ~70-140 PDFs through the API.
 
 Output
 ======
@@ -68,7 +68,7 @@ except ImportError:
 
 API_URL = "https://api.mistral.ai/v1/ocr"
 DEFAULT_MODEL = "mistral-ocr-latest"
-DEFAULT_SLEEP = 0.5   # 2 req/s — polite for the experimental plan
+DEFAULT_SLEEP = 0.5   # 2 req/s - polite for the experimental plan
 DEFAULT_TIMEOUT = 180  # 3 min per PDF
 
 

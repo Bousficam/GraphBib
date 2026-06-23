@@ -21,11 +21,11 @@ expectations:
 - Every claim the paper inherits from prior work → bullet in
   `### Background`, citing the **original** source per the Indirect
   Citation Rule with explicit `reported via [[X]]` provenance. Aim
-  5–15 bullets for an empirical paper, 20+ for a review or thesis
+  5-15 bullets for an empirical paper, 20+ for a review or thesis
   introduction.
 - The theoretical framework names every concept / model the paper
   builds on, with wikilinks.
-- The gap is stated in 1–2 sentences (not paraphrased away).
+- The gap is stated in 1-2 sentences (not paraphrased away).
 - Hypotheses, when explicit, are listed verbatim with page numbers.
 
 **Methods (### Study Design / ### Participants / ### Intervention(s) /
@@ -40,7 +40,7 @@ expectations:
   / severity / lesion side.
 - `### Intervention(s)`: dose (sessions × duration × frequency),
   delivery (who, where, supervision), co-interventions allowed/
-  forbidden — for every arm separately. Link to
+  forbidden - for every arm separately. Link to
   `[[interventions/<slug>]]`.
 - `### Outcome Measures`: distinguish **primary**, **secondary**,
   **exploratory**. Each measure → `[[methods/<MethodName>]]` with the
@@ -52,10 +52,10 @@ expectations:
 ### Primary Outcome / ### Secondary Outcomes / ### Subgroup analyses /
 ### Adverse Events / ### Compliance / ### Tables and Figures)**
 - `### Primary Outcome`: verbatim with effect size, 95 % CI, p-value,
-  direction (p. ?). Single bullet — this is the paper's flagship
+  direction (p. ?). Single bullet - this is the paper's flagship
   result.
 - `### Secondary Outcomes`: every one with effect size and statistic,
-  not collapsed to "improved". A typical RCT reports 3–10 secondary
+  not collapsed to "improved". A typical RCT reports 3-10 secondary
   outcomes; if you have 1, you missed them.
 - `### Subgroup / Exploratory`: each one with the explicit warning
   "exploratory" if the paper labels it so.
@@ -69,26 +69,26 @@ expectations:
 ### Generalizability / ### Future Research)**
 - `### Comparison with Prior Work` is where the Indirect Citation Rule
   fires hardest. Every "aligns with"/"differs from" claim cites the
-  original Y, not the transmitter X (this paper) — use
+  original Y, not the transmitter X (this paper) - use
   `[[Y]] (p. ?), reported via this paper's discussion (p. ?)`.
 - `### Limitations`: every limitation acknowledged by the authors. Most
-  honest papers list 4–6.
+  honest papers list 4-6.
 - `### Future Research`: each open question routed to
   `wiki/questions/<slug>.md`.
 
 **Recommendations / Implications**
 - Every actionable item, including secondary, conditional, and
-  cautionary ones — not just the headline. Each routed to
+  cautionary ones - not just the headline. Each routed to
   `wiki/recommendations/<topic>.md`. See "Guidelines &
   meta-analyses" below for the strict rule on guideline papers.
 
-**Reporting Standard Alignment** — identify CONSORT / STROBE / PRISMA /
+**Reporting Standard Alignment** - identify CONSORT / STROBE / PRISMA /
 STARD / TREND / CARE / ARRIVE and flag deviations.
 
-**Verbatim Quotes** — minimum 3 quotes covering Introduction, Results,
+**Verbatim Quotes** - minimum 3 quotes covering Introduction, Results,
 Discussion (one per section).
 
-**Cites** — populated from the References section automatically by
+**Cites** - populated from the References section automatically by
 `tools/parse_references.py`; review the snowball candidates before
 moving on.
 
@@ -104,15 +104,15 @@ Strict rule for these papers:
    `## Recommendations / Implications`. If the paper has a Table
    titled "Recommendations" or "Levels of Evidence", **the source page
    must reference at least the row count of that table**. Don't
-   paraphrase "the paper recommends rTMS for several conditions" —
+   paraphrase "the paper recommends rTMS for several conditions" - 
    list each one.
 2. **Route each recommendation** to the appropriate
    `wiki/recommendations/<topic-slug>.md` page (create per-topic pages
-   if needed). For Lefaucheur-type guidelines, expect 5–15
+   if needed). For Lefaucheur-type guidelines, expect 5-15
    recommendation pages to be touched, one per condition / protocol
    family.
 3. **Preserve evidence level** (A / B / C) verbatim with each item.
-4. **Quote the recommendation text verbatim** when feasible — these
+4. **Quote the recommendation text verbatim** when feasible - these
    papers are reused as authoritative references.
 
 A guideline paper that produces a 200-word source page is incomplete
@@ -122,7 +122,7 @@ by definition. Expect 1500-3000 words for a major guideline.
 
 - ❌ Don't write *"the paper shows X"* without quoting the supporting
   result.
-- ❌ Don't paraphrase numerical results — quote verbatim.
+- ❌ Don't paraphrase numerical results - quote verbatim.
 - ❌ Don't list a method with just `[[methods/X]]`. Describe **how this
   specific paper used it** (parameters, sample, deviations from
   standard).
@@ -130,30 +130,30 @@ by definition. Expect 1500-3000 words for a major guideline.
 - ❌ Don't compress 8 findings into 2 bullets to save space.
 - ❌ Don't drop secondary or cautionary recommendations because they're
   less prominent.
-- ❌ Don't summarize a guideline paper's recommendation table —
+- ❌ Don't summarize a guideline paper's recommendation table - 
   enumerate.
 
 ## Length expectations (rough heuristic, not hard rule)
 
 | Paper type | Source page length |
 |---|---|
-| Conference abstract | 300–600 words |
-| Theoretical / opinion | 600–1200 words |
-| Empirical (RCT, cohort, cross-sectional) | 800–2000 words |
-| Review / meta-analysis | 1200–2500 words |
-| Guidelines / consensus statement | 1500–3000 words |
-| Thesis | 2000–5000 words (across chapters) |
+| Conference abstract | 300-600 words |
+| Theoretical / opinion | 600-1200 words |
+| Empirical (RCT, cohort, cross-sectional) | 800-2000 words |
+| Review / meta-analysis | 1200-2500 words |
+| Guidelines / consensus statement | 1500-3000 words |
+| Thesis | 2000-5000 words (across chapters) |
 
 A source page below the lower bound for its type is almost certainly
 incomplete unless the paper itself is unusually short.
 
-## Method, intervention, recommendation pages — depth
+## Method, intervention, recommendation pages - depth
 
 Same rule applies to the auxiliary pages updated at ingest:
 
 - When the **method update** step runs, don't just append
   `- [[<source-slug>]]` to `## Used In This Wiki`. Add a 2-sentence
-  description of *how this paper used the method* — parameters,
+  description of *how this paper used the method* - parameters,
   sample, deviation from standard protocol. Example:
   > Used 1 Hz rTMS over contralesional M1, 1200 pulses, 10 sessions
   > over 2 weeks ([[lefaucheur-2014]] p. 22). Differs from

@@ -46,8 +46,8 @@ Apply at ingest step 5 to choose the destination path:
 When a study combines multiple interventions (e.g. MI-BCI + concurrent
 rTMS), the **dossier = principal intervention**, decided in this order:
 
-1. Title / abstract framing — *"we tested X"* → X is principal.
-2. Experimental vs control arm — what distinguishes them is principal.
+1. Title / abstract framing - *"we tested X"* → X is principal.
+2. Experimental vs control arm - what distinguishes them is principal.
 3. If still ambiguous, first item in `interventions:` is principal.
 
 The agent sets `intervention_family:` to the principal. Adjuvants

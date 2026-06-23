@@ -1,4 +1,4 @@
-# GraphBib — Academic Wiki Agent
+# GraphBib - Academic Wiki Agent
 
 A domain-neutral academic knowledge-base agent. Maintained entirely
 by Claude Code: open this repo and talk to it.
@@ -9,12 +9,12 @@ The agent's three jobs, in priority order:
 2. **Map methodologies and recommendations** so the wiki answers
    *"how is X measured/intervened on?"* and *"what does the literature
    recommend?"*.
-3. **Cite sources rigorously** — every factual claim points to a
+3. **Cite sources rigorously** - every factual claim points to a
    `[[source]]` with a page number, ready for APA reuse.
 
 ---
 
-## Domain context — READ FIRST
+## Domain context - READ FIRST
 
 **Every session starts by loading `context.md`** at the repo root.
 That file declares which research field this GraphBib instance is
@@ -22,7 +22,7 @@ configured for: the expected concepts / methods / interventions
 taxonomy, outcome scales, anatomical anchors, and style notes the
 agent should apply.
 
-If `context.md` is absent, the agent runs in **neutral mode** — it
+If `context.md` is absent, the agent runs in **neutral mode** - it
 does all structural work (IMRAD extraction, citation network,
 snowball, lint) but with less domain consistency.
 
@@ -40,20 +40,37 @@ See `docs/context/README.md` for the full adaptation checklist and
 
 ## Two non-negotiable rules
 
-**Citation Rule** — every factual claim, finding, recommendation, or
+**Citation Rule** - every factual claim, finding, recommendation, or
 quantitative statement in any wiki page MUST cite at least one
 `[[source-slug]] (p. N)`. APA 7. Numerical results are quoted
 verbatim, never paraphrased. Bibliographic frontmatter is copied
-verbatim from the source — never invented. Full spec at
+verbatim from the source - never invented. Full spec at
 **`docs/rules/citation.md`**. Read before any ingest.
 
-**Depth & Completeness** — a source page is the only chance to mine
+**Depth & Completeness** - a source page is the only chance to mine
 that paper for the wiki. Extraction must be **exhaustive, not
 representative**. Default failure mode: condensing 8 results into 2
 bullets, or summarizing a guideline's recommendation table instead of
 enumerating each row. Full spec + **mandatory self-critique gate** at
 **`docs/rules/depth-completeness.md`**. Re-read the gate before
 declaring an ingest complete.
+
+---
+
+## House style
+
+**No em dash or en dash.** Never emit the em dash (U+2014, the
+"cadratin") or the en dash (U+2013) in any output - wiki pages,
+reports, commit messages, docstrings. Use a spaced hyphen ` - ` in
+place of an em dash, and a plain hyphen `-` in place of an en dash
+(so ranges stay tight, e.g. `10-20`), or restructure the sentence.
+This binds every agent. Auditing agents (`lint`, `librarian`) must
+also detect and fix stray dashes: `lint` flags them (deterministic
+check `em_dash`), `librarian` fixes them by running
+`python tools/strip_em_dash.py`. The only exception is regex source
+that must MATCH dashes in the immutable `raw/` corpus - there, write
+the dash as a backslash-u escape (`\uXXXX`: em dash is U+2014, en dash
+U+2013) rather than a literal dash character.
 
 ---
 
@@ -88,37 +105,37 @@ harness surfaces them).
 Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
-**Wiki side** — knowledge-graph building / maintenance:
-- `suggest-reading` — find what to read next (snowball + OpenAlex).
-- `fetch-reading` — download OA PDFs for a DOI list (Unpaywall).
-- `ingester` — ingest one source, all 16 steps (entity pages OFF by default).
-- `source-extender` — deepen an already-ingested shallow source.
-- `source-illustrator` — populate `## Figures` on one source page
+**Wiki side** - knowledge-graph building / maintenance:
+- `suggest-reading` - find what to read next (snowball + OpenAlex).
+- `fetch-reading` - download OA PDFs for a DOI list (Unpaywall).
+- `ingester` - ingest one source, all 16 steps (entity pages OFF by default).
+- `source-extender` - deepen an already-ingested shallow source.
+- `source-illustrator` - populate `## Figures` on one source page
   from images already extracted by `pdf2md_marker.py`.
-- `concept-builder` — extend one concept page to chapter depth.
-- `concept-illustrator` — insert relevant figures into one concept
+- `concept-builder` - extend one concept page to chapter depth.
+- `concept-illustrator` - insert relevant figures into one concept
   page, sourced from its cited sources' `## Figures` sections.
-- `query-synthesizer` — answer a focused research question.
-- `reviewer` — generate a structured literature review.
-- `lint` — audit (deterministic + cached semantic).
-- `librarian` — act on lint findings, auto-fix or delegate.
-- `source-remover` — clean removal + every cross-reference.
-- `deduplicator` — judge redundant concept/method pages, merge or extract.
+- `query-synthesizer` - answer a focused research question.
+- `reviewer` - generate a structured literature review.
+- `lint` - audit (deterministic + cached semantic).
+- `librarian` - act on lint findings, auto-fix or delegate.
+- `source-remover` - clean removal + every cross-reference.
+- `deduplicator` - judge redundant concept/method pages, merge or extract.
 
-**Extractor side** — literature-review screening + data extraction:
-- `screener-tiab` — judge ONE article at title/abstract vs PRISMA
+**Extractor side** - literature-review screening + data extraction:
+- `screener-tiab` - judge ONE article at title/abstract vs PRISMA
   criteria (haiku, never reads PDFs).
-- `screener-fulltext` — judge ONE article at full text vs PRISMA
+- `screener-fulltext` - judge ONE article at full text vs PRISMA
   criteria (sonnet, returns verbatim excerpt + source location for
   every exclusion).
-- `extractor` — fill ONE cell of a SR data-extraction table.
+- `extractor` - fill ONE cell of a SR data-extraction table.
 
 Parent stays orchestrator; sub-agents do the focused work.
 
 ---
 
 `raw/<vault>/` is immutable (raw inputs for the vault).
-`wiki/<vault>/` is the ingested output. Both are multi-vault — each
+`wiki/<vault>/` is the ingested output. Both are multi-vault - each
 vault is a self-contained Obsidian-compatible knowledge graph for
 one research domain. They share the SAME vault name (raw is input,
 wiki is output of the same domain) and are resolved via the same
@@ -137,11 +154,11 @@ block). This avoids re-asking on every tool call and is inherited by
 sub-agents.
 
 The `project-review/<vault>/<name>/` orchestrator (Extractor side)
-is independent of the wiki side — see `docs/workflows/screening.md`
+is independent of the wiki side - see `docs/workflows/screening.md`
 and `docs/workflows/data-extraction.md`. It has its own vault
 scoping resolved via `$PROJECT_VAULT` or the first path segment
 (e.g. `BCINET/mibci`); it is NOT created or read by `/wiki-init`.
 Sharing a vault name between `wiki/<vault>/` and
 `project-review/<vault>/` is allowed and useful for the same
-research domain, but never enforced — `$WIKI_VAULT` and
+research domain, but never enforced - `$WIKI_VAULT` and
 `$PROJECT_VAULT` are deliberately separate env vars.

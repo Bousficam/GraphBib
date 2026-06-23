@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replication tracker — chain replications, flag single-study claims.
+"""Replication tracker - chain replications, flag single-study claims.
 
 Walks `wiki/sources/`. Uses the `replication_of: "<DOI>"` frontmatter
 field to build replication chains across the corpus. Outputs:
@@ -10,7 +10,7 @@ field to build replication chains across the corpus. Outputs:
        Evidence` rests on a single source.
     3. Replication candidates: pairs of papers with high methodological
        similarity (same intervention + similar population) that are not
-       declared replications — worth checking.
+       declared replications - worth checking.
 
 Usage:
     python tools/replication_tracker.py
@@ -133,7 +133,7 @@ def main():
     else:
         candidates.sort(key=lambda t: (-t[3], t[0]))
         for fam, a, b, ov in candidates[:30]:
-            lines.append(f"- **{fam}** — [[{a}]] ↔ [[{b}]] (population overlap = {ov})")
+            lines.append(f"- **{fam}** - [[{a}]] ↔ [[{b}]] (population overlap = {ov})")
     lines.append("")
 
     output = "\n".join(lines)

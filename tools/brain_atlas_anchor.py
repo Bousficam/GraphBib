@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Atlas anchoring — link sources to anatomical / structural anchors they discuss.
+"""Atlas anchoring - link sources to anatomical / structural anchors they discuss.
 
 Walks `wiki/sources/`, scans each body for region / tract mentions declared
 in `tools/data/domain.json` (`regions` and `tracts` sections). Outputs:
 
     1. Per-region report: which papers discuss each region or tract,
        with a sentence-level snippet for context.
-    2. A "what's known about X" view per region — Markdown that can be
+    2. A "what's known about X" view per region - Markdown that can be
        saved into wiki/ as the basis of a region anchor page.
 
-The anatomy vocabulary is NOT hardcoded — the shipped default
+The anatomy vocabulary is NOT hardcoded - the shipped default
 (`tools/data/domain.json`) is the neutral baseline (empty), so this tool
 only does something once a domain pack declaring `regions` / `tracts` is
 configured. See `tools/data/domain.stroke.example.json` for a neuroimaging
@@ -102,7 +102,7 @@ def main():
         entry = lexicon[args.region]
         sources_hits = region_index.get(args.region, {})
         lines = [
-            f"# {entry['label']} — atlas anchor",
+            f"# {entry['label']} - atlas anchor",
             "",
             f"_{len(sources_hits)} sources discuss this {entry['kind'][:-1]}_",
             "",
@@ -118,7 +118,7 @@ def main():
             target = WIKI_DIR / "concepts" / f"{args.region}-atlas.md"
             target.parent.mkdir(parents=True, exist_ok=True)
             header = (
-                f"---\ntitle: \"{entry['label']} — atlas anchor\"\n"
+                f"---\ntitle: \"{entry['label']} - atlas anchor\"\n"
                 f"type: concept\ntags: [atlas, {entry['kind'][:-1]}]\n"
                 f"sources: {sorted(sources_hits)}\n---\n\n"
             )
@@ -129,7 +129,7 @@ def main():
         return
 
     # Wiki-wide overview
-    lines = ["# Brain Atlas Anchor — wiki-wide", ""]
+    lines = ["# Brain Atlas Anchor - wiki-wide", ""]
     lines.append(f"Scanned {len(sources)} sources against {len(lexicon)} entries.\n")
     by_kind = {"regions": [], "tracts": []}
     for key, sources_hits in sorted(region_index.items(), key=lambda t: -len(t[1])):
@@ -146,7 +146,7 @@ def main():
             for key, label, n in by_kind[kind]:
                 top = sorted(region_index[key], key=lambda s: -len(region_index[key][s]))[:5]
                 top_str = ", ".join(f"[[{s}]]" for s in top)
-                lines.append(f"- **{label}** (`{key}`): {n} sources — top: {top_str}")
+                lines.append(f"- **{label}** (`{key}`): {n} sources - top: {top_str}")
         lines.append("")
 
     output = "\n".join(lines)

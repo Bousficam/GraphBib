@@ -26,21 +26,21 @@ neuroimaging biomarker study (DTI of corticospinal tract).
 
 ## Concepts vocabulary
 
-Expected concept pages — keep these names consistent when they
+Expected concept pages - keep these names consistent when they
 appear:
 
-- `MotorImagery` — mental simulation of movement
-- `MotorRecovery` — return of motor function after lesion
-- `Neuroplasticity` — neural reorganization underlying recovery
-- `CorticospinalTract` — primary descending motor pathway (anatomy + integrity)
-- `M1` — primary motor cortex
-- `PremotorCortex`, `SMA` — secondary motor areas
-- `NeuralControlTheory` — optimal-feedback / internal-model frameworks
-- `WhiteMatterIntegrity` — DTI-derived structural measure
-- `Hemiparesis` — clinical motor deficit
-- `StrokeChronicity` — acute / subacute / chronic phase distinction
+- `MotorImagery` - mental simulation of movement
+- `MotorRecovery` - return of motor function after lesion
+- `Neuroplasticity` - neural reorganization underlying recovery
+- `CorticospinalTract` - primary descending motor pathway (anatomy + integrity)
+- `M1` - primary motor cortex
+- `PremotorCortex`, `SMA` - secondary motor areas
+- `NeuralControlTheory` - optimal-feedback / internal-model frameworks
+- `WhiteMatterIntegrity` - DTI-derived structural measure
+- `Hemiparesis` - clinical motor deficit
+- `StrokeChronicity` - acute / subacute / chronic phase distinction
 
-This list isn't exhaustive — the agent creates new concept pages as
+This list isn't exhaustive - the agent creates new concept pages as
 new constructs appear in sources. It's a *consistency anchor* so
 that repeated mentions land on the same page.
 
@@ -51,15 +51,15 @@ that repeated mentions land on the same page.
 Expected method pages (measurement instruments and acquisition
 modalities):
 
-- `EEG` — electroencephalography
-- `MI-BCI` — motor-imagery brain-computer interface
-- `TMS`, `rTMS` — transcranial magnetic stimulation (single-pulse, repetitive)
-- `DTI`, `Tractography` — diffusion imaging + fiber tracking
-- `MEP` — motor evoked potential
-- `FuglMeyer`, `ARAT`, `BoxAndBlocks` — upper-limb motor outcome scales
-- `KVIQ`, `MIQ-RS` — motor-imagery questionnaires
-- `MentalChronometry` — imagery vividness via timing
-- `FA-MetricExtraction` — DTI scalar map computation
+- `EEG` - electroencephalography
+- `MI-BCI` - motor-imagery brain-computer interface
+- `TMS`, `rTMS` - transcranial magnetic stimulation (single-pulse, repetitive)
+- `DTI`, `Tractography` - diffusion imaging + fiber tracking
+- `MEP` - motor evoked potential
+- `FuglMeyer`, `ARAT`, `BoxAndBlocks` - upper-limb motor outcome scales
+- `KVIQ`, `MIQ-RS` - motor-imagery questionnaires
+- `MentalChronometry` - imagery vividness via timing
+- `FA-MetricExtraction` - DTI scalar map computation
 
 ---
 
@@ -89,11 +89,11 @@ extraction tables:
 
 | Scale | What it measures | Typical range |
 |---|---|---|
-| FM-UE | Fugl-Meyer Upper Extremity motor score | 0–66 |
-| ARAT | Action Research Arm Test | 0–57 |
-| BBT | Box and Block Test (blocks/min) | 0–~80 |
+| FM-UE | Fugl-Meyer Upper Extremity motor score | 0-66 |
+| ARAT | Action Research Arm Test | 0-57 |
+| BBT | Box and Block Test (blocks/min) | 0-~80 |
 | NHPT | Nine-Hole Peg Test (seconds) | lower = better |
-| MAS | Modified Ashworth Scale (spasticity) | 0–4 |
+| MAS | Modified Ashworth Scale (spasticity) | 0-4 |
 | MEP amplitude | Cortico-spinal excitability (mV) | continuous |
 
 These also drive `tools/effect_size_aggregator.py` regex matching.
@@ -102,7 +102,7 @@ These also drive `tools/effect_size_aggregator.py` regex matching.
 
 ## Anatomical anchors
 
-Brain structures referenced in DTI / lesion / imaging papers — used
+Brain structures referenced in DTI / lesion / imaging papers - used
 by `tools/dti_aggregator.py` and `tools/brain_atlas_anchor.py`:
 
 - `CorticospinalTract` (CST, pyramidal tract)
@@ -121,11 +121,11 @@ by `tools/dti_aggregator.py` and `tools/brain_atlas_anchor.py`:
 Topics under which clinical / research recommendations are
 aggregated in `wiki/recommendations/`:
 
-- `mi-bci-stroke-rehab` — MI-BCI deployment in stroke rehabilitation
-- `tms-protocols-motor-recovery` — TMS dose-response for motor recovery
-- `tdcs-stroke-protocols` — tDCS adjuvant therapy
-- `dti-biomarkers-prognosis` — DTI as motor-outcome biomarker
-- `imagery-assessment` — KVIQ / MIQ-RS administration
+- `mi-bci-stroke-rehab` - MI-BCI deployment in stroke rehabilitation
+- `tms-protocols-motor-recovery` - TMS dose-response for motor recovery
+- `tdcs-stroke-protocols` - tDCS adjuvant therapy
+- `dti-biomarkers-prognosis` - DTI as motor-outcome biomarker
+- `imagery-assessment` - KVIQ / MIQ-RS administration
 
 ---
 
@@ -135,11 +135,11 @@ aggregated in `wiki/recommendations/`:
   established. Don't drop the original RCT just because a recent
   meta-analysis covers it.
 - **Always distinguish acute / subacute / chronic stroke** when
-  reporting outcomes — recovery dynamics differ profoundly.
+  reporting outcomes - recovery dynamics differ profoundly.
 - **Flag ipsilesional vs contralesional** stimulation targets in
   TMS / tDCS protocols.
 - **Quote dose parameters verbatim** for stimulation protocols
-  (frequency, intensity, sessions, train duration) — never paraphrase.
+  (frequency, intensity, sessions, train duration) - never paraphrase.
 - **DTI metrics**: FA / MD / AD / RD reported with the tract they
   qualify; never report a bare FA value without the ROI / tract name.
 
@@ -160,6 +160,6 @@ session. The taxonomies above drive:
 - Concept-name suggestions in `docs/conventions/naming.md`
 
 If you change this file, also review whether the **code-level**
-routing in `tools/organize_sources.py` needs an update — that file
+routing in `tools/organize_sources.py` needs an update - that file
 is the only hardcoded mirror of this taxonomy in Python source.
 See `docs/context/README.md` for the full adaptation checklist.

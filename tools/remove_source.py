@@ -38,7 +38,7 @@ Safety
 - `--strict` removes orphaned sub-claim bullets in concept pages
   (bullets where `[[<slug>]]` was the SOLE supporting source). Without
   --strict, the wikilink is removed but the surrounding sentence /
-  bullet is kept (which may produce dangling claims — manual review
+  bullet is kept (which may produce dangling claims - manual review
   needed).
 """
 import argparse
@@ -122,7 +122,7 @@ def remove_wikilink(line, slug, strict=False):
     """Remove `[[slug]]` from a line. Returns (new_line, drop_line_bool).
 
     Heuristics for dropping:
-    - If line is a bullet of the form "- [[slug]] (p. ?) — …"
+    - If line is a bullet of the form "- [[slug]] (p. ?) - …"
       and slug was the SOLE wikilink, drop the bullet (strict).
     - Otherwise, just remove the [[slug]] token, leaving the rest.
     """

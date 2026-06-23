@@ -1,6 +1,6 @@
 # Academic Book Template
 
-Used by default for sources in `raw/<vault>/books/*` — academic monographs,
+Used by default for sources in `raw/<vault>/books/*` - academic monographs,
 edited volumes, handbooks, textbooks, scholarly conference
 proceedings published as books.
 
@@ -16,10 +16,10 @@ documented under "Chapter sub-sources" below. The parent's
 the parent and live on the chapter pages instead.
 
 For short books or single-author monographs (< 150 pages, unified
-narrative), ingest as a single source — fill the full template below.
+narrative), ingest as a single source - fill the full template below.
 
 The Indirect Citation Rule and the Depth & Completeness Rules apply
-throughout — see `docs/rules/citation.md` and
+throughout - see `docs/rules/citation.md` and
 `docs/rules/depth-completeness.md`.
 
 ## Frontmatter
@@ -33,7 +33,7 @@ tags: [book]                 # add [edited-volume], [handbook], [textbook], [mon
 date: YYYY-MM-DD             # ingest date
 source_file: raw/<vault>/books/<slug>.md
 
-# Authorship — mutually exclusive in usage
+# Authorship - mutually exclusive in usage
 authors: ["First Last"]      # for authored monographs / textbooks
 editors: []                  # for edited volumes / handbooks (leave authors: [] then)
 year: 2024
@@ -41,7 +41,7 @@ edition: ""                  # e.g. "2nd", "3rd revised", empty if first edition
 
 # Publication
 publisher: "Publisher Name"
-publisher_place: ""          # city — e.g. "Cambridge, MA" or "Berlin"
+publisher_place: ""          # city - e.g. "Cambridge, MA" or "Berlin"
 series: ""                   # e.g. "Springer Handbooks of Neuroscience"
 series_editors: []
 series_volume: ""            # if part of a numbered series
@@ -51,7 +51,7 @@ isbn: ""                     # ISBN-13 preferred, ISBN-10 acceptable
 doi: ""                      # increasingly common for scholarly books (e.g. Springer, Routledge)
 oclc: ""                     # WorldCat OCLC number, optional
 source_pdf: ""               # set if the book originated as a PDF (scanned / publisher PDF)
-source_epub: ""              # set if the book originated as an EPUB (preferred — preserves
+source_epub: ""              # set if the book originated as an EPUB (preferred - preserves
                              # chapter structure, OPF metadata; converted by pdf2md/epub2md.py)
 
 # Study metadata (often multi-method across chapters)
@@ -65,7 +65,7 @@ intervention_family: ""
 
 # Quality signals
 peer_reviewed: false         # most academic books are publisher-reviewed,
-                             # not peer-reviewed in the journal sense — set
+                             # not peer-reviewed in the journal sense - set
                              # true only for series with explicit peer review
                              # (e.g. Cambridge University Press monograph series)
 publisher_reviewed: true     # editorial / publisher review (default for academic books)
@@ -96,23 +96,23 @@ volumes, the editors' introduction often serves this role.
   to existing literature (p. ?)
 
 ## Theoretical Framework
-- Anchored in [[ConceptName]] — how the book builds on it (p. ?)
+- Anchored in [[ConceptName]] - how the book builds on it (p. ?)
 - Contributes to [[FrameworkName]]
 - For textbooks: the canonical model the book teaches (p. ?)
 
 ## Table of Contents
 
-### Part I — <part title>
+### Part I - <part title>
 
-#### Chapter X — <title> (p. NN-NN)
+#### Chapter X - <title> (p. NN-NN)
 - **Author(s)** (for edited volumes): First Last, First Last
 - **Topic**: ...
 - **Key concepts introduced**: → [[ConceptName]]
 - **Key methods discussed**: → [[methods/...]]
 - **Key findings / claims**: ... (p. ?)
 
-*(Repeat for every chapter — exhaustive enumeration per the Depth
-& Completeness Rule, not "Chapters 3–7 cover ...")*
+*(Repeat for every chapter - exhaustive enumeration per the Depth
+& Completeness Rule, not "Chapters 3-7 cover ...")*
 
 ## Cross-Chapter Synthesis
 The book's overall argument, integrating chapters. For edited volumes,
@@ -122,7 +122,7 @@ the editorial through-line (p. ?).
 Books often serve as the primary citable source for foundational
 definitions. Capture verbatim:
 
-> "Definition or equation verbatim" — p. N (Chapter X, §Y)
+> "Definition or equation verbatim" - p. N (Chapter X, §Y)
 
 These become the citable definition for [[ConceptName]] pages.
 
@@ -133,13 +133,13 @@ These become the citable definition for [[ConceptName]] pages.
 
 ## Limitations / Critiques
 - Acknowledged by author(s): ... (p. ?)
-- Known critiques in the literature (if applicable): ... — see
+- Known critiques in the literature (if applicable): ... - see
   [[critique-source-slug]]
 
 ## Notable References (citation snowball)
 High-value references this book builds on. For edited volumes,
 collect the most-cited references across chapters. Format:
-- *Author, A. (Year).* Title. *Journal*, V(I), pp. — relevance
+- *Author, A. (Year).* Title. *Journal*, V(I), pp. - relevance
 - ☐ not yet in wiki
 - ✓ [[already-ingested-slug]]
 
@@ -157,14 +157,14 @@ otherwise.
 book's DOI or ISBN.)*
 
 ## Verbatim Quotes
-> "..." — p. N (Chapter X)
+> "..." - p. N (Chapter X)
 
 ## Connections
-- [[EditorName]] — editor (for edited volumes)
-- [[AuthorName]] — author (for monographs)
-- [[ConceptName]] — central concept the book establishes
-- [[methods/MethodName]] — method canonically described here
-- [[series/SeriesName]] — sibling volumes in the series
+- [[EditorName]] - editor (for edited volumes)
+- [[AuthorName]] - author (for monographs)
+- [[ConceptName]] - central concept the book establishes
+- [[methods/MethodName]] - method canonically described here
+- [[series/SeriesName]] - sibling volumes in the series
 
 ## Contradictions / Agreements
 - ...
@@ -178,7 +178,7 @@ book's DOI or ISBN.)*
 > Last, F. M., & Last, F. M. (Eds.). (Year). *Book title* (Edition ed.). Publisher.
 
 **APA** (chapter in edited volume): 
-> Last, F. M. (Year). Chapter title. In F. M. Editor & F. M. Editor (Eds.), *Book title* (pp. NN–NN). Publisher.
+> Last, F. M. (Year). Chapter title. In F. M. Editor & F. M. Editor (Eds.), *Book title* (pp. NN-NN). Publisher.
 
 **BibTeX** (authored monograph):
 ```bibtex
@@ -205,7 +205,7 @@ book's DOI or ISBN.)*
 }
 ```
 
-**BibTeX** (single chapter from edited volume — used on chapter sub-source pages):
+**BibTeX** (single chapter from edited volume - used on chapter sub-source pages):
 ```bibtex
 @incollection{<bibtex_key>,
   author    = {Last, First},
@@ -241,7 +241,7 @@ bibtex_type: "incollection"         # overrides the default @article
 
 The chapter's `citation_apa` and BibTeX entry should follow the
 "chapter in edited volume" formats above. The chapter's `authors:`
-remain the chapter authors — `book_editors` is separate metadata so
+remain the chapter authors - `book_editors` is separate metadata so
 the citation generator can format both correctly.
 
 ## When to use this template vs. another

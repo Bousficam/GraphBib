@@ -9,7 +9,7 @@ This template extends `source-academic-paper.md` with PRISMA-aware
 sections and stricter expectations on review-specific content (search
 strategy, risk of bias, pooled effects). The Indirect Citation Rule
 (`docs/rules/citation.md`) and Depth & Completeness Rules
-(`docs/rules/depth-completeness.md`) apply throughout — every cited
+(`docs/rules/depth-completeness.md`) apply throughout - every cited
 study is a primary source whose claim must be attributed to that study,
 not to the review.
 
@@ -34,7 +34,7 @@ review_protocol: ""                  # PROSPERO / OSF registration ID
 prisma_compliant: true
 n_studies_included: 0
 n_participants_total:
-date_range: "1990–2023"              # span of included studies
+date_range: "1990-2023"              # span of included studies
 domain: []
 methods: []                          # measurement methods reviewed
 interventions: []
@@ -54,13 +54,13 @@ cites: []
 
 ```markdown
 ## Summary
-2–4 sentence neutral summary including the review's question, methods,
+2-4 sentence neutral summary including the review's question, methods,
 and headline finding (with effect size if a meta-analysis).
 
 ## Introduction
 
 ### Background (from cited literature)
-Exhaustive — see `docs/rules/citation.md` (Knowledge construction from
+Exhaustive - see `docs/rules/citation.md` (Knowledge construction from
 introductions). Reviews typically have a denser intro than empirical
 papers (20+ bullets common). Each bullet cites the original Y per the
 Indirect Citation Rule.
@@ -83,7 +83,7 @@ last review).
 
 ### Search Strategy
 - **Databases**: PubMed, Embase, Cochrane CENTRAL, Web of Science, etc.
-- **Date range**: from–to.
+- **Date range**: from-to.
 - **Search terms / MeSH headings**: full block if reproducible.
 - **Filters**: language, study type.
 - **Date last searched**: YYYY-MM-DD.
@@ -120,9 +120,9 @@ last review).
 
 ### Data Synthesis
 - **Qualitative synthesis**: narrative grouping by ...
-- **Quantitative synthesis (meta-analysis)** — only if pooling:
+- **Quantitative synthesis (meta-analysis)** - only if pooling:
   - Effect measure (RR, OR, SMD, MD, Hedges' g).
-  - Pooling model (fixed effect / random effects, DerSimonian–Laird,
+  - Pooling model (fixed effect / random effects, DerSimonian-Laird,
     REML, …).
   - Software (RevMan, R metafor, Stata).
 
@@ -144,7 +144,7 @@ last review).
 - Records excluded with reasons.
 - Full-text articles assessed for eligibility.
 - Studies included in qualitative synthesis (N).
-- Studies included in quantitative synthesis (N) — meta-analysis only.
+- Studies included in quantitative synthesis (N) - meta-analysis only.
 
 ### Characteristics of Included Studies
 Either prose summary OR a representative table:
@@ -161,13 +161,13 @@ Each row links to the source page if the included study is in the wiki
 - Per-study RoB judgments (table or prose).
 - Overall: how many studies low / some-concerns / high RoB per domain.
 
-### Primary Outcome — Pooled Effect (meta-analysis only)
+### Primary Outcome - Pooled Effect (meta-analysis only)
 - Effect estimate, 95 % CI, p-value.
 - Number of studies, total N.
 - I² heterogeneity.
 - Verbatim with page reference.
 
-### Secondary Outcomes — Pooled Effects
+### Secondary Outcomes - Pooled Effects
 - Each one: effect estimate, CI, n_studies, I².
 
 ### Subgroup / Sensitivity Analyses
@@ -186,13 +186,13 @@ Each row links to the source page if the included study is in the wiki
 ## Discussion
 
 ### Summary of Evidence
-- 2–3 sentences quoting authors' framing of what the review found.
+- 2-3 sentences quoting authors' framing of what the review found.
 
 ### Comparison with Prior Reviews
 Apply the Indirect Citation Rule:
-- Aligns with [[review-a]] (p. ?) on … — reported via this review's
+- Aligns with [[review-a]] (p. ?) on … - reported via this review's
   discussion (p. ?).
-- Differs from [[review-b]] (p. ?) on … — reported via this review's
+- Differs from [[review-b]] (p. ?) on … - reported via this review's
   discussion (p. ?).
 
 ### Interpretation
@@ -215,7 +215,7 @@ Authors' interpretation in terms of [[ConceptName]] / [[FrameworkName]].
 - Open questions raised → routed to `wiki/questions/<slug>.md`.
 
 ## Recommendations / Implications
-Routed to `wiki/recommendations/<topic>.md`. Often a SR/MA produces 1–5
+Routed to `wiki/recommendations/<topic>.md`. Often a SR/MA produces 1-5
 direct recommendations.
 
 ## Reporting Standard Alignment
@@ -235,9 +235,9 @@ snowball candidate.
 *(Auto-populated.)*
 
 ## Connections
-- [[ConceptName]] — central concept.
-- [[methods/MethodName]] — methods aggregated.
-- [[interventions/<slug>]] — therapy family.
+- [[ConceptName]] - central concept.
+- [[methods/MethodName]] - methods aggregated.
+- [[interventions/<slug>]] - therapy family.
 
 ## Contradictions / Agreements
 - Contradicts [[OtherReview]] on …

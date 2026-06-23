@@ -194,7 +194,7 @@ last_updated: {today}
 
         # Update index
         index_content = read_file(INDEX_FILE)
-        entry = f"- [{question[:60]}]({save_path}) — synthesis"
+        entry = f"- [{question[:60]}]({save_path}) - synthesis"
         if "## Syntheses" in index_content:
             index_content = index_content.replace("## Syntheses\n", f"## Syntheses\n{entry}\n")
             INDEX_FILE.write_text(index_content, encoding="utf-8")
