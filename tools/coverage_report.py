@@ -59,7 +59,7 @@ def walk_dir(subdir):
     if not d.is_dir():
         return []
     out = []
-    for p in sorted(d.glob("*.md")):
+    for p in sorted(d.rglob("*.md")):
         text = p.read_text(encoding="utf-8")
         fm, body = parse_fm(text)
         out.append({"slug": p.stem, "path": p, "fm": fm, "body": body, "wc": word_count(body)})

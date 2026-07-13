@@ -195,6 +195,14 @@ def _apply_rename(finding: dict, dry_run: bool) -> list[str]:
 
     triple = _triple_paths(canon)
     for old in triple:
+        try:
+            old.relative_to(REPO_ROOT)
+        except ValueError:
+            # Pointer resolves outside the repo (e.g. an absolute path into
+            # an external library such as an ownCloud master copy). Never
+            # rename files we don't own - surface for manual reconciliation.
+            actions.append(f"SKIP  {old} (outside repo - external file, not renamed)")
+            continue
         if old.is_dir():
             new = old.parent / f"{slug}{IMG_SUFFIX}"
         else:
@@ -255,7 +263,14 @@ def main():
     if by_status["rename"]:
         print("== rename ==")
         for f in by_status["rename"]:
-            print(f"  {f['slug']:<35}  raw: {f['canon'].relative_to(REPO_ROOT)}")
+            try:
+                canon_display = f['canon'].relative_to(REPO_ROOT)
+            except ValueError:
+                # canon pointer resolves outside the repo (e.g. an absolute
+                # path into an external library such as an ownCloud master
+                # copy) - show it as-is instead of crashing.
+                canon_display = f['canon']
+            print(f"  {f['slug']:<35}  raw: {canon_display}")
             if args.apply:
                 for a in _apply_rename(f, dry_run=False):
                     print(f"     {a}")

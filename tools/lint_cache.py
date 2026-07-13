@@ -39,9 +39,9 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).parent.parent
-WIKI_DIR = REPO_ROOT / "wiki"
-SRC_DIR = WIKI_DIR / "sources"
+sys.path.insert(0, str(Path(__file__).parent))
+from _lib import REPO_ROOT, WIKI_DIR, SRC_DIR  # noqa: E402
+
 CACHE_DIR = REPO_ROOT / "tools" / ".cache"
 CACHE_FILE = CACHE_DIR / "lint_state.json"
 
