@@ -27,3 +27,6 @@ graph/
 
 # Stray analysis figures - these belong to the Stats project, not here
 *.png
+
+# Local credentials - loaded by tools/_lib.py, never committed
+.env

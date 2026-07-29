@@ -45,6 +45,40 @@ WIKI_ROOT = REPO_ROOT / "wiki"
 RAW_ROOT = REPO_ROOT / "raw"
 DATA_DIR = REPO_ROOT / "tools" / "data"
 DOMAIN_FILE = DATA_DIR / "domain.json"
+ENV_FILE = REPO_ROOT / ".env"
+
+
+def load_local_env(path=ENV_FILE):
+    """Load `KEY=VALUE` lines from a gitignored `.env` at the repo root.
+
+    Credentials (ANTHROPIC_API_KEY, MISTRAL_API_KEY, UNPAYWALL_EMAIL...) must
+    never be committed, and a shell export only lives as long as one terminal.
+    A gitignored `.env` gives every tool the same source of truth without the
+    secret ever entering git.
+
+    Already-exported variables win: the file is a fallback, so a one-off
+    `export KEY=... ` on the command line still overrides it. Returns the list
+    of names actually set, for logging - never the values.
+    """
+    if not path.exists():
+        return []
+    loaded = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = value
+            loaded.append(key)
+    return loaded
+
+
+# Import-time side effect, on purpose: every tool in this package imports
+# _lib, so this is the single place where local credentials get wired in.
+load_local_env()
 
 
 def _detect_active_vault():

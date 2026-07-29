@@ -130,7 +130,7 @@ def query(question: str, save_path: str | None = None):
     if not relevant_pages or len(relevant_pages) <= 1:
         print("  selecting relevant pages via API...")
         prompt = f"Given this wiki index:\n\n{index_content}\n\nWhich pages are most relevant to answering: \"{question}\"\n\nReturn ONLY a JSON array of relative file paths (as listed in the index), e.g. [\"sources/foo.md\", \"concepts/Bar.md\"]. Maximum 10 pages."
-        raw = call_llm(prompt, "LLM_MODEL_FAST", "claude-3-5-haiku-latest", max_tokens=512)
+        raw = call_llm(prompt, "LLM_MODEL_FAST", "anthropic/claude-haiku-4-5-20251001", max_tokens=512)
         raw = raw.strip()
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
@@ -165,7 +165,7 @@ Question: {question}
 
 Write a well-structured markdown answer with headers, bullets, and [[wikilink]] citations. At the end, add a ## Sources section listing the pages you drew from.
 """
-    answer = call_llm(prompt, "LLM_MODEL", "claude-3-5-sonnet-latest", max_tokens=4096)
+    answer = call_llm(prompt, "LLM_MODEL", "anthropic/claude-sonnet-5", max_tokens=4096)
     print("\n" + "=" * 60)
     print(answer)
     print("=" * 60)

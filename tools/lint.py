@@ -11,7 +11,8 @@ Usage:
 Checks:
   - Orphan pages (no inbound wikilinks from other pages)
   - Broken wikilinks (pointing to pages that don't exist)
-  - Missing entity pages (entities mentioned in 3+ pages but no page)
+  - Missing entity pages - OFF by default, enable with --check-entities
+    (entity pages are not created by default in this wiki)
   - Contradictions between pages
   - Data gaps and suggested new sources
 """
@@ -257,7 +258,15 @@ def check_isolated_communities(graph_data: dict) -> list[dict]:
     return results
 
 
-def run_lint():
+def run_lint(check_entities: bool = False):
+    """Lint the wiki.
+
+    check_entities is OFF by default: entity pages (authors, institutions) are
+    not created by default in this wiki, so a page "missing" for a name
+    mentioned 3+ times is the intended state, not a defect. Flagging it buries
+    the real findings under hundreds of false positives. Pass --check-entities
+    if you deliberately maintain entity hubs.
+    """
     pages = all_wiki_pages()
     today = date.today().isoformat()
 
@@ -270,11 +279,12 @@ def run_lint():
     # Deterministic checks
     orphans = find_orphans(pages)
     broken = find_broken_links(pages)
-    missing_entities = find_missing_entities(pages)
+    missing_entities = find_missing_entities(pages) if check_entities else []
 
     print(f"  orphans: {len(orphans)}")
     print(f"  broken links: {len(broken)}")
-    print(f"  missing entity pages: {len(missing_entities)}")
+    if check_entities:
+        print(f"  missing entity pages: {len(missing_entities)}")
 
     # Link density check
     sparse_pages = check_link_density(pages)
@@ -325,7 +335,7 @@ Return a markdown lint report with these sections:
 
 Be specific - name the exact pages and claims involved.
 """
-    semantic_report = call_llm(prompt, "LLM_MODEL", "claude-3-5-sonnet-latest", max_tokens=3000)
+    semantic_report = call_llm(prompt, "LLM_MODEL", "anthropic/claude-sonnet-5", max_tokens=3000)
 
     # Compose full report
     report_lines = [
@@ -351,7 +361,7 @@ Be specific - name the exact pages and claims involved.
 
     if missing_entities:
         report_lines.append("### Missing Entity Pages (mentioned 3+ times but no page)")
-        report_lines.append("> [!warning] Action Required\n> Run `python3 generate_missing_entities.py` to automatically materialize these missing hubs.")
+        report_lines.append("> [!note]\n> Only reported because --check-entities was passed. Entity pages are OFF by default in this wiki; create them by hand for the few names that are themselves subjects of study.")
         for name in missing_entities:
             report_lines.append(f"- `[[{name}]]`")
         report_lines.append("")
@@ -441,9 +451,12 @@ def append_log(entry: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lint the LLM Wiki")
     parser.add_argument("--save", action="store_true", help="Save lint report to wiki/lint-report.md")
+    parser.add_argument("--check-entities", action="store_true",
+                        help="Also report names linked 3+ times that have no page. OFF by default: "
+                             "entity pages are not created by default in this wiki.")
     args = parser.parse_args()
 
-    report = run_lint()
+    report = run_lint(check_entities=args.check_entities)
 
     if args.save and report:
         report_path = WIKI_DIR / "lint-report.md"

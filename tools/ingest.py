@@ -70,7 +70,7 @@ def call_llm(prompt: str, max_tokens: int = 8192) -> str:
         print("Error: litellm not installed. Run: pip install litellm")
         sys.exit(1)
         
-    model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+    model = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-5")
     
     kwargs = {
         "model": model,

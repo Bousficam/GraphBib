@@ -31,7 +31,7 @@ ENTITIES_DIR = WIKI_DIR / "entities"
 def call_llm(prompt: str, max_tokens: int = 1500) -> str:
     # Use litellm standard environment variables
     # e.g., GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY
-    model = os.getenv("LLM_MODEL", "claude-3-5-haiku-latest") # default to fast model
+    model = os.getenv("LLM_MODEL", "anthropic/claude-haiku-4-5-20251001") # default to fast model
     
     response = completion(
         model=model,
