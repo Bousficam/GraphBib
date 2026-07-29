@@ -41,9 +41,9 @@ Wiki and raw share the SAME vault name because raw is the input and
 wiki is the ingested output of the SAME research domain. Setting
 `$WIKI_VAULT=BCINET` resolves both `wiki/BCINET/` and `raw/BCINET/`.
 
-The `project-review/` orchestrator is independent (see
-`/extractor-init`) - it has its own vault scoping and is NOT created
-or read by this command.
+The systematic-review orchestrator has moved to the sibling repo
+`../TallyBib/` (`project-review/`, `/extractor-init`) - it has its own
+vault scoping and is NOT created or read by this command.
 
 # Procedure
 
@@ -65,7 +65,7 @@ Refuse names that:
   `recommendations`, `questions`, `syntheses`, `entities`,
   `interventions`, `index`, `log`, `overview`
 - Are repo top-level dirs: `raw`, `pdf2md`, `tools`, `docs`,
-  `.claude`, `graph`, `project-review`, `wiki`
+  `.claude`, `graph`, `wiki`
 
 ## Step 2 - Detect existing layout
 

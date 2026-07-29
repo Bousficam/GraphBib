@@ -17,16 +17,16 @@ beforehand:
 
 ## Steps (in order)
 
-### 1 — Read the source
+### 1 - Read the source
 
 Read the source file fully via the Read tool (auto-convert non-markdown).
 
-### 2 — Read context
+### 2 - Read context
 
 `wiki/index.md`, `wiki/overview.md`, plus any obviously related
 concept / method pages already in the wiki.
 
-### 3 — Choose the source template
+### 3 - Choose the source template
 
 Pick by *study design* (visible in title / abstract / methods cues),
 then **read the template file before writing**:
@@ -64,12 +64,12 @@ self-critique gate) and `docs/rules/citation.md` (Indirect Citation
 Rule, `reported via [[X]]` provenance, knowledge construction from
 introductions).
 
-### 4 — Generate citation_apa and bibtex_key
+### 4 - Generate citation_apa and bibtex_key
 
 From the frontmatter (`authors`, `year`, `title`, `journal` or
 `university`, `doi`). APA 7.
 
-### 5 — Write the source page to its thematic destination
+### 5 - Write the source page to its thematic destination
 
 Apply the routing rule from `docs/workflows/source-organization.md`:
 
@@ -83,13 +83,13 @@ Apply the routing rule from `docs/workflows/source-organization.md`:
 
 Apply the Citation Rule strictly. Distinguish
 `## Background (from cited literature)` from `## Results (this paper's
-findings)` — the **Indirect Citation Rule** applies.
+findings)` - the **Indirect Citation Rule** applies.
 
 Set `intervention_family` (principal therapy) and `intervention_subfamily`
-(paradigm — `mi-bci`, `rtms`, `itbs`, …) so `tools/organize_sources.py`
+(paradigm - `mi-bci`, `rtms`, `itbs`, …) so `tools/organize_sources.py`
 can later promote subfamilies to tier-2 folders.
 
-### 6 — Parse references
+### 6 - Parse references
 
 Run `tools/parse_references.py`: extract DOIs from the source's
 `## References` / `## Bibliography`, populate `cites:` in the
@@ -98,10 +98,10 @@ raw DOIs for snowball candidates.
 
 The script has three phases (each opt-in):
 
-- default — regex extraction (offline, fast).
-- `--validate` — checks each extracted DOI against Crossref; invalid
+- default - regex extraction (offline, fast).
+- `--validate` - checks each extracted DOI against Crossref; invalid
   DOIs (often broken at line breaks by marker) are dropped.
-- `--curate` — for entries with no valid DOI, runs a Crossref
+- `--curate` - for entries with no valid DOI, runs a Crossref
   bibliographic free-text search to recover the canonical DOI;
   accepted only when relevance score and title overlap pass thresholds.
   Recovered DOIs are tracked separately in `cites_curated:` for audit.
@@ -115,14 +115,23 @@ python tools/parse_references.py --curate --all wiki/sources/
 A local cache (`tools/.cache/doi_validation.json`) makes re-runs nearly
 free.
 
-### 7 — Update entity pages — MANDATORY
+### 7 - Entity pages - OFF BY DEFAULT (opt-in)
 
-Every paper has at least one author. Create or update
-`wiki/entities/<FirstAuthor>.md` and the institution page when
-identifiable. **A wiki with zero entities after multiple ingests means
-this step is being silently skipped — do not let that happen.**
+**Do NOT create author or institution entity pages by default.**
+Authorship is already captured verbatim in the source page's
+`authors:` / `editors:` frontmatter, which is sufficient for
+attribution and citation. Creating an `wiki/entities/<Author>.md` for
+every author bloats the graph with hundreds of low-signal stubs.
 
-### 8 — Update concept pages
+Only create or update an entity page when **explicitly requested** by
+the user, or when an author/institution is itself a *subject* of the
+wiki (e.g. a named protocol, lab, or person the research is *about* - 
+not merely a paper's author). When in doubt, skip it.
+
+If an entity page already exists, you may add the new source to its
+`## Sources in This Wiki` list, but do not create new ones.
+
+### 8 - Update concept pages
 
 For each key concept discussed, **read the existing page and ADD to
 it** (sub-claim under `## Empirical Evidence`, variant under
@@ -130,16 +139,16 @@ it** (sub-claim under `## Empirical Evidence`, variant under
 Verifying the page exists is NOT enough; it must be extended with this
 source's contribution.
 
-### 9 — Update method pages
+### 9 - Update method pages
 
 For each method in the source's `methods:` frontmatter, the
 `## Used In This Wiki` entry MUST include a 2-sentence description of
 HOW THIS PAPER USED IT (parameters, sample, deviations from standard)
-— not a bare wikilink. **Reminder**: methods are *measurement
+ - not a bare wikilink. **Reminder**: methods are *measurement
 instruments* (EEG, FuglMeyer, MEP, KVIQ). Treatments belong on
-intervention pages — see 9b.
+intervention pages - see 9b.
 
-### 9b — Update intervention pages
+### 9b - Update intervention pages
 
 If the source describes a therapeutic intervention (BCI, TMS, mirror
 therapy, robot training, …), ensure
@@ -149,7 +158,7 @@ intervention page can aggregate. When ≥ 2 sources share an
 `intervention_family`, the intervention page should reach full depth
 (Definition → Identified Studies → Pooled Outcomes → Best Practices).
 
-### 10 — Update recommendation pages
+### 10 - Update recommendation pages
 
 If the source proposes recommendations, route them to
 `wiki/recommendations/<topic>.md` (create if needed) under the
@@ -162,29 +171,29 @@ recommendation tables (don't summarize), preserve evidence levels
 condition / protocol family. See `docs/rules/depth-completeness.md` →
 *Guidelines, meta-analyses, consensus statements*.
 
-### 11 — Update question pages
+### 11 - Update question pages
 
 If the source identifies an open question or explicit gap, append to
 `wiki/questions/<slug>.md` (create if needed).
 
-### 12 — Flag contradictions
+### 12 - Flag contradictions
 
 Flag contradictions with existing wiki content explicitly, with page
 numbers on both sides.
 
-### 13 — Update wiki/index.md
+### 13 - Update wiki/index.md
 
 Add entries under all touched sections.
 
-### 14 — Update wiki/overview.md
+### 14 - Update wiki/overview.md
 
 Update only if the synthesis warrants revision.
 
-### 15 — Append to wiki/log.md
+### 15 - Append to wiki/log.md
 
 Format: `## [YYYY-MM-DD] ingest | <Title>`.
 
-### 16 — Post-ingest validation + Self-critique gate
+### 16 - Post-ingest validation + Self-critique gate
 
 First run the **Self-critique gate** defined in
 `docs/rules/depth-completeness.md` (re-read source page, verify
@@ -197,12 +206,12 @@ sections wiki-wide, and print a change summary including counts:
 *N concepts updated, M methods touched, K recommendations refined,
 J snowball candidates surfaced*.
 
-## For theses specifically — citation snowball
+## For theses specifically - citation snowball
 
 Theses are dense citation hubs. After ingesting a thesis:
 
 - **Surface high-value references** in the `## Notable References`
-  section of the source page (10–30 references the thesis builds on
+  section of the source page (10-30 references the thesis builds on
   heavily).
 - **Suggest snowball ingestion**: at the end of the post-ingest
   summary, list the references *not yet in the wiki* and ask the user

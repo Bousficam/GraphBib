@@ -10,23 +10,62 @@ it produces the input that the Ingest Workflow consumes.
 
 ## Phases (PDFs)
 
-1. **Marker conversion** (`pdf2md/pdf2md_marker.py SRC DST`) - 
-   high-fidelity PDF → Markdown, mirrored arborescence, idempotent.
-   Writes `marker_report.json`.
+1. **Mistral OCR - the default converter**
+   (`pdf2md/pdf2md_mistral.py SRC DST [--files a.pdf b.pdf]`) - Mistral
+   Document AI. Needs `MISTRAL_API_KEY` (free experimental at
+   `console.mistral.ai`; script prompts if missing). Writes
+   `mistral_report.json`. **Run this first** unless the user asks
+   otherwise.
 
-2. **Mistral OCR (opt-in)** (`pdf2md/pdf2md_mistral.py SRC DST`) - 
-   retries marker `errors`/`suspicious` via Mistral Document AI.
-   Better on tables, equations, scans. Needs `MISTRAL_API_KEY` (free
-   experimental at `console.mistral.ai`; script prompts if missing).
-   Writes `mistral_report.json`. Skip if no key.
+   *Why it is the default:* on a laptop CPU, marker runs roughly 40 min
+   per paper (measured: 5 h 26 for two 17-page articles), Mistral about
+   5 s. For a batch of any size, marker-first means the user waits
+   hours before ingestion can even start.
+
+   *What it costs:* Mistral is the better of the two on tables (it
+   recovers tables with vertically-set headers that marker shreds
+   character by character) and the worse on math - it corrupts
+   superscripts and subscripts (observed: `2^36` rendered `2^90`,
+   `(3!)^5` rendered `(3)^15`). Marker is the reverse.
+
+2. **Marker conversion - opt-in, high-fidelity math pass**
+   (`pdf2md/pdf2md_marker.py SRC DST`) - mirrored arborescence,
+   idempotent, and the only backend that extracts figures into
+   `<slug>_images/`. Writes `marker_report.json`. Run it when:
+   - the source is math-heavy and exact exponents/matrix notation matter;
+   - the ingest flagged unreadable formulas (see below);
+   - figures are wanted on the source page (`source-illustrator` needs
+     `<slug>_images/`).
+
+   Because it is slow, launch it **in the background** (overnight for a
+   batch) against a scratch DST, then reconcile: keep whichever
+   conversion is better per artefact, or re-run `source-extender` on the
+   affected source pages once the faithful math is available.
 
 3. **Fallback** (`pdf2md/pdf2md_fallback.py SRC DST`) - last resort,
    pymupdf4llm. Writes `fallback_report.json`.
+
+**Tell the ingester what it is reading.** Whichever backend produced the
+markdown, the ingest MUST flag rather than guess: any exponent, index or
+table cell that is not legible with certainty is reported as unverifiable
+(with the paper's own prose quoted instead), never transcribed on a hunch.
+This is a standing rule in `.claude/agents/ingester.md` > Citation
+discipline; restate the backend used in the ingest prompt so the agent
+knows which failure mode to watch for.
 
 4. **Enrich frontmatter** (`pdf2md/enrich_frontmatter.py DST`) - 
    Crossref lookup populates `title`, `authors`, `journal`, `year`,
    `doi`. Same pass extracts a raw `cites:` list from the References
    section by regex. Writes `enrich_report.json`.
+
+   **The script is not incremental**: it walks DST recursively and
+   re-enriches *every* `.md` it finds, already-enriched ones included.
+   Pointing it at a populated `raw/<vault>/papers/` therefore rewrites
+   hundreds of files and hammers Crossref. For an incremental batch,
+   copy just the new `.md` into a scratch directory, enrich there,
+   **check the resulting `doi:` against the PDF's own first page**, then
+   copy back - `enrich_frontmatter` is known to mis-tag a source with a
+   DOI harvested from one of its cited references.
 
 5. **Validate + curate citations**
    (`tools/parse_references.py --curate --all DST`) - each extracted
@@ -70,11 +109,17 @@ DOI-bearing references.
      4-5 on the produced markdown.
    - Both → ask which to process (or run both in sequence with
      distinct DSTs).
-2. Run Phase 1 (marker) for PDFs, surface `marker_report.json`.
-3. Phase 2 (Mistral) is **opt-in** - if marker left errors/suspicious,
-   ask: *"N entries unprocessed. Run Mistral OCR (free experimental
-   plan, prompts for MISTRAL_API_KEY)? Otherwise go to Phase 3."*.
-4. Run Phase 3 (pymupdf4llm), Phase 4 (enrich) - surface each report.
+2. Run Phase 1 (Mistral) for PDFs, surface `mistral_report.json`. Say
+   in the recap which backend was used and what its known failure mode
+   is, so the user can judge the ingest that follows.
+3. Phase 2 (marker) is **opt-in**. Offer it, do not assume it:
+   *"Mistral converted N PDFs in Ms. Marker is the faithful backend for
+   formulas and the only one that extracts figures, but costs about
+   40 min per paper - launch it in the background on these N?"*. If the
+   corpus is math-heavy or figures are wanted, recommend yes and run it
+   detached rather than blocking the session.
+4. Run Phase 3 (pymupdf4llm) only for PDFs both backends failed on, then
+   Phase 4 (enrich) - surface each report.
 5. For Phase E (EPUBs), check pandoc availability first
    (`which pandoc`). If absent, suggest install (`apt install pandoc`
    / `brew install pandoc`) or fall back to `--engine markitdown`.

@@ -110,6 +110,20 @@ on your watch:
 - Bibliographic frontmatter (`title`, `authors`, `journal`, `year`,
   `doi`) is copied **verbatim** from the source frontmatter - never
   invented.
+- **OCR fidelity - flag, never guess.** The markdown you read is an OCR
+  conversion, not the PDF. Each backend fails differently: Mistral
+  (the default) is strong on tables but mangles superscripts,
+  subscripts and inline math (it can turn `2^36` into `2^90`); marker
+  is faithful on formulas but shreds tables whose headers are set
+  vertically. So: when a specific exponent, index, matrix subscript or
+  table cell is not legible with certainty, write what the paper's own
+  prose says and add an explicit flag in the same sentence, e.g.
+  *"(exponent unreadable in the conversion - verify against the PDF)"*.
+  Never transcribe a value you cannot verify, and never silently drop
+  a table because it converted badly - say so, quote the narrative
+  summary instead, and note it in the Extraction Checklist. A second
+  OCR pass with the other backend usually recovers what the first
+  lost; ask the parent for one rather than inventing numbers.
 
 # Source organization (where to write)
 

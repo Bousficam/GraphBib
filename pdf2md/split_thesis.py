@@ -39,29 +39,67 @@ import yaml
 MIN_CHARS = 1500  # below this a "chapter" is likely a section header in the TOC
 
 NAMED_CHAPTERS = (
-    "introduction",
+    # English (only top-level section names - avoid generic subsection titles
+    # like "Introduction" / "Results" / "Discussion" that recur within each study)
+    "general introduction",
     "literature review",
     "background",
     "theoretical framework",
-    "methods",
-    "methodology",
     "general methods",
-    "results",
-    "discussion",
     "general discussion",
-    "conclusion",
     "general conclusion",
-    "perspectives",
     "references",
     "bibliography",
     "appendix",
     "appendices",
+    "perspectives",
+    # French - top-level section names only
+    "introduction generale",
+    "introduction générale",
+    "cadre theorique",
+    "cadre théorique",
+    "contribution experimentale",
+    "contribution expérimentale",
+    "discussion generale",
+    "discussion générale",
+    "conclusion generale",
+    "conclusion générale",
+    "conclusion et perspectives",
+    "problematique generale",
+    "problématique générale",
+    "remerciements",
+    "resume",
+    "résumé",
+    "abstract",
+    "sommaire",
+    "annexes",
+    "annexe",
+    "references bibliographiques",
+    "références bibliographiques",
 )
 
 CHAPTER_PATTERNS = [
-    re.compile(r"^#\s+(?:chapter|chapitre)\s+(\d{1,2})\b[\s.:—–-]*(.*?)\s*$", re.IGNORECASE),
+    re.compile(r"^#\s+(?:chapter|chapitre)\s+(\d{1,2})\b[\s.:\u2014\u2013-]*(.*?)\s*$", re.IGNORECASE),
     re.compile(r"^#\s+(\d{1,2})\s*[.)\-:]\s+(.+?)\s*$"),
+    # "Etude N" / "Étude N" / "Study N" with arabic numeral
+    re.compile(r"^#\s+(?:etude|étude|study|partie|part|axe)\s+(\d{1,2})\b[\s.:\u2014\u2013-]*(.*?)\s*$", re.IGNORECASE),
+    # "Etude I/II/III" with roman numeral
+    re.compile(r"^#\s+(?:etude|étude|study|partie|part|axe)\s+(I{1,3}|IV|V|VI{0,3}|IX|X)\b[\s.:\u2014\u2013-]*(.*?)\s*$", re.IGNORECASE),
+    # Roman numeral sections: "# I. Title" / "# II. Title"
+    re.compile(r"^#\s+(I{1,3}|IV|V|VI{0,3}|IX|X)\s*[.)\-:]\s+(.+?)\s*$"),
 ]
+
+_STRIP_SPAN = re.compile(r"<span[^>]*>|</span>", re.IGNORECASE)
+_STRIP_BOLD = re.compile(r"\*\*")
+_STRIP_ITALIC = re.compile(r"\*(?!\*)")
+
+
+def _clean_heading(line):
+    """Strip HTML spans and Markdown bold/italic from a heading line."""
+    s = _STRIP_SPAN.sub("", line)
+    s = _STRIP_BOLD.sub("", s)
+    s = _STRIP_ITALIC.sub("", s)
+    return s.strip()
 
 
 def parse_fm(text):
@@ -86,14 +124,22 @@ def detect_chapter_heading(line):
     s = line.strip()
     if not s.startswith("# "):
         return None
+    # Work on cleaned version (strip HTML spans, bold, italic markers)
+    clean = _clean_heading(s)
     for pat in CHAPTER_PATTERNS:
-        m = pat.match(s)
+        m = pat.match(clean)
         if m:
-            num = int(m.group(1))
+            g1 = m.group(1)
+            # Convert roman numerals to int
+            roman = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5,
+                     "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
+            num = roman.get(g1.upper(), None) if not g1.isdigit() else int(g1)
+            if num is None:
+                continue
             title = (m.group(2) or "").strip().rstrip(".:")
             return num, title
-    # Named chapter (without number)
-    body = s[2:].strip().lower().rstrip(":.")
+    # Named chapter (without number) - compare against cleaned body
+    body = clean[2:].strip().lower().rstrip(":.")
     for name in NAMED_CHAPTERS:
         if body == name or body.startswith(name + " "):
             return None, body  # numberless
@@ -124,7 +170,8 @@ def split_into_chapters(body):
                 num = fallback_num
             else:
                 fallback_num = max(fallback_num, num)
-            current_heading = (num, title or line.strip().lstrip("# ").strip(), line)
+            fallback_title = _clean_heading(line).lstrip("# ").strip()
+            current_heading = (num, title or fallback_title, line)
             current_buf = [line]
         else:
             current_buf.append(line)
@@ -183,11 +230,15 @@ def write_chapters(parent_path, parent_fm, chapters, output_dir, dry_run=False):
 
 
 def main():
+    global MIN_CHARS
     ap = argparse.ArgumentParser()
     ap.add_argument("thesis", help="Path to the thesis Markdown file")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--output-dir", help="Override output dir (default: <thesis>/ next to the file)")
+    ap.add_argument("--min-chars", type=int, default=MIN_CHARS,
+                    help=f"Skip chapters shorter than this (default: {MIN_CHARS})")
     args = ap.parse_args()
+    MIN_CHARS = args.min_chars
 
     parent = Path(args.thesis).expanduser().resolve()
     if not parent.is_file():
@@ -208,7 +259,7 @@ def main():
     if skipped:
         print(f"  skipped (< {MIN_CHARS} chars):")
         for num, title, n in skipped:
-            print(f"    ch{num:02d} {title!r} — {n} chars")
+            print(f"    ch{num:02d} {title!r} - {n} chars")
     if preamble.strip():
         print(f"  preamble (front matter / TOC): {len(preamble)} chars left in parent")
 

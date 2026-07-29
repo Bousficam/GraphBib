@@ -82,13 +82,24 @@ MIN_ENTRY_LEN = 30     # too short to curate reliably
 # ---------- frontmatter / parsing -------------------------------------------
 
 def parse_fm(text):
+    """Split a page into (frontmatter dict, body).
+
+    A file that opens with a `---` block but whose YAML does not parse is an
+    error, not a file without frontmatter: returning ({}, text) there would
+    make the caller write a fresh frontmatter block ON TOP of the original,
+    leaving the page with two `---` blocks and dropping every existing field
+    from the new one. Raise instead - the caller reports the file and skips
+    it, leaving the page untouched.
+    """
     if text.startswith("---\n"):
         end = text.find("\n---\n", 4)
         if end != -1:
             try:
                 return yaml.safe_load(text[4:end]) or {}, text[end + 5 :]
-            except Exception:
-                pass
+            except Exception as e:
+                raise ValueError(
+                    f"unparseable YAML frontmatter, file left untouched: {e}"
+                ) from e
     return {}, text
 
 

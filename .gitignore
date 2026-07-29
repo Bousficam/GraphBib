@@ -16,3 +16,14 @@ pdf2md/Split/*
 # If you want to commit a project's spec (contexte/instructions/template)
 # while excluding output/articles, unignore selectively in a sub-.gitignore.
 project-review/*
+
+# Local toolchain / large downloads - never part of the repo
+node-v26.4.0/
+
+# Derived views and operational byproducts of the vault (vault itself is
+# already ignored above); regenerable, and large.
+graph/
+.maintenance/
+
+# Stray analysis figures - these belong to the Stats project, not here
+*.png

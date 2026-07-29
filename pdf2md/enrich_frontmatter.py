@@ -20,7 +20,10 @@ from urllib.parse import quote
 
 import requests
 import yaml
-import fitz  # PyMuPDF, dépendance de marker / pymupdf4llm
+try:
+    import pymupdf as fitz  # PyMuPDF >= 1.24 (new import name)
+except ImportError:
+    import fitz  # PyMuPDF < 1.24 (legacy import name)
 
 DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+\b")
 REF_HEADERS = (

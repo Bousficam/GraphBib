@@ -84,8 +84,6 @@ U+2013) rather than a literal dash character.
 | Long thesis ingestion | `docs/workflows/long-document-ingestion.md` |
 | Source organization | `docs/workflows/source-organization.md` |
 | Conversion pipeline (PDF → MD) | `docs/workflows/conversion.md` |
-| SR data extraction | `docs/workflows/data-extraction.md` |
-| PRISMA screening (T/A + full text) | `docs/workflows/screening.md` |
 | Suggest-readings (snowball + forward) | `docs/workflows/suggest-readings.md` |
 | Query / Review / Cite / Lint / Health / Graph | `docs/workflows/output-workflows.md` |
 | Source + page templates | `docs/templates/*.md` |
@@ -102,7 +100,7 @@ harness surfaces them).
 
 ## Sub-agents
 
-Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
+Thirteen specialists in `.claude/agents/`. Delegate via `Agent` with
 `subagent_type=<name>` when the task fits.
 
 **Wiki side** - knowledge-graph building / maintenance:
@@ -122,13 +120,9 @@ Sixteen specialists in `.claude/agents/`. Delegate via `Agent` with
 - `source-remover` - clean removal + every cross-reference.
 - `deduplicator` - judge redundant concept/method pages, merge or extract.
 
-**Extractor side** - literature-review screening + data extraction:
-- `screener-tiab` - judge ONE article at title/abstract vs PRISMA
-  criteria (haiku, never reads PDFs).
-- `screener-fulltext` - judge ONE article at full text vs PRISMA
-  criteria (sonnet, returns verbatim excerpt + source location for
-  every exclusion).
-- `extractor` - fill ONE cell of a SR data-extraction table.
+The extractor/screening agent (PRISMA screening + SR data extraction,
+formerly `project-review/` + `screener-tiab` / `screener-fulltext` /
+`extractor`) now lives in the sibling repo `../TallyBib/`.
 
 Parent stays orchestrator; sub-agents do the focused work.
 
@@ -153,12 +147,10 @@ session by merging `{"env": {"WIKI_VAULT": "<choice>"}}` into
 block). This avoids re-asking on every tool call and is inherited by
 sub-agents.
 
-The `project-review/<vault>/<name>/` orchestrator (Extractor side)
-is independent of the wiki side - see `docs/workflows/screening.md`
-and `docs/workflows/data-extraction.md`. It has its own vault
-scoping resolved via `$PROJECT_VAULT` or the first path segment
-(e.g. `BCINET/mibci`); it is NOT created or read by `/wiki-init`.
-Sharing a vault name between `wiki/<vault>/` and
-`project-review/<vault>/` is allowed and useful for the same
-research domain, but never enforced - `$WIKI_VAULT` and
-`$PROJECT_VAULT` are deliberately separate env vars.
+The `project-review/<vault>/<name>/` orchestrator has moved to the
+sibling repo `../TallyBib/` and is independent of this wiki - it is
+NOT created or read by `/wiki-init`. Sharing a vault name between
+`wiki/<vault>/` here and `project-review/<vault>/` in TallyBib is
+allowed and useful for the same research domain, but never enforced -
+`$WIKI_VAULT` (this repo) and `$PROJECT_VAULT` (TallyBib) are
+deliberately separate env vars in separate repos.
