@@ -92,12 +92,21 @@ def get_api_key():
     return key
 
 
-def mistral_ocr(pdf_path, api_key, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT):
-    """Send a PDF to Mistral OCR. Returns (markdown_text, error_or_None)."""
+def mistral_ocr(pdf_path, api_key, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT,
+                want_images=True):
+    """Send a PDF to Mistral OCR. Returns (markdown_text, images, error_or_None).
+
+    `images` maps the image id used in the markdown (e.g. "img-3.jpeg") to its
+    raw bytes. The OCR always names its figures in the markdown, but it only
+    ships the bytes when include_image_base64 is requested; asking for them is
+    what makes the `![img-N.jpeg]` references resolve to real files instead of
+    dangling. Mistral also detects vector-drawn figures, which is why this is
+    preferred over pulling embedded bitmaps out of the PDF afterwards.
+    """
     try:
         b64 = base64.b64encode(pdf_path.read_bytes()).decode("ascii")
     except Exception as e:
-        return None, f"read-error: {e!r}"
+        return None, {}, f"read-error: {e!r}"
 
     payload = {
         "model": model,
@@ -105,7 +114,7 @@ def mistral_ocr(pdf_path, api_key, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT)
             "type": "document_url",
             "document_url": f"data:application/pdf;base64,{b64}",
         },
-        "include_image_base64": False,
+        "include_image_base64": bool(want_images),
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -114,35 +123,47 @@ def mistral_ocr(pdf_path, api_key, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT)
     try:
         r = requests.post(API_URL, json=payload, headers=headers, timeout=timeout)
     except requests.exceptions.RequestException as e:
-        return None, f"request-error: {type(e).__name__}: {e}"
+        return None, {}, f"request-error: {type(e).__name__}: {e}"
 
     if r.status_code == 401:
-        return None, "auth-error: invalid MISTRAL_API_KEY"
+        return None, {}, "auth-error: invalid MISTRAL_API_KEY"
     if r.status_code == 429:
-        return None, "rate-limited: 429 (consider increasing --sleep)"
+        return None, {}, "rate-limited: 429 (consider increasing --sleep)"
     if r.status_code >= 400:
-        return None, f"http-{r.status_code}: {r.text[:200]}"
+        return None, {}, f"http-{r.status_code}: {r.text[:200]}"
 
     try:
         data = r.json()
     except ValueError:
-        return None, "non-json response"
+        return None, {}, "non-json response"
 
     pages = data.get("pages") or []
     if not pages:
-        return None, "no pages in response"
+        return None, {}, "no pages in response"
 
-    parts = []
+    parts, images = [], {}
     for p in pages:
         md = p.get("markdown")
         if md is None:
             md = p.get("content") or ""  # API field name fallback
         if md:
             parts.append(md)
+        for im in (p.get("images") or []):
+            name = im.get("id") or im.get("image_name")
+            blob = im.get("image_base64")
+            if not name or not blob:
+                continue
+            # the API may hand back a full data: URI rather than bare base64
+            if "," in blob and blob.lstrip().startswith("data:"):
+                blob = blob.split(",", 1)[1]
+            try:
+                images[name] = base64.b64decode(blob)
+            except Exception:
+                continue
     if not parts:
-        return None, "empty markdown across all pages"
+        return None, images, "empty markdown across all pages"
 
-    return "\n\n".join(parts), None
+    return "\n\n".join(parts), images, None
 
 
 def collect_targets(report_path, src, dst, only_files=None):
@@ -215,7 +236,17 @@ def main():
                     help=f"Mistral OCR model (default {DEFAULT_MODEL})")
     ap.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT,
                     help=f"Per-PDF API timeout in seconds (default {DEFAULT_TIMEOUT})")
+    ap.add_argument("--no-images", action="store_true",
+                    help="Do not request figure images (smaller, faster responses)")
+    ap.add_argument("--images-only", action="store_true",
+                    help="Write only the <stem>_images/ directory and leave an "
+                         "existing .md untouched. Use on sources already "
+                         "ingested, where re-OCR must not alter the text the "
+                         "wiki was built from.")
     args = ap.parse_args()
+
+    if args.images_only and args.no_images:
+        sys.exit("--images-only and --no-images are mutually exclusive.")
 
     src = Path(args.src).expanduser().resolve()
     dst = Path(args.dst).expanduser().resolve()
@@ -254,26 +285,48 @@ def main():
             log.warning(f"  ! source PDF missing: {pdf}")
             continue
 
-        if not args.force and already_mistral(md_path):
+        # --images-only revisits sources on purpose, so the "already converted"
+        # guard would otherwise skip exactly the files we came back for.
+        if not args.force and not args.images_only and already_mistral(md_path):
             stats["skipped"].append({"pdf": str(rel), "reason": "already Mistral"})
             log.info("  · already Mistral-converted, skipping")
             continue
 
-        md_text, err = mistral_ocr(pdf, api_key, model=args.model, timeout=args.timeout)
-        if err:
+        md_text, images, err = mistral_ocr(
+            pdf, api_key, model=args.model, timeout=args.timeout,
+            want_images=not args.no_images)
+        if err and not (args.images_only and images):
             stats["errors"].append({"pdf": str(rel), "error": err})
             log.warning(f"  ✗ {err}")
             time.sleep(args.sleep)
             continue
 
         md_path.parent.mkdir(parents=True, exist_ok=True)
+
+        n_img = 0
+        if images:
+            img_dir = md_path.with_name(md_path.stem + "_images")
+            img_dir.mkdir(parents=True, exist_ok=True)
+            for name, blob in images.items():
+                # the id doubles as the markdown link target, so keep it verbatim
+                (img_dir / Path(name).name).write_bytes(blob)
+                n_img += 1
+
+        if args.images_only:
+            stats["ok"].append({"pdf": str(rel), "images": n_img,
+                                "md": "left untouched"})
+            log.info(f"  ✓ {n_img} image(s) -> {md_path.stem}_images/ (MD untouched)")
+            time.sleep(args.sleep)
+            continue
+
         header = (
             f"---\nsource_pdf: {pdf}\ntitle: {pdf.stem}\n"
             f"backend: mistral\nfallback_from: {t['reason']}\n---\n\n"
         )
         md_path.write_text(header + md_text, encoding="utf-8")
-        stats["ok"].append({"pdf": str(rel), "chars": len(md_text)})
-        log.info(f"  ✓ wrote {md_path.relative_to(dst)} ({len(md_text)} chars)")
+        stats["ok"].append({"pdf": str(rel), "chars": len(md_text), "images": n_img})
+        log.info(f"  ✓ wrote {md_path.relative_to(dst)} "
+                 f"({len(md_text)} chars, {n_img} image(s))")
         time.sleep(args.sleep)
 
     stats["summary"] = {
