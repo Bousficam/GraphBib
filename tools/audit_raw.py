@@ -217,16 +217,41 @@ def _apply_rename(finding: dict, dry_run: bool) -> list[str]:
             old.rename(new)
 
     # Rewrite wiki source frontmatter so source_file / source_pdf point to new path.
+    #
+    # A field is only rewritten when the file it points at was actually renamed
+    # above. Two cases must be left alone, and both used to be silently
+    # rewritten into a dangling pointer:
+    #   - the pointer resolves outside the repo (an external master copy, e.g.
+    #     an ownCloud PDF). The rename loop skips those by design, so pointing
+    #     the frontmatter at "<slug>.pdf" invents a filename that never existed.
+    #   - the rename was skipped because the target already existed.
+    # In both cases the on-disk name is authoritative and the pointer is correct
+    # as written.
     wiki_path = finding.get("wiki_path")
     if wiki_path:
         text = Path(wiki_path).read_text(encoding="utf-8")
         new_text = text
+        rewritten = 0
         for field, old_val in finding.get("fields", []):
             old_p = Path(old_val)
+            abs_old = old_p if old_p.is_absolute() else REPO_ROOT / old_p
+            try:
+                abs_old.relative_to(REPO_ROOT)
+            except ValueError:
+                actions.append(f"SKIP  frontmatter {field} (points outside repo - left as is)")
+                continue
             new_p = old_p.parent / f"{slug}{old_p.suffix}"
+            if new_p == old_p:
+                continue
+            abs_new = new_p if new_p.is_absolute() else REPO_ROOT / new_p
+            # In dry-run the rename has not happened yet, so absence is expected.
+            if not dry_run and not abs_new.exists():
+                actions.append(f"SKIP  frontmatter {field} (target {new_p} does not exist)")
+                continue
             new_text = new_text.replace(old_val, str(new_p), 1)
+            rewritten += 1
         if new_text != text:
-            actions.append(f"FM    {Path(wiki_path).relative_to(REPO_ROOT)} (updated {len(finding['fields'])} field(s))")
+            actions.append(f"FM    {Path(wiki_path).relative_to(REPO_ROOT)} (updated {rewritten} field(s))")
             if not dry_run:
                 Path(wiki_path).write_text(new_text, encoding="utf-8")
     return actions
