@@ -137,6 +137,7 @@ These become the citable definition for [[ConceptName]] pages.
   [[critique-source-slug]]
 
 ## Notable References (citation snowball)
+Filled by `/wiki-snowball <slug>`, not by the ingest.
 High-value references this book builds on. For edited volumes,
 collect the most-cited references across chapters. Format:
 - *Author, A. (Year).* Title. *Journal*, V(I), pp. - relevance
@@ -147,10 +148,11 @@ After ingest, surface the ☐ items and ask the user about snowball
 ingestion.
 
 ## Cites (in-wiki + snowball candidates)
-Auto-populated by `tools/parse_references.py` from the book's
-bibliography (or unionized across chapter bibliographies for edited
-volumes). Wikilinks for sources already in the wiki, raw DOIs
-otherwise.
+**Left empty by the ingest** - the reference list is never read during
+ingestion (`docs/workflows/ingest.md` step 1). Populated later by
+`/wiki-snowball <slug>`, which reads the bibliography from the converted
+article under `raw/`. Wikilinks for sources already in the wiki, raw DOIs
+for the snowball candidates.
 
 ## Cited By
 *(Auto-populated: sources in the wiki whose `cites:` includes this

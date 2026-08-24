@@ -227,7 +227,8 @@ direct recommendations.
 Minimum 3 quotes covering Methods, Results, Discussion (one per section).
 
 ## Cites (in-wiki + snowball candidates)
-For SRs, the `cites:` list is large (every included study is a
+**Left empty by the ingest**; filled by `/wiki-snowball <slug>`. For SRs, the
+`cites:` list is large (every included study is a
 candidate). Each included study NOT in the wiki is a high-priority
 snowball candidate.
 

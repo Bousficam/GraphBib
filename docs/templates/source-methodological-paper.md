@@ -172,7 +172,8 @@ pseudo-code or block diagrams, reproduce the structure.
 Minimum 3 quotes from distinct sections.
 
 ## Cites (in-wiki + snowball candidates)
-Methodological papers often cite a small number of foundational works
+**Left empty by the ingest**; filled by `/wiki-snowball <slug>`. Methodological
+papers often cite a small number of foundational works
 densely. These are high-priority snowball candidates.
 
 ## Cited By

@@ -35,12 +35,27 @@ Run these unconditionally - they are safe, deterministic, idempotent:
 
 ```bash
 python tools/update_cited_by.py
-python tools/parse_references.py --validate --all wiki/sources/
+python tools/parse_references.py --validate --refs-from-raw --all wiki/sources/
 python tools/organize_sources.py --promote --threshold 3
 python tools/audit_raw.py --apply
 python tools/strip_em_dash.py
+python tools/verify_doi.py --all --warn-only
 python tools/coverage_report.py --save
 ```
+
+`--refs-from-raw` matters: ingestion never copies a bibliography onto a
+wiki page (`docs/workflows/ingest.md` step 1), so the reference list is
+read from the converted article named by each page's `source_file:`.
+Without the flag the pass finds nothing. Never point the tool AT a file
+under `raw/` - it writes frontmatter, and `raw/` is immutable.
+
+`verify_doi.py` is read-only: it re-checks every source page's `doi:`
+against Crossref (title, first author, year) and never edits. Route its
+findings like lint findings - a `doi_title_mismatch` or `doi_duplicate`
+is a user decision (wrong paper, or the same paper ingested twice), a
+`doi_author_mismatch` / `doi_year_mismatch` is a frontmatter typo you
+can fix yourself. It shares the Crossref cache, so the sweep is nearly
+free after the first run.
 
 Report what each did (counts of moved files, validated DOIs, raws
 renamed to match their slug, em dashes replaced, etc.). `strip_em_dash.py`
@@ -61,7 +76,7 @@ For each lint finding, route to a specialist:
 | Concept page with `concept_stub_priority` (stub but ≥ 3 sources) | `Agent(subagent_type=concept-builder, prompt="Extend <ConceptName>")` |
 | Concept page chapter-depth (≥ 1500 words, check `wc -w`) with zero figures (no `![]` syntax in body) AND ≥ 2 cited sources have a `## Figures` section | `Agent(subagent_type=concept-illustrator, prompt="Illustrate <ConceptName>")` |
 | Method page with `method_bare_wikilinks` | Re-run the affected sources via `source-extender` (per-source descriptions are written there, not on method pages) |
-| `cites_unresolved_high` on a source | Run `python tools/parse_references.py --curate <source-md>` |
+| `cites_unresolved_high` on a source | Run `python tools/parse_references.py --curate --refs-from-raw <wiki-source-page>` |
 
 Process up to 5 per kind in parallel-feeling sequence (one delegation
 at a time; just don't let one slow source block the rest).
@@ -77,6 +92,7 @@ list and WAIT for confirmation:
 | `wrong_folder` for several sources (e.g. articles/general/ but family=BCI) | Propose `python tools/organize_sources.py --dry-run` then apply. User confirms. |
 | `cross_source_contradiction` not flagged | Surface the contradiction; user reads both papers and decides whose claim wins, or marks both with explicit `## Contradictions / Agreements` notes. |
 | Sources with `consort_compliance: BLOCKING` | Surface the missing items (allocation concealment, blinding); user manually adds notes if the paper genuinely doesn't report them. |
+| `audit_raw` reports `external` | No action, and never run `--apply` hoping to clear it. The raw pointer targets a file outside the repo (typically the master PDF in the ownCloud library) whose name does not follow the slug convention. That file is not ours to rename and the pointer is correct as written. Only report it if the user asks for the raw inventory. |
 | `audit_raw` reports `missing` / `ambiguous` / `orphan_raw` | Phase 1 already auto-renamed the unambiguous mismatches. Surface the residue: `missing` (frontmatter pointer broken - propose either restore the raw or clear the field), `ambiguous` (no usable pointer, multiple raw candidates - ask user which one is the right input), `orphan_raw` (raw file with no wiki source - propose ingest or delete). User confirms before any rename / delete. |
 | **Source removal** (orphan source from ingestion error, retracted paper) | Delegate to `source-remover` ONLY after explicit user approval. |
 

@@ -53,7 +53,7 @@ replication_of: ""          # DOI of the replicated paper, if applicable
 citation_apa: ""
 bibtex_key: ""              # e.g. cervera2020
 
-# Citation network (auto-populated by tools/parse_references.py)
+# Citation network (filled by /wiki-snowball, not by the ingest)
 cites: []                   # DOIs cited by this paper
 ---
 ```
@@ -250,9 +250,11 @@ Minimum 3 quotes from distinct sections (Introduction / Results / Discussion).
 > "Quote here verbatim" - p. N (section)
 
 ## Cites (in-wiki + snowball candidates)
-Auto-populated from the paper's References section by
-`tools/parse_references.py`. Wikilinks for papers already in the wiki,
-raw DOIs for snowball candidates.
+**Left empty by the ingest** - the reference list is never read during
+ingestion (`docs/workflows/ingest.md` step 1). Populated later by
+`/wiki-snowball <slug>`, which reads the bibliography from the converted
+article under `raw/`. Wikilinks for sources already in the wiki, raw DOIs
+for the snowball candidates.
 - [[paper-y]] - referenced in Background.
 - [[paper-z]] - framework citation in Discussion.
 - 10.xxxx/yyy - *not yet in wiki* (snowball candidate).

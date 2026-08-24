@@ -131,7 +131,8 @@ Narrative reviews acknowledge their non-systematic nature. Capture:
 Minimum 3 quotes from distinct themes/sections.
 
 ## Cites (in-wiki + snowball candidates)
-For narrative reviews the `cites:` list can be huge (50-200+). Surface
+**Left empty by the ingest**; filled by `/wiki-snowball <slug>`. For narrative
+reviews the `cites:` list can be huge (50-200+); surface
 the high-frequency citations (cited multiple times throughout the
 review) as priority snowball candidates.
 

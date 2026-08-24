@@ -26,7 +26,11 @@ and is properly placed. Your job is depth, not creation.
 
 1. The existing source page at `wiki/sources/.../<slug>.md`.
 2. The original source MD at `<source_file>` (read from the page's
-   `source_file:` frontmatter, or default to `raw/<vault>/papers/<slug>.md`).
+   `source_file:` frontmatter, or default to `raw/<vault>/papers/<slug>.md`)
+   - **minus its reference list and its abbreviation list**, same rule as
+   the ingest (`docs/workflows/ingest.md` step 1). Locate the cut with
+   `grep -n -iE '^#{1,4} *(references|bibliography|abbrevi|glossary|acronyms)'`
+   and Read up to it.
 3. `docs/rules/citation.md` - Indirect Citation Rule, provenance pattern.
 4. `docs/rules/depth-completeness.md` - IMRAD-specific completeness
    expectations + the self-critique gate.
@@ -49,7 +53,7 @@ and is properly placed. Your job is depth, not creation.
    | Verbatim Quotes < 3 | Insufficient direct evidence | Pick 3+ quotes from distinct IMRAD sections (Introduction, Results, Discussion). |
    | Recommendations summarized | Particularly for guidelines / meta-analyses | Re-read Recommendations table; enumerate every row with evidence level (A / B / C). Route each to `wiki/recommendations/<topic>.md`. |
    | Methods bare | "Used [[methods/EEG]]" with no detail | Re-read Methods section; for each method, write a 2-sentence per-source description with parameters / sample / deviations. Update `wiki/methods/<MethodName>.md` `## Used In This Wiki` section. |
-   | Cites empty | `cites:` frontmatter unpopulated | Run `tools/parse_references.py --curate <source-md>` first, then write the `## Cites` section with wikilinks for in-wiki, raw DOIs for snowball candidates. |
+   | Cites empty | `cites:` frontmatter unpopulated | **Not a gap** - ingestion never harvests references. Leave it; tell the user to run `/wiki-snowball <slug>` if they want the citation edges. |
    | Reporting Standard missing | No CONSORT / STROBE / PRISMA assessment | Identify and add the section. |
    | Extraction Checklist missing | Bottom of page absent | Add it, populated with the new state. |
 
@@ -82,6 +86,20 @@ and is properly placed. Your job is depth, not creation.
 6. **Re-run the self-critique gate** from
    `docs/rules/depth-completeness.md` and update the Extraction
    Checklist accordingly.
+
+7. **Run the claim lint on what you wrote** - you added results, so the
+   same gate that closes an ingest closes an extension:
+
+   ```bash
+   python tools/verify_ingest.py --source <slug>
+   ```
+
+   Every numeric claim must be cited with a page, resolve to a real
+   page, and be present in the article. Resolve each `high` finding by
+   re-reading the flagged line against the source (fix the number, mark
+   it as derived, say it was read off a figure, or flag the conversion
+   artefact) - see step 19 of `docs/workflows/ingest.md`. Finish only
+   when `high` is 0 or every remaining one is annotated on the page.
 
 # Citation discipline (critical)
 
@@ -129,7 +147,7 @@ Concepts touched: <names> (each EXTENDED, not just verified)
 Methods touched: <names> (per-source descriptions added)
 Recommendations touched: <topics>
 Questions surfaced: <slugs>
-Snowball candidates added to cites:: <count>
+Claim lint (verify_ingest): high <N> / medium <N> / low <N> after fixes
 Word count: <before> → <after> (delta +<N>)
 ```
 

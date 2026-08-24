@@ -152,7 +152,8 @@ Minimum 3 quotes covering definitions, predictions, comparison with
 prior frameworks.
 
 ## Cites (in-wiki + snowball candidates)
-Theoretical papers cite a curated set of foundational works densely.
+**Left empty by the ingest**; filled by `/wiki-snowball <slug>`. Theoretical
+papers cite a curated set of foundational works densely.
 These are high-priority snowball candidates because they form the
 intellectual bedrock of the framework.
 

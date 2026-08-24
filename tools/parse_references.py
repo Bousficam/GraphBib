@@ -26,6 +26,19 @@ Modes:
         # free-text search of the reference entry. Recovered DOIs are
         # added to cites: and tagged in cites_curated.
 
+    python tools/parse_references.py --curate --refs-from-raw --all wiki/sources/
+        # Same, but each page's reference list is read from the converted
+        # article named by its source_file: frontmatter. This is the normal
+        # mode now that ingestion never copies a bibliography onto the wiki
+        # page - see docs/workflows/snowball.md.
+
+    python tools/parse_references.py --curate --refs-from raw/<vault>/papers/foo.md \
+        wiki/sources/articles/general/foo.md
+        # Single-page form of the same thing.
+
+Writes go to the page passed as `path` only. `raw/` is read, never
+written: the raw corpus is immutable.
+
 Cache:
     tools/.cache/doi_validation.json - DOIs validated once never re-checked.
     Delete this file to force re-validation.
@@ -171,12 +184,41 @@ def split_references(refs_text):
 
 # ---------- per-source pipeline ---------------------------------------------
 
-def process_source(md_path, do_validate=False, do_curate=False, cache=None):
+def resolve_refs_path(fm, md_path, refs_from=None, from_raw=False):
+    """Where to read the reference list from.
+
+    Ingests no longer copy an article's bibliography onto the wiki page
+    (it is never read during ingestion), so the reference list usually
+    lives only in the converted article under `raw/`. `--refs-from` names
+    it explicitly; `--refs-from-raw` resolves it per page from the
+    `source_file:` frontmatter pointer. Either way the file is only read -
+    `cites:` is still written to `md_path`, never to `raw/`.
+    """
+    if refs_from:
+        return Path(refs_from).expanduser()
+    if from_raw:
+        val = (fm.get("source_file") or fm.get("source_md") or "").strip()
+        if val:
+            cand = Path(val)
+            if not cand.is_absolute():
+                cand = REPO_ROOT / cand
+            if cand.is_file():
+                return cand
+    return md_path
+
+
+def process_source(md_path, do_validate=False, do_curate=False, cache=None,
+                   refs_from=None, from_raw=False):
     if cache is None:
         cache = {}
     text = md_path.read_text(encoding="utf-8")
     fm, body = parse_fm(text)
-    refs_text = extract_references_block(body)
+    refs_path = resolve_refs_path(fm, md_path, refs_from, from_raw)
+    if refs_path != md_path and refs_path.is_file():
+        _, refs_body = parse_fm(refs_path.read_text(encoding="utf-8", errors="replace"))
+    else:
+        refs_body = body
+    refs_text = extract_references_block(refs_body)
 
     own_doi = (fm.get("doi") or "").strip().lower()
     seen = {own_doi} if own_doi else set()
@@ -267,7 +309,12 @@ def main():
     ap.add_argument("--all", action="store_true", help="Recurse into <path> as a directory")
     ap.add_argument("--validate", action="store_true", help="Phase 2: validate DOIs via Crossref")
     ap.add_argument("--curate", action="store_true", help="Phase 3: recover broken/missing DOIs via Crossref free-text (implies --validate)")
+    ap.add_argument("--refs-from", metavar="MD", help="Read the reference list from this file instead of <path> (read-only); cites: is still written to <path>")
+    ap.add_argument("--refs-from-raw", action="store_true", help="Same, resolved per page from its source_file: frontmatter (use with --all on wiki/sources/)")
     args = ap.parse_args()
+
+    if args.refs_from and args.all:
+        sys.exit("--refs-from names one file; use --refs-from-raw with --all")
 
     do_validate = args.validate or args.curate
     do_curate = args.curate
@@ -293,7 +340,8 @@ def main():
     for i, md in enumerate(mds, 1):
         try:
             stats = process_source(
-                md, do_validate=do_validate, do_curate=do_curate, cache=cache
+                md, do_validate=do_validate, do_curate=do_curate, cache=cache,
+                refs_from=args.refs_from, from_raw=args.refs_from_raw,
             )
         except Exception as e:
             print(f"  ✗ [{i}/{len(mds)}] {md.name}: {e!r}", file=sys.stderr)

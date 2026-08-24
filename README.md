@@ -6,7 +6,7 @@
 
 This is a fork of [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent) specialized for academic research workflows. The upstream supplies the core "agent maintains a wiki from source documents" pattern; this fork adds the IMRAD source templates, the Indirect Citation Rule, the PDF→Markdown pipeline (Marker + pymupdf4llm + Crossref), and the systematic-review tooling. Spiritually inspired by Andrej Karpathy's vision of LLMs as a new computing layer ("[Software 3.0](https://www.youtube.com/watch?v=LCEmiRjPEtQ)") - the agent doesn't just retrieve, it reads, structures, and writes back into a persistent knowledge graph.
 
-> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time - cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every paper's bibliography is parsed and validated against Crossref, and snowball candidates are surfaced automatically.**
+> Most knowledge tools make you search your own notes. This one reads everything you've collected and writes a structured wiki that compounds over time - cross-references already built, contradictions already flagged, synthesis already done. **In this fork, every factual claim cites a source page with a page number, every number written is checked back against the article it came from, and bibliographies are parsed and validated against Crossref by a snowball pass you run when you want it.**
 
 The agent core is **domain-neutral** - same IMRAD extraction, same citation network, same snowball discovery regardless of field. A single file at the repo root, **`context.md`**, tells the agent which domain *your* GraphBib instance covers: expected concepts, methods, intervention taxonomy, outcome scales, style notes. The shipped `context.md` configures the agent for **stroke motor rehabilitation via MI-BCI / TMS + DTI** - replace it with one of `docs/context/examples/` (or a custom one) to retarget. See [Adapting to your domain](#adapting-to-your-domain) below.
 
@@ -507,6 +507,8 @@ unless explicitly noted.
 | `tools/parse_references.py` | Validate + curate citations (3 phases: extract / validate / Crossref free-text) |
 | `tools/update_cited_by.py` | Maintain `## Cited By` sections from `cites:` index |
 | `tools/suggest_readings.py` | Surface snowball candidates per concept |
+| `tools/verify_ingest.py` | Post-ingest lint: every number cited, referenced, and present in the article |
+| `tools/verify_doi.py` | Post-ingest lint: the DOI is THIS paper's, checked against Crossref |
 
 ### Output / publication
 
@@ -737,7 +739,9 @@ You get the candidates with title, authors, journal, year (Crossref
 metadata) ranked by frequency. Pick which to download and ingest next.
 
 For theses, the parent thesis page surfaces the snowball list directly
-in its `## Notable References` section (☐ for not-yet-in-wiki).
+in its `## Notable References` section (☐ for not-yet-in-wiki) - filled
+by `/wiki-snowball <slug>`, not by the ingest: ingestion never reads a
+bibliography (see `docs/workflows/snowball.md`).
 
 ---
 
@@ -784,7 +788,7 @@ Louvain community detection clusters nodes by topic. SHA256 cache means only cha
 The schema file tells the agent how to maintain the wiki - the two
 non-negotiable rules (Citation, Depth), the sub-agent roster, and a
 pointer index to the detailed procedure. It's a compact (~3.5 kB)
-orchestrator file: heavy procedural detail (16-step ingest, source
+orchestrator file: heavy procedural detail (20-step ingest, source
 organization, PDF pipeline, SR data extraction, output workflows,
 standalone tools, frontmatter spec) lives in `docs/` and is loaded on
 demand by the relevant sub-agent. Slash commands live in
@@ -797,11 +801,12 @@ docs/
 │   ├── citation.md                # Indirect Citation Rule, provenance
 │   └── depth-completeness.md      # IMRAD expectations, self-critique gate
 ├── workflows/
-│   ├── ingest.md                  # 16-step ingest procedure
+│   ├── ingest.md                  # 20-step ingest procedure
 │   ├── conversion.md              # PDF → Markdown pipeline
 │   ├── source-organization.md     # Thematic folder routing
 │   ├── data-extraction.md         # SR table extraction
-│   ├── suggest-readings.md        # Snowball + OpenAlex forward
+│   ├── snowball.md                # Citation snowball (standalone)
+│   ├── suggest-readings.md        # Internal + OpenAlex forward
 │   ├── long-document-ingestion.md # Theses ≥ 100 pages
 │   └── output-workflows.md        # Query / Review / Lint / Health / Graph
 ├── templates/

@@ -32,7 +32,11 @@ Arguments: $ARGUMENTS
       with the file path. Use the `Agent` tool with
       `subagent_type=ingester` and prompt: `"Ingest <path>"`.
    b. Collect each sub-agent's summary line (`INGEST COMPLETE` /
-      `INGEST INCOMPLETE: <reason>`).
+      `INGEST INCOMPLETE: <reason>`). An ingest that ends with unresolved
+      `high` findings from `tools/verify_ingest.py` (step 19) or
+      `tools/verify_doi.py` (step 20) is INCOMPLETE - surface the slug,
+      do not paper over it. A `doi_duplicate` finding means the paper was
+      already in the wiki: stop and ask the user.
    c. After the batch, surface a short status block:
       ```
       Batch <i>/<total>: completed <ok>/<batch>, incomplete <ko>
@@ -51,10 +55,15 @@ Arguments: $ARGUMENTS
    Methods touched: <count>
    Recommendations created: <count>
    Questions surfaced: <count>
-   Snowball candidates surfaced: <count>
+   Claims corrected by the ingest lint: <count>
+   DOIs corrected / missing / unreachable: <counts>
+   Ingests left INCOMPLETE on a closing-lint finding: <slugs>
    ```
 
 5. **Suggest follow-ups**:
+   - Run `/wiki-snowball --all` to harvest `cites:` across the vault -
+     ingestion no longer does it, so a fresh batch has no citation edges
+     until this runs.
    - Run `python tools/update_cited_by.py` to refresh the citation
      network.
    - Run `python tools/consolidate_concepts.py --since 1d` to extend

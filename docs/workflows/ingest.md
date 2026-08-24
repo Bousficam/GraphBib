@@ -2,7 +2,7 @@
 
 Triggered by: *"ingest <file>"* or `/wiki-ingest`. Most ingestions are
 delegated to the `ingester` sub-agent (`Agent(subagent_type=ingester, …)`),
-which enforces this 16-step procedure non-negotiably.
+which enforces this 20-step procedure non-negotiably.
 
 ## Supported formats
 
@@ -15,11 +15,62 @@ beforehand:
 - **Other formats** (`.docx`, `.pptx`, `.xlsx`, `.html`, `.txt`, …) →
   markitdown.
 
+## What an ingest does NOT do
+
+Two things that used to happen here are now out of scope. Doing them
+during an ingest is a defect, not a bonus:
+
+- **Reading the reference list or the abbreviation list** - see step 1.
+- **Citation snowball** (`cites:`, `## Cites`, `## Notable References`,
+  "candidates not yet in the wiki") - a standalone workflow now, run on
+  demand: `docs/workflows/snowball.md` / `/wiki-snowball`. An ingest
+  never surfaces snowball candidates and never reports a count of them.
+
 ## Steps (in order)
 
-### 1 - Read the source
+### 1 - Read the source, minus the parts that carry no claim
 
-Read the source file fully via the Read tool (auto-convert non-markdown).
+Read the source file via the Read tool (auto-convert non-markdown),
+**skipping two blocks entirely**:
+
+- the **reference list / bibliography** - `## References`,
+  `## Bibliography`, `Works Cited`, `Littérature citée`, or an unheaded
+  run of numbered `[12] Author A, Author B. Title...` entries at the end;
+- the **abbreviation / acronym list** - `List of Abbreviations`,
+  `Glossary`, `Acronyms`, `Liste des abréviations`, and the
+  abbreviation table some journals print on page 1.
+
+Neither block contains an extractable claim, and together they are often
+a third to a half of a converted paper (nearly all of it for a thesis).
+Reading them buys nothing and spends the context window that the Results
+and Methods sections need.
+
+Locate the cut before reading:
+
+```bash
+grep -n -i -E '^#{1,4} *(references|bibliography|works cited|literature cited|réf|abbrevi|list of abbreviations|glossary|acronyms|nomenclature)' <source.md>
+wc -l <source.md>
+```
+
+then `Read(file_path=..., limit=<first matching line - 1>)`, and read any
+appendix that follows the reference list as a separate ranged Read. For
+a long document, apply `docs/workflows/long-document-ingestion.md`.
+
+Consequences, all of them intended:
+
+- **Do not write a `## References` section** on the wiki page. The
+  bibliography stays in `raw/`, where the snowball workflow reads it.
+- **`## Cites` is left as the template's placeholder**, empty. It is
+  populated later by `/wiki-snowball`, never by the ingest.
+- **Expand acronyms from their first use in the prose** ("motor imagery
+  (MI)"), which is where the paper defines them anyway. An acronym the
+  body never expands is kept verbatim and flagged
+  *"(not expanded in the body)"* - never guessed from an abbreviation
+  table you did not read, and never invented.
+- In-text citation markers stay useful: `[24]` or "(Carlsson et al.
+  2018)" in the body is transcribed as the paper prints it, with
+  `reported via` provenance per the Indirect Citation Rule. Resolving
+  `[24]` to a full reference is the snowball workflow's job.
 
 ### 2 - Read context
 
@@ -85,37 +136,16 @@ Apply the Citation Rule strictly. Distinguish
 `## Background (from cited literature)` from `## Results (this paper's
 findings)` - the **Indirect Citation Rule** applies.
 
+Every claim carries its page reference. A page reference written once on
+a section heading or on the line introducing a table or a quote covers
+what follows it; a claim that sits under neither must carry its own.
+Step 19 checks this mechanically.
+
 Set `intervention_family` (principal therapy) and `intervention_subfamily`
 (paradigm - `mi-bci`, `rtms`, `itbs`, …) so `tools/organize_sources.py`
 can later promote subfamilies to tier-2 folders.
 
-### 6 - Parse references
-
-Run `tools/parse_references.py`: extract DOIs from the source's
-`## References` / `## Bibliography`, populate `cites:` in the
-frontmatter, fill `## Cites` with wikilinks for in-wiki papers and
-raw DOIs for snowball candidates.
-
-The script has three phases (each opt-in):
-
-- default - regex extraction (offline, fast).
-- `--validate` - checks each extracted DOI against Crossref; invalid
-  DOIs (often broken at line breaks by marker) are dropped.
-- `--curate` - for entries with no valid DOI, runs a Crossref
-  bibliographic free-text search to recover the canonical DOI;
-  accepted only when relevance score and title overlap pass thresholds.
-  Recovered DOIs are tracked separately in `cites_curated:` for audit.
-
-Run `--curate` after the conversion pipeline, on the full corpus:
-
-```bash
-python tools/parse_references.py --curate --all wiki/sources/
-```
-
-A local cache (`tools/.cache/doi_validation.json`) makes re-runs nearly
-free.
-
-### 7 - Entity pages - OFF BY DEFAULT (opt-in)
+### 6 - Entity pages - OFF BY DEFAULT (opt-in)
 
 **Do NOT create author or institution entity pages by default.**
 Authorship is already captured verbatim in the source page's
@@ -131,7 +161,7 @@ not merely a paper's author). When in doubt, skip it.
 If an entity page already exists, you may add the new source to its
 `## Sources in This Wiki` list, but do not create new ones.
 
-### 8 - Update concept pages
+### 7 - Update concept pages
 
 For each key concept discussed, **read the existing page and ADD to
 it** (sub-claim under `## Empirical Evidence`, variant under
@@ -139,16 +169,16 @@ it** (sub-claim under `## Empirical Evidence`, variant under
 Verifying the page exists is NOT enough; it must be extended with this
 source's contribution.
 
-### 9 - Update method pages
+### 8 - Update method pages
 
 For each method in the source's `methods:` frontmatter, the
 `## Used In This Wiki` entry MUST include a 2-sentence description of
 HOW THIS PAPER USED IT (parameters, sample, deviations from standard)
  - not a bare wikilink. **Reminder**: methods are *measurement
 instruments* (EEG, FuglMeyer, MEP, KVIQ). Treatments belong on
-intervention pages - see 9b.
+intervention pages - see step 9.
 
-### 9b - Update intervention pages
+### 9 - Update intervention pages
 
 If the source describes a therapeutic intervention (BCI, TMS, mirror
 therapy, robot training, …), ensure
@@ -193,29 +223,148 @@ Update only if the synthesis warrants revision.
 
 Format: `## [YYYY-MM-DD] ingest | <Title>`.
 
-### 16 - Post-ingest validation + Self-critique gate
+### 16 - Self-critique gate
 
-First run the **Self-critique gate** defined in
-`docs/rules/depth-completeness.md` (re-read source page, verify
-exhaustive extraction; for guidelines verify every recommendation
+Run the **Self-critique gate** defined in
+`docs/rules/depth-completeness.md` (re-read the source page, verify
+exhaustive extraction; for guidelines verify every recommendation is
 enumerated). Expand any incomplete section by re-reading the source.
 
-Then check broken `[[wikilinks]]`, verify all new pages are in
-`index.md`, run `tools/update_cited_by.py` to refresh `## Cited By`
-sections wiki-wide, and print a change summary including counts:
+Then check broken `[[wikilinks]]`, verify all new pages are listed in
+`index.md`, and run `tools/update_cited_by.py` to refresh `## Cited By`
+sections wiki-wide.
+
+### 17 - Slug-align the raw input
+
+```bash
+python tools/audit_raw.py --source <slug> --apply
+```
+
+Renames the raw PDF / converted MD / extracted-images dir to match the
+slug (`raw/<vault>/papers/<slug>.{pdf,md}` + `<slug>_images/`) and
+rewrites the `source_file` / `source_pdf` frontmatter pointers. Doing it
+here keeps the raw side aligned per ingest, and step 19 needs
+`source_file` to point at the right article.
+
+### 18 - Figures
+
+If `raw/<vault>/papers/<slug>_images/` exists (i.e. `pdf2md_marker.py`
+extracted figures), delegate to `source-illustrator`:
+`Agent(subagent_type=source-illustrator, prompt="Illustrate <slug>")`.
+Skip when the dir is empty or absent.
+
+### 19 - Minimal ingest lint: is every result real?
+
+The last gate, and the one that fails the ingest. Every result written
+during this session must be **cited**, **referenced**, and **actually
+present in the article that was ingested**.
+
+```bash
+python tools/verify_ingest.py --source <slug>
+```
+
+The tool checks the source page plus every wiki page that links to
+`[[<slug>]]` (on those, only the lines citing this source), and reports
+per numeric claim:
+
+| Check | Severity | Meaning |
+|---|---|---|
+| `not_in_article` | high | a number on the page is nowhere in the converted article |
+| `broken_citation` | high | the `[[wikilink]]` carrying the claim resolves to no page |
+| `missing_page_ref` | medium | numeric claim with no `(p. N)`, on the line or above it |
+| `number_reformatted` | low | same value, printed differently (`0.050` vs `0.05`) |
+| `page_ref_mismatch` | low | opt-in `--check-page-refs`: the number sits on another page |
+
+**Findings are candidates, not verdicts.** For each one, re-read the
+flagged line against the article and resolve it - do not just re-run the
+tool:
+
+- **Number wrong** (transposed row, dropped digit, wrong column) → fix
+  the number on the page.
+- **Number computed by you** (a percentage, a difference, a duration the
+  paper never prints) → either remove it or mark it explicitly as
+  derived, e.g. *"≈19.5 min (derived: 20 min total minus the 30 s ramp,
+  not stated as such p. S81)"*. Numbers the paper does not print must
+  never read as quotations.
+- **Number read off a figure** (PRISMA counts, forest plot values) →
+  keep it and say where it came from: *"(read from Fig. 4, p. 10; not in
+  the text layer)"*.
+- **Conversion artefact** - the value is in the PDF but the OCR shredded
+  the table, or dropped every minus sign → say so on the page and in the
+  Extraction Checklist, per the OCR fidelity rule. Ask for a second OCR
+  pass with the other backend rather than keeping a number nobody can
+  check. Do not silently keep it.
+- **Missing page reference** → add it. If the claim is genuinely a
+  synthesis across the paper, say so in words rather than dropping the
+  reference.
+
+Re-run until `high` is 0 (exit code 0), or, when a `high` finding is a
+documented conversion artefact, until every remaining one is explicitly
+annotated on the page.
+
+### 20 - Last lint: is the DOI this paper's DOI?
+
+```bash
+python tools/verify_doi.py --source <slug>
+```
+
+A DOI that resolves is not the same as a DOI that is correct. The
+failure this catches is silent: `enrich_frontmatter.py` reads a DOI off
+the converted PDF, and the first DOI printed on a paper is sometimes one
+of **its references** or the journal's own registration. The page then
+carries a valid Crossref DOI pointing at somebody else's article, and
+every APA citation generated from it is wrong. So the check is not "does
+it resolve" but "does Crossref return **this** paper".
+
+| Check | Severity | Meaning |
+|---|---|---|
+| `doi_title_mismatch` | high | Crossref returns a different paper (title similarity < 0.75) |
+| `doi_not_found` | high | the DOI does not resolve (404) |
+| `doi_malformed` | high | not a `10.xxxx/...` DOI |
+| `doi_duplicate` | high | another source page already carries this DOI - the paper is already in the wiki |
+| `doi_missing` | medium | no `doi:` on a page type that should have one (low for a thesis / book / note) |
+| `doi_author_mismatch` | medium | first author differs from Crossref |
+| `doi_year_mismatch` | medium | year differs by more than one (one year of slack for online-first) |
+| `doi_journal_mismatch` | low | container title differs |
+| `slug_family_mismatch` | low | the slug does not start with the Crossref first author |
+| `crossref_unreachable` | low | offline - re-run later, never a blocker |
+
+How to resolve:
+
+- **`doi_title_mismatch` / `doi_duplicate`** → stop and check the PDF's
+  own header. If the DOI belongs to a cited reference, replace it with
+  the paper's real DOI **read from the article**, then regenerate
+  `citation_apa` and `bibtex_key` (step 4). If the paper really is
+  already in the wiki under another slug, this ingest is a duplicate:
+  report it and let the user decide (`/wiki-remove` on one of the two).
+- **`doi_missing`** → the tool proposes a Crossref candidate from the
+  title and first author. A candidate is a proposal, not an answer:
+  confirm it against the article before writing it in. Bibliographic
+  frontmatter is copied verbatim from the source, never invented. A
+  thesis, a book or a lab note with no DOI is normal - leave the field
+  empty.
+- **`doi_author_mismatch` / `doi_year_mismatch`** → usually a
+  frontmatter typo or an author order the converter scrambled; fix the
+  page, not the DOI. A year off by one on an online-first article is
+  tolerated already, so a reported mismatch is a real one.
+- **`crossref_unreachable`** → say so in the report and move on. Offline
+  never blocks an ingest.
+
+Finish when `high` is 0. Then print the change summary:
 *N concepts updated, M methods touched, K recommendations refined,
-J snowball candidates surfaced*.
+L claims corrected by the lint, DOI verified against Crossref*.
 
-## For theses specifically - citation snowball
+## For theses specifically
 
-Theses are dense citation hubs. After ingesting a thesis:
+Theses are dense citation hubs, but harvesting that hub is no longer
+part of the ingest:
 
-- **Surface high-value references** in the `## Notable References`
-  section of the source page (10-30 references the thesis builds on
-  heavily).
-- **Suggest snowball ingestion**: at the end of the post-ingest
-  summary, list the references *not yet in the wiki* and ask the user
-  whether to ingest them next. Do not auto-ingest.
+- `## Notable References` is **left empty** at ingest time. Filling it
+  means reading the bibliography, which step 1 forbids. Run
+  `/wiki-snowball <thesis-slug>` afterwards to populate it and to list
+  the references not yet in the wiki.
+- The ingest never proposes follow-up papers to read and never
+  auto-ingests one.
 
 For long theses (≥ 100 pages), use the
 `docs/workflows/long-document-ingestion.md` split workflow instead of

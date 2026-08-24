@@ -88,9 +88,11 @@ STARD / TREND / CARE / ARRIVE and flag deviations.
 **Verbatim Quotes** - minimum 3 quotes covering Introduction, Results,
 Discussion (one per section).
 
-**Cites** - populated from the References section automatically by
-`tools/parse_references.py`; review the snowball candidates before
-moving on.
+**Cites** - **left empty by the ingest.** The reference list is never
+read during ingestion (`docs/workflows/ingest.md` step 1), so this
+section is populated later by `/wiki-snowball`
+(`docs/workflows/snowball.md`). An empty `## Cites` on a fresh ingest is
+correct, not a completeness gap.
 
 ## Guidelines, meta-analyses, consensus statements (special case)
 

@@ -4,7 +4,10 @@ Triggered by: *"suggest readings for: <concept>"* or
 `/wiki-suggest-readings`. For richer interpretation against the
 wiki's gaps, delegate to the `suggest-reading` sub-agent.
 
-Surfaces complementary readings to deepen a concept. Two modes:
+Surfaces complementary readings to deepen a concept. Two modes. This is
+the forward / aggregate half of `docs/workflows/snowball.md`; the
+backward half (harvesting one paper's reference list) lives there too.
+Neither is ever run by an ingest.
 
 ## Internal mode (default)
 

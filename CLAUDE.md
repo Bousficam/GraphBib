@@ -38,7 +38,7 @@ See `docs/context/README.md` for the full adaptation checklist and
 
 ---
 
-## Two non-negotiable rules
+## Non-negotiable rules
 
 **Citation Rule** - every factual claim, finding, recommendation, or
 quantitative statement in any wiki page MUST cite at least one
@@ -46,6 +46,26 @@ quantitative statement in any wiki page MUST cite at least one
 verbatim, never paraphrased. Bibliographic frontmatter is copied
 verbatim from the source - never invented. Full spec at
 **`docs/rules/citation.md`**. Read before any ingest.
+
+**Every result is checked against the article** - an ingest ends with
+`python tools/verify_ingest.py --source <slug>`. Every numeric claim
+written during the session must be cited with a page, resolve to a real
+page, and be **present in the ingested article**. A number the article
+does not print is either corrected, removed, or explicitly marked as
+derived / read-off-a-figure / lost-in-conversion. See step 19 of
+`docs/workflows/ingest.md`.
+
+**The DOI is verified against Crossref** - an ingest then runs
+`python tools/verify_doi.py --source <slug>`. Not "does the DOI
+resolve" but "does Crossref return THIS paper": title, first author,
+year, journal. A converter that picked up the DOI of one of the paper's
+own references produces a page whose every APA citation is wrong. See
+step 20 of `docs/workflows/ingest.md`.
+
+**Two things an ingest never does** - it never reads the reference list
+or the abbreviation list of a paper (they carry no claim and eat the
+context window), and it never runs a citation snowball. Snowball is a
+standalone workflow: `/wiki-snowball`, `docs/workflows/snowball.md`.
 
 **Depth & Completeness** - a source page is the only chance to mine
 that paper for the wiki. Extraction must be **exhaustive, not
@@ -80,11 +100,12 @@ U+2013) rather than a literal dash character.
 |---|---|
 | **Domain context (READ FIRST)** | `context.md` (root) + `docs/context/` |
 | Citation + Depth rules | `docs/rules/{citation,depth-completeness}.md` |
-| Ingest workflow (16 steps) | `docs/workflows/ingest.md` |
+| Ingest workflow (20 steps) | `docs/workflows/ingest.md` |
 | Long thesis ingestion | `docs/workflows/long-document-ingestion.md` |
 | Source organization | `docs/workflows/source-organization.md` |
 | Conversion pipeline (PDF → MD) | `docs/workflows/conversion.md` |
-| Suggest-readings (snowball + forward) | `docs/workflows/suggest-readings.md` |
+| Citation snowball (standalone, NOT part of ingest) | `docs/workflows/snowball.md` |
+| Suggest-readings (internal + forward) | `docs/workflows/suggest-readings.md` |
 | Query / Review / Cite / Lint / Health / Graph | `docs/workflows/output-workflows.md` |
 | Source + page templates | `docs/templates/*.md` |
 | Frontmatter spec | `docs/conventions/frontmatter.md` |
@@ -106,7 +127,10 @@ Thirteen specialists in `.claude/agents/`. Delegate via `Agent` with
 **Wiki side** - knowledge-graph building / maintenance:
 - `suggest-reading` - find what to read next (snowball + OpenAlex).
 - `fetch-reading` - download OA PDFs for a DOI list (Unpaywall).
-- `ingester` - ingest one source, all 16 steps (entity pages OFF by default).
+- `ingester` - ingest one source, all 20 steps (entity pages OFF by
+  default; bibliography and abbreviation lists never read; no snowball;
+  ends on two lints - `verify_ingest` for claims, `verify_doi` for the
+  DOI).
 - `source-extender` - deepen an already-ingested shallow source.
 - `source-illustrator` - populate `## Figures` on one source page
   from images already extracted by `pdf2md_marker.py`.

@@ -203,7 +203,8 @@ work - capture each.
 Minimum 3 quotes from distinct sections.
 
 ## Cites (in-wiki + snowball candidates)
-Like SRs, scoping reviews have large `cites:` lists. Each gap
+**Left empty by the ingest**; filled by `/wiki-snowball <slug>`. Like SRs,
+scoping reviews have large `cites:` lists. Each gap
 identified is a high-priority snowball direction.
 
 ## Cited By

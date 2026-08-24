@@ -62,7 +62,9 @@ thesis-level synthesis. Per-chapter content is intentionally deferred:
   per-chapter source page (e.g. `[[<slug>-ch04-mi-bci-rct]]`)
 - `## Cross-Chapter Synthesis`
 - `## Recommendations / Implications` (thesis-level)
-- `## Notable References (citation snowball)` - full bibliography
+- `## Notable References (citation snowball)` - **left empty**; the
+  bibliography is never read during ingestion, `/wiki-snowball <slug>`
+  fills this section afterwards
 - `## How to Cite`
 
 `## Methods`, `## Results`, `## Background` are **deliberately empty**

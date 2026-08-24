@@ -76,6 +76,91 @@ replicates a prior study. `tools/replication_tracker.py` walks
 
 Run periodically; complements `/wiki-lint`.
 
+## Ingest lint - claims against the article (`verify_ingest.py`)
+
+The gate that closes an ingest (step 19 of `docs/workflows/ingest.md`).
+For one source, it re-reads every numeric claim written during the
+ingest and asks whether it is cited, referenced, and real:
+
+```bash
+python tools/verify_ingest.py --source <slug>
+python tools/verify_ingest.py --source <slug> --json
+python tools/verify_ingest.py --source <slug> --check-page-refs
+```
+
+Scope: the source page, plus every wiki page that wikilinks to
+`[[<slug>]]` - and on those, only the lines citing this source. So a
+concept page fed by ten sources is not re-audited on every ingest.
+`--only-source-page` narrows it further; `--pages A.md B.md` names the
+targets explicitly.
+
+| Check | Severity | Meaning |
+|---|---|---|
+| `not_in_article` | high | a number on the page appears nowhere in the converted article |
+| `broken_citation` | high | the `[[wikilink]]` carrying the claim resolves to no page |
+| `missing_page_ref` | medium | numeric claim with no `(p. N)` on the line or above it |
+| `number_reformatted` | low | same value, printed differently (`0.050` vs `0.05`, `+5.0` vs `5.0`) |
+| `page_ref_mismatch` | low | with `--check-page-refs`: the number sits on a different printed page |
+
+Exit code 1 when a finding reaches `--fail-on` (default `high`);
+`--warn-only` always exits 0.
+
+What it deliberately ignores: page references, figure/table/section
+numbers, reference-list markers (`[43, 44]`, `refs 42-48`), ordered-list
+markers, DOIs, ISO dates, and digits glued to a word (`P300`). Page
+references are inherited from a section heading or from the line
+introducing a table or a block quote, which is how the wiki actually
+anchors verbatim tables.
+
+Findings are candidates, not verdicts. A `not_in_article` finding is
+often a real defect (a transposed table row, a digit dropped in
+transcription, a value the agent computed and presented as quoted), but
+it can also mean the number was read off a figure, or that the OCR
+dropped every minus sign in the paper. Step 19 of the ingest workflow
+lists what to do in each case - the one thing never allowed is leaving
+an unverifiable number on the page unannotated.
+
+## DOI lint - is it this paper's DOI? (`verify_doi.py`)
+
+The last gate of an ingest (step 20). A DOI that resolves is not a DOI
+that is correct:
+
+```bash
+python tools/verify_doi.py --source <slug>
+python tools/verify_doi.py --all           # sweep the vault
+python tools/verify_doi.py --source <slug> --json
+```
+
+It fetches the Crossref record for the page's `doi:` and compares it
+with the frontmatter - title (SequenceMatcher >= 0.75), first author,
+year (one year of slack for online-first), container title. It also
+flags a DOI already carried by another source page, which means the
+paper is being ingested twice.
+
+| Check | Severity |
+|---|---|
+| `doi_title_mismatch` - Crossref returns a different paper | high |
+| `doi_not_found` - 404 at Crossref | high |
+| `doi_malformed` - not a `10.xxxx/...` DOI | high |
+| `doi_duplicate` - another source page already carries it | high |
+| `doi_missing` - no `doi:` where one is expected | medium (low for thesis / book / note) |
+| `doi_author_mismatch`, `doi_year_mismatch` | medium |
+| `doi_journal_mismatch`, `slug_family_mismatch` | low |
+| `crossref_unreachable` - offline | low, never blocks |
+
+The failure it exists for: `pdf2md/enrich_frontmatter.py` reads a DOI
+off the converted PDF, and the first DOI printed on a paper is sometimes
+one of ITS references. The page then carries a valid DOI pointing at
+somebody else's article, and every APA citation generated from it is
+wrong. Resolving on title, not on HTTP status, is the whole point.
+
+When `doi:` is missing, a Crossref bibliographic search on title + first
+author proposes a candidate. A candidate is a proposal, never an answer:
+confirm it against the article before writing it into the frontmatter.
+
+Shares `tools/.cache/crossref.json` with `parse_references.py` and
+`fetch_oa.py`, so re-runs are free.
+
 ## Audit trail (git as history)
 
 The wiki is a git repo - `git log` and `git blame` already provide a
