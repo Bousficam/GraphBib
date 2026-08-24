@@ -115,14 +115,29 @@ on your watch:
   `<slug>_images/`) and rewrites the `source_file` / `source_pdf`
   frontmatter pointers. The librarian re-checks vault-wide later, but
   doing it here keeps the raw side aligned per ingest.
-- **Step 18 - figures.** If `raw/<vault>/papers/<slug>_images/`
-  exists (i.e. `pdf2md_marker.py` extracted figures), delegate to
-  `source-illustrator`:
-  `Agent(subagent_type=source-illustrator, prompt="Illustrate <slug>")`.
-  The sub-agent adds a `## Figures` section to the source page with
-  each figure + verbatim caption + page reference. Skip if the dir
-  is empty or absent (typed sources like meta-analyses sometimes
-  ship without figures).
+- **Step 18 - figures. You write them YOURSELF - do not delegate.**
+  You cannot spawn a sub-agent: `Agent` is not in your tools list, so an
+  `Agent(subagent_type=source-illustrator, ...)` call fails silently and
+  the source ships with no figures. You have exactly the tools
+  `source-illustrator` has; do the work.
+
+  ```bash
+  python tools/figure_pairs.py --source <slug>              # inspect
+  python tools/figure_pairs.py --source <slug> --markdown   # ready to paste
+  ```
+
+  Both converters extract images (marker names them
+  `_page_3_Figure_2.jpeg`, Mistral `img-7.jpeg`); the tool handles both,
+  pairs each image with its caption including multi-panel runs, recovers
+  the page, computes the relative path, and filters tables, duplicates
+  and page furniture. Exit code 1 means nothing to illustrate - skip.
+
+  Read what it produced before pasting: drop anything that is not a
+  figure, confirm the links resolve. Captions are verbatim. A page the
+  tool could not recover stays `(p. ?)` or
+  `(PDF p. N - confirm the printed page)` - never replace either with a
+  plausible number. Section goes after `## Results`, before `## Cites`.
+  Full rule: `docs/workflows/figures.md`.
 - **Step 19 - the claim-verification lint. THIS GATE FAILS THE INGEST.**
   Last thing you do, after the figures:
 

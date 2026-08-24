@@ -1,6 +1,6 @@
 ---
 name: source-illustrator
-description: Specialized agent for adding a `## Figures` section to ONE wiki source page from images already extracted by the pdf2md pipeline. Use this at the end of an ingest (after the source page is written and `tools/audit_raw.py --source <slug> --apply` ran), or on demand to back-fill figures on a previously-ingested source. The agent reads `raw/<vault>/papers/<slug>_images/*` and the converted `raw/<vault>/papers/<slug>.md`, pairs each image with its caption (the `Figure N.` line nearby in the converted MD), and writes a `## Figures` section on the source page with markdown image links + verbatim caption + page reference. Does NOT extract images from the PDF directly - assumes `pdf2md_marker.py` already did that.
+description: Specialized agent for adding a `## Figures` section to ONE wiki source page from images already extracted by the pdf2md pipeline. Use this at the end of an ingest (after the source page is written and `tools/audit_raw.py --source <slug> --apply` ran), or on demand to back-fill figures on a previously-ingested source. The agent runs `tools/figure_pairs.py` (which pairs images with captions across BOTH converter conventions - marker `_page_3_Figure_2.jpeg` and Mistral `img-7.jpeg` - and recovers the page), judges what is a real figure, and writes a `## Figures` section on the source page with markdown image links + verbatim caption + page reference. Does NOT extract images from the PDF directly - the conversion step already did that. Not needed at ingest time: the ingester writes its own `## Figures` (a sub-agent cannot spawn a sub-agent). Use this for BACK-FILL on sources ingested before, launched by the parent.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
@@ -36,43 +36,61 @@ Resolve the wiki source page path by `grep -lr "^title:" wiki/<vault>/sources/`
 or by asking `python -c "from tools._lib import SRC_DIR; ..."` - the
 file is `<slug>.md` somewhere under `SRC_DIR`.
 
-## Step 2 - Inventory the images
+## Step 2 - Let the tool do the pairing
 
-List `raw/<vault>/papers/<slug>_images/`. Typical files: `_page_3_Figure_1.jpeg`,
-`_page_5_Picture_2.png`, etc. (marker output naming convention).
-Group by page number - figures often come in pairs (panel + legend).
+```bash
+python tools/figure_pairs.py --source <slug>              # inspect
+python tools/figure_pairs.py --source <slug> --json       # full records
+python tools/figure_pairs.py --source <slug> --markdown   # ready to paste
+```
 
-## Step 3 - Pair each image with its caption
+It resolves the three things that are not guessable from file names:
 
-Read `raw/<vault>/papers/<slug>.md`. Marker inserts images as
-`![](_page_3_Figure_1.jpeg)` and the caption usually follows on the next
-1-3 lines, typically starting with `Figure N.` or `Fig. N.` (or
-`Table N.` for tables - skip tables here, they're not figures).
+- **caption per image** - an OCR emits one image per panel, so a
+  multi-panel figure is a RUN of image references followed by a single
+  caption. The tool detects the run and attributes the caption to every
+  panel (`Figure 6 (panel 2)`). Matching each panel independently, which
+  is the obvious approach, makes every panel but the last miss its
+  caption.
+- **page** - from the converted markdown's page anchors, else from the
+  marker file name corrected by the article's Crossref page range (a
+  paper printed on pages 111-118 has its PDF page 4 on printed page
+  114), else unknown. Read *Step 3* before touching a page reference.
+- **relative path** from the wiki source page down to the image, which
+  depends on the page's depth under `sources/`.
 
-For each image file:
+It also classifies: `figure`, `table` (screenshot whose caption starts
+with `Table`), `duplicate` (same bytes), `orphan` (on disk, never
+referenced), `noise` (title-page furniture, repeated byte sizes, or a
+scan the OCR shredded). Only `figure` reaches the markdown;
+`--include-noise` overrides when a genuine uncaptioned figure was
+misfiled.
 
-1. Find the `![](<filename>)` reference in the converted MD.
-2. Extract the caption: the contiguous text block immediately after the
-   image reference, up to the next blank line or the next heading.
-   Trim leading "Figure N." / "Fig. N." prefix into a `label` field;
-   keep the rest as the `caption`.
-3. Recover the page number: marker's filename convention is
-   `_page_<N>_Figure_<M>.<ext>` - `<N>` is the source PDF page.
+Exit code 1 means nothing to illustrate. Abort cleanly with
+`ILLUSTRATE PARTIAL: no usable figures`.
 
-If a caption is missing or ambiguous, fall back to `(no caption found
-in converted MD)` - do NOT invent one.
+## Step 3 - Page references, and the one thing you must not do
 
-## Step 4 - Filter
+`(p. N)` on a wiki page means the **printed** page:
 
-Drop:
-- Decorative elements (publisher logos, journal headers - usually
-  page 1 small images with no caption nearby).
-- Tables misclassified as images (marker sometimes saves table
-  screenshots - caption starts with `Table`).
-- Duplicates (same hash) - keep the first.
+- `(p. N)` - established from the article's page anchors, or from the
+  Crossref page range plus the PDF page. Trustworthy.
+- `(PDF p. N - confirm the printed page)` - the marker file name gave a
+  page but no range could be resolved (no DOI, article-number journal,
+  Crossref offline). The PDF page equals the printed page only when the
+  article starts at page 1, which is false for supplements (`p. S80`)
+  and offprints. Open the article, confirm, then rewrite it.
+- `(p. ?)` - neither exists. This is the correct output, allowed by the
+  Citation Rule. **Writing a plausible number instead is a
+  fabrication.** Leave it.
 
-Keep all genuine figures, even if you're unsure of relevance - the
-`concept-illustrator` agent does the relevance pass later.
+## Step 4 - Judge
+
+The tool filters mechanically; you decide. Drop anything that survived
+the filter but is not a figure (a decorative rule, an author photograph,
+an equation rendered as an image with a `Figure` caption). Keep every
+genuine figure even if you doubt its relevance - `concept-illustrator`
+does the relevance pass later.
 
 ## Step 5 - Write the `## Figures` section
 
@@ -92,19 +110,22 @@ screen at 60 cm distance, EEG cap with 64 electrodes…*
 task. Shaded area = 95 % CI across N = 24 participants.*
 ```
 
-Notes on the markdown link path:
-- The image lives at `raw/<vault>/papers/<slug>_images/<file>`.
-- The wiki source page is somewhere under `wiki/<vault>/sources/...`.
-  Compute the relative path with `..` segments depending on the
-  source page depth (e.g. `articles/general/<slug>.md` is 4 levels
-  deep below the repo root → 4 `../` segments).
-- Wrap each figure with `### Figure N - <one-line summary> (p. N)`.
+Notes:
+- **Do not compute the relative path by hand.** `--markdown` already
+  emits it (`rel_from_page` in the JSON), resolved from the page's real
+  depth under `sources/`. Counting `../` segments by eye is how a
+  figure ends up linking to nothing.
+- Figures come out in reading order, not file-name order (`img-10`
+  sorts before `img-2`, which is why the tool sorts on the markdown
+  line instead).
 - The italicized caption block under the image is the verbatim caption
   (quoted, not paraphrased). Do not add a citation here - the figure
-  is part of THIS source page; provenance is implicit.
+  is part of THIS source page; provenance is implicit. On a concept
+  page it is the opposite, and that is `concept-illustrator`'s job.
 
 If a caption is missing, the section still emits the image with
-`*(caption not recovered)*` so a future pass can fill it.
+`*(caption not recovered in the conversion)*` so a future pass can
+fill it.
 
 ## Step 6 - Self-check
 
@@ -113,8 +134,10 @@ Before returning, verify:
       (you can `ls` to confirm).
 - [ ] Captions are verbatim from the converted MD, not paraphrased.
 - [ ] No table screenshots leaked in (heading would say `Table N.`).
+- [ ] No page reference was upgraded from `(p. ?)` or `(PDF p. N ...)`
+      to a bare `(p. N)` without opening the article.
 - [ ] Section is placed AFTER `## Results` (or `## Findings` for
-      reviews) and BEFORE `## Cited By` if present.
+      reviews) and BEFORE `## Cites`, as the source templates declare.
 
 # Output format
 
@@ -125,6 +148,7 @@ Source: [[<slug>]]
 Images kept: <N> / <total in dir>
 Captions matched: <K>
 Captions missing: <M>
+Pages: <N> printed / <N> PDF-only (to confirm) / <N> unknown
 Section written at: wiki/<vault>/sources/<path>
 ```
 

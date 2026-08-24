@@ -105,6 +105,7 @@ U+2013) rather than a literal dash character.
 | Source organization | `docs/workflows/source-organization.md` |
 | Conversion pipeline (PDF → MD) | `docs/workflows/conversion.md` |
 | Citation snowball (standalone, NOT part of ingest) | `docs/workflows/snowball.md` |
+| Figures (extraction, pairing, page refs) | `docs/workflows/figures.md` |
 | Suggest-readings (internal + forward) | `docs/workflows/suggest-readings.md` |
 | Query / Review / Cite / Lint / Health / Graph | `docs/workflows/output-workflows.md` |
 | Source + page templates | `docs/templates/*.md` |

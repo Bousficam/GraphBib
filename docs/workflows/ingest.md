@@ -248,10 +248,34 @@ here keeps the raw side aligned per ingest, and step 19 needs
 
 ### 18 - Figures
 
-If `raw/<vault>/papers/<slug>_images/` exists (i.e. `pdf2md_marker.py`
-extracted figures), delegate to `source-illustrator`:
-`Agent(subagent_type=source-illustrator, prompt="Illustrate <slug>")`.
-Skip when the dir is empty or absent.
+Both converters extract images into `raw/<vault>/papers/<slug>_images/`
+(marker names them `_page_3_Figure_2.jpeg`, Mistral `img-7.jpeg`). If
+that directory exists, write the `## Figures` section yourself - **do
+not delegate**. A sub-agent cannot spawn another sub-agent, so an
+`Agent(subagent_type=source-illustrator, ...)` call from inside an
+ingest fails silently and the source ships with no figures.
+
+```bash
+python tools/figure_pairs.py --source <slug>              # inspect
+python tools/figure_pairs.py --source <slug> --markdown   # ready to paste
+```
+
+The tool pairs each image with its caption (multi-panel runs included),
+recovers the page across both naming conventions - correcting a marker
+PDF page into the printed page with the article's Crossref range -
+computes the relative path from the page down to the image, and filters
+tables, duplicates and page furniture. Exit code 1 means nothing to
+illustrate: skip the step.
+
+Then read what it produced, drop any figure that is clearly not one,
+check the links resolve, and paste the section after `## Results` and
+before `## Cites`. Captions are verbatim; a page the tool could not
+recover stays `(p. ?)` or `(PDF p. N - confirm the printed page)` until
+someone checks the article. Never replace either with a plausible
+number.
+
+Full rule, including who runs this in the other contexts:
+`docs/workflows/figures.md`.
 
 ### 19 - Minimal ingest lint: is every result real?
 

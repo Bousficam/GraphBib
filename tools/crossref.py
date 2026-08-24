@@ -10,7 +10,7 @@ The cache is keyed by operation:
     {
       "validate:<doi>":   true|false,
       "search:<query-hash>": "10.xxx/yyy" | null,
-      "metadata:<doi>":   {"title": ..., "first_author": ..., "year": ...},
+      "metadata:<doi>":   {"title": ..., "first_author": ..., "year": ..., "pages": ...},
       "slug:<doi>":       "<family>-<year>",
     }
 
@@ -24,7 +24,7 @@ Public API:
     title_overlap(a, b)                 → token-Jaccard [0..1]
     title_similarity(a, b)              → SequenceMatcher ratio [0..1]
     crossref_validate(doi, cache=None)  → True if DOI exists at Crossref
-    crossref_metadata(doi, cache=None)  → {"title","first_author","year","journal"}
+    crossref_metadata(doi, cache=None)  → {"title","first_author","year","journal","pages"}
     crossref_search(query, cache=None)  → DOI string or None
     crossref_slug(doi, cache=None)      → "<family>-<year>" or None
     load_cache() / save_cache(cache)    → persistent JSON
@@ -192,7 +192,12 @@ def crossref_metadata(doi, cache=None):
     cache = load_cache() if cache is None else cache
     key = f"metadata:{doi}"
     if key in cache:
-        return cache[key] or None
+        cached = cache[key]
+        # Records written before `pages` existed are a cache miss, not a
+        # record without pages: refetch once rather than answering None
+        # forever to a caller that needs the page range.
+        if cached is None or "pages" in cached:
+            return cached or None
 
     requests = _requests()
     try:
@@ -231,12 +236,15 @@ def crossref_metadata(doi, cache=None):
             year = str(parts[0])
             break
     journal = (m.get("container-title") or [""])[0]
+    # "111-118" for a normal article, "" for an article-number journal.
+    pages = str(m.get("page") or "").strip()
 
     out = {
         "title": title.strip(),
         "first_author": first_author.strip(),
         "year": year,
         "journal": journal.strip(),
+        "pages": pages,
     }
     cache[key] = out
     return out

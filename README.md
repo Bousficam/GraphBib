@@ -509,6 +509,7 @@ unless explicitly noted.
 | `tools/suggest_readings.py` | Surface snowball candidates per concept |
 | `tools/verify_ingest.py` | Post-ingest lint: every number cited, referenced, and present in the article |
 | `tools/verify_doi.py` | Post-ingest lint: the DOI is THIS paper's, checked against Crossref |
+| `tools/figure_pairs.py` | Pair extracted images with captions + pages, both converter conventions |
 
 ### Output / publication
 
@@ -806,6 +807,7 @@ docs/
 │   ├── source-organization.md     # Thematic folder routing
 │   ├── data-extraction.md         # SR table extraction
 │   ├── snowball.md                # Citation snowball (standalone)
+│   ├── figures.md                 # Image -> caption -> page rule
 │   ├── suggest-readings.md        # Internal + OpenAlex forward
 │   ├── long-document-ingestion.md # Theses ≥ 100 pages
 │   └── output-workflows.md        # Query / Review / Lint / Health / Graph

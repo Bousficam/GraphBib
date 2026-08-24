@@ -226,6 +226,25 @@ direct recommendations.
 ## Verbatim Quotes
 Minimum 3 quotes covering Methods, Results, Discussion (one per section).
 
+## Figures
+
+Written at step 18 of the ingest by `tools/figure_pairs.py --markdown`,
+which pairs each extracted image with its caption and recovers the page
+across both converter conventions. Left out entirely when the source
+ships no `<slug>_images/` directory. Full rule:
+`docs/workflows/figures.md`.
+
+### Figure N - <first clause of the caption> (p. N)
+![Figure N](<relative path emitted by the tool, never counted by hand>)
+*Verbatim caption, copied from the converted markdown, never
+paraphrased. `*(caption not recovered in the conversion)*` when the OCR
+lost it.*
+
+Page reference: `(p. N)` only when it was recovered from the article
+itself; `(PDF p. N - confirm the printed page)` when it came from a
+marker file name; `(p. ?)` when neither. Never a plausible number.
+No citation on a figure here - this page IS the source.
+
 ## Cites (in-wiki + snowball candidates)
 **Left empty by the ingest**; filled by `/wiki-snowball <slug>`. For SRs, the
 `cites:` list is large (every included study is a
