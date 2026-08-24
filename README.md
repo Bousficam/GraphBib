@@ -510,6 +510,7 @@ unless explicitly noted.
 | `tools/verify_ingest.py` | Post-ingest lint: every number cited, referenced, and present in the article |
 | `tools/verify_doi.py` | Post-ingest lint: the DOI is THIS paper's, checked against Crossref |
 | `tools/figure_pairs.py` | Pair extracted images with captions + pages, both converter conventions |
+| `tools/backfill_figures.py` | Add or repair `## Figures` on sources ingested before the figures workflow |
 
 ### Output / publication
 

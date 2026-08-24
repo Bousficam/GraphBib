@@ -120,6 +120,50 @@ dropped every minus sign in the paper. Step 19 of the ingest workflow
 lists what to do in each case - the one thing never allowed is leaving
 an unverifiable number on the page unannotated.
 
+## Figures - pairing and back-fill (`figure_pairs.py`, `backfill_figures.py`)
+
+`figure_pairs.py` is the deterministic half of a `## Figures` section:
+it pairs each extracted image with its caption, resolves the page, and
+computes the relative path from the wiki page down to the image. Full
+rule in `docs/workflows/figures.md`.
+
+```bash
+python tools/figure_pairs.py --source <slug>              # inspect
+python tools/figure_pairs.py --source <slug> --markdown   # ready to paste
+python tools/figure_pairs.py --source <slug> --no-pdf     # skip the PDF pass
+```
+
+Page resolution, in order: the converted markdown's own page anchors;
+the caption located in the PDF text layer (needs `pymupdf`, optional -
+without it the page degrades to unknown, it never crashes); marker's
+file-name index. Any of those gives a PDF page, which becomes a
+**printed** page through the article's Crossref record - a page range
+("111-118") gives an offset, an article number ("118824", modern
+Elsevier / Frontiers / PLOS) means the article paginates from 1. With
+neither, the output stays `(PDF p. N - confirm the printed page)` or
+`(p. ?)`. It never prints a page nobody established.
+
+`backfill_figures.py` applies that to sources ingested before the
+workflow existed:
+
+```bash
+python tools/backfill_figures.py --all                 # dry run
+python tools/backfill_figures.py --all --mode new --apply
+python tools/backfill_figures.py --all --mode pages --apply
+```
+
+- `new` adds a section where there is none. Purely additive.
+- `pages` repairs the page references of an existing section and leaves
+  its titles and captions alone. It rewrites a reference only when the
+  new one is strictly better, or when the old one is provably the known
+  artifact: sections written before this tool printed marker's 0-based
+  file-name index as if it were a page, which is exactly `pdf_page - 1`
+  for the figure the heading points at.
+
+The wiki is user content and is not versioned, so every file touched is
+copied to `.maintenance/figures_backfill_backup/` first (the original,
+not the last write).
+
 ## DOI lint - is it this paper's DOI? (`verify_doi.py`)
 
 The last gate of an ingest (step 20). A DOI that resolves is not a DOI

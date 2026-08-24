@@ -109,6 +109,7 @@ Shaded area = 95 % CI across N = 24 participants.*
 | Back-fill on an old source | `source-illustrator`, launched by the parent | same, on a page that has no `## Figures` |
 | Illustrating a concept | `concept-illustrator` via `/wiki-illustrate` | picks from the cited sources' `## Figures` and inserts with a full citation |
 | Corpus-wide bank | `tools/build_figure_index.py` | `figures.json` + `wiki/<vault>/figures-index.md` |
+| Sources ingested before this workflow | `tools/backfill_figures.py` | `--mode new` adds a missing section, `--mode pages` repairs wrong page references |
 
 **The ingester does this itself and does not delegate.** A sub-agent's
 `tools:` allowlist does not include `Agent`, so an
