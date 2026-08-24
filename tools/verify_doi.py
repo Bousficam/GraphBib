@@ -15,7 +15,10 @@ Checks:
 
     doi_missing          no doi: on a page type that should have one
     doi_malformed        not a 10.xxxx/... DOI
-    doi_not_found        Crossref returns 404
+    doi_not_found        the DOI resolves nowhere (404 at Crossref AND at doi.org)
+    doi_not_in_crossref  registered outside Crossref (DataCite: OpenNeuro,
+                         Zenodo, figshare) - real DOI, just not cross-checkable
+                         here
     doi_title_mismatch   Crossref title is a different paper
     doi_author_mismatch  first author does not match
     doi_year_mismatch    year differs by more than one
@@ -48,6 +51,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from _lib import REPO_ROOT, SRC_DIR, parse_fm  # noqa: E402
 from crossref import (  # noqa: E402
+    TIMEOUT,
+    USER_AGENT,
     crossref_metadata,
     crossref_search,
     load_cache,
@@ -68,6 +73,31 @@ MIN_JOURNAL_MATCH = 0.5     # token-Jaccard, container title
 YEAR_TOLERANCE = 1          # online-first vs issue year
 
 SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2}
+
+
+def registered_elsewhere(doi: str) -> bool:
+    """Does doi.org know this DOI even though Crossref does not?
+
+    Crossref only holds Crossref-registered DOIs. A dataset DOI
+    (OpenNeuro, Zenodo, figshare) is registered with DataCite and 404s at
+    the Crossref API while being perfectly valid. Without this second
+    look, the lint would fail an ingest over a correct DOI.
+
+    A resolvable DOI answers the doi.org proxy with a redirect to the
+    publisher. Any network trouble answers False, which only means the
+    finding stays where it was - never a new one.
+    """
+    try:
+        import requests
+        r = requests.head(
+            f"https://doi.org/{doi}",
+            timeout=TIMEOUT,
+            allow_redirects=False,
+            headers={"User-Agent": USER_AGENT},
+        )
+        return r.status_code in (301, 302, 303, 307, 308)
+    except Exception:
+        return False
 
 
 def page_type(fm: dict) -> str:
@@ -168,9 +198,15 @@ def check_source(path: Path, cache: dict, dupes: dict, offline_hint: dict) -> li
         if offline_hint.get("failed"):
             add("crossref_unreachable", "low",
                 f"could not reach Crossref for {doi} - re-run when online")
+        elif registered_elsewhere(doi):
+            add("doi_not_in_crossref", "low",
+                f"{doi} is registered outside Crossref (DataCite - a dataset, "
+                f"preprint or software DOI). It resolves, so it is not wrong; "
+                f"it just cannot be cross-checked against a bibliographic "
+                f"record here. Verify the metadata against the landing page.")
         else:
             add("doi_not_found", "high",
-                f"{doi} does not resolve at Crossref (404)")
+                f"{doi} resolves nowhere - not at Crossref, not at doi.org")
         return findings
 
     cr_title = md.get("title") or ""

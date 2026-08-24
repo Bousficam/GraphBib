@@ -174,6 +174,8 @@ on your watch:
     a note with no DOI is normal - leave it empty.
   - `doi_author_mismatch` / `doi_year_mismatch` → fix the frontmatter,
     not the DOI.
+  - `doi_not_in_crossref` → nothing to fix: a DataCite DOI (OpenNeuro,
+    Zenodo, figshare) resolves but is not in Crossref.
   - `crossref_unreachable` → offline; report it and move on, it never
     blocks an ingest.
 

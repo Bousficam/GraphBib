@@ -63,16 +63,75 @@ def all_wiki_pages() -> list[Path]:
 
 
 def extract_wikilinks(content: str) -> list[str]:
-    return re.findall(r'\[\[([^\]]+)\]\]', content)
+    """Return the raw target of every [[WikiLink]] on the page.
+
+    `[^\\]\\n]` rather than `[^\\]]`: a stray unclosed `[[` used to let the match
+    run across newlines until the next `]]`, swallowing whole paragraphs and
+    reporting them as one enormous broken link. Wikilink targets are single-line
+    by construction, so refusing newlines removes those artefacts.
+
+    Alias (`|`) and anchor (`#`) suffixes are left on the raw target here;
+    page_name_to_path strips them when resolving.
+
+    Code spans and fenced blocks are stripped first. A page that documents the
+    wiki's own notation writes things like `reported via [[X]]` inside backticks;
+    that renders as literal text, not as a link, so counting it as a broken link
+    is a false positive against pages that explain the conventions correctly.
+    """
+    content = re.sub(r"```.*?```", "", content, flags=re.S)   # blocs clotures
+    content = re.sub(r"`[^`\n]*`", "", content)                # spans en ligne
+    return re.findall(r'\[\[([^\]\n]+)\]\]', content)
+
+
+# Resolving a [[WikiLink]] used to rescan the whole wiki tree, once per link.
+# At this corpus size that is 3950 pages x ~135k links x two passes (orphans and
+# broken links) - measured at over an hour, which is why the lint never finished.
+# Build the stem -> paths index once instead. Semantics are unchanged: the old
+# test was `p.stem.lower() == name.lower() or p.stem == name`, and the second
+# clause is subsumed by the first, so a lowercased index is exactly equivalent.
+# Insertion order follows rglob order, so the returned list keeps its old order.
+_PAGE_INDEX: dict[str, list[Path]] | None = None
+
+
+def _page_index() -> dict[str, list[Path]]:
+    global _PAGE_INDEX
+    if _PAGE_INDEX is None:
+        index: dict[str, list[Path]] = defaultdict(list)
+        for p in all_wiki_pages():
+            index[p.stem.lower()].append(p)
+        _PAGE_INDEX = dict(index)
+    return _PAGE_INDEX
+
+
+def invalidate_page_index() -> None:
+    """Drop the cached index. Call after creating or deleting wiki pages."""
+    global _PAGE_INDEX
+    _PAGE_INDEX = None
 
 
 def page_name_to_path(name: str) -> list[Path]:
-    """Try to resolve a [[WikiLink]] to a file path."""
-    candidates = []
-    for p in all_wiki_pages():
-        if p.stem.lower() == name.lower() or p.stem == name:
-            candidates.append(p)
-    return candidates
+    """Resolve a [[WikiLink]] target to the file path(s) it can refer to.
+
+    Handles the three Obsidian forms the wiki actually uses:
+
+      [[Page]]                      -> by basename
+      [[folder/sub/Page]]           -> by path relative to the vault root, the
+                                       form used throughout concepts/ and
+                                       questions/ cross-references
+      [[Page|alias]] / [[Page#sec]] -> alias and anchor stripped before lookup
+
+    Only the basename form was resolved before, so every path-style link counted
+    as broken: 1952 of the 3990 reported by the previous run pointed at a file
+    that exists on disk. Returns [] when nothing matches.
+    """
+    target = name.split("|", 1)[0].split("#", 1)[0].strip()
+    if not target:
+        return []
+    if "/" in target:
+        rel = target if target.endswith(".md") else target + ".md"
+        candidate = WIKI_DIR / rel
+        return [candidate] if candidate.is_file() else []
+    return list(_page_index().get(target.lower(), []))
 
 
 def find_orphans(pages: list[Path]) -> list[Path]:

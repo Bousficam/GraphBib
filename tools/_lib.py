@@ -36,6 +36,9 @@ research domain - raw is the input, wiki is the ingested output).
 import json
 import os
 import re
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import yaml
@@ -46,6 +49,52 @@ RAW_ROOT = REPO_ROOT / "raw"
 DATA_DIR = REPO_ROOT / "tools" / "data"
 DOMAIN_FILE = DATA_DIR / "domain.json"
 ENV_FILE = REPO_ROOT / ".env"
+
+# macOS keychain entry written by Claude Code at login. Holds the live OAuth
+# credential as JSON: {"claudeAiOauth": {"accessToken", "expiresAt", ...}}.
+KEYCHAIN_SERVICE = "Claude Code-credentials"
+
+# Anthropic OAuth access tokens carry this prefix; console API keys carry
+# "sk-ant-api03-". The distinction matters because OAuth tokens are rotated
+# behind our back (see anthropic_key_from_keychain) while API keys are not.
+OAUTH_KEY_PREFIX = "sk-ant-oat01-"
+
+
+def anthropic_key_from_keychain(service=KEYCHAIN_SERVICE):
+    """Return the live Claude Code OAuth access token, or None.
+
+    Why this exists: a copy of an OAuth token pasted into `.env` goes stale
+    without warning. Claude Code refreshes the token in the keychain on its own
+    schedule, and a `/login` rotates it outright, at which point every tool here
+    starts answering 401 "OAuth access token has been revoked" while `.env`
+    still looks perfectly well-formed. That failure is silent and costs a
+    debugging session each time. The keychain is the authoritative copy, so read
+    it instead of trusting the transcription.
+
+    Returns None, never raises, when: not on macOS, `security` is unavailable,
+    the entry is missing, the payload is not the expected JSON, or the token has
+    already expired. Callers fall back to whatever `.env` provided.
+    """
+    if sys.platform != "darwin":
+        return None
+    try:
+        raw = subprocess.run(
+            ["security", "find-generic-password", "-s", service, "-w"],
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        oauth = json.loads(raw)["claudeAiOauth"]
+        token = oauth["accessToken"]
+        expires_at = oauth.get("expiresAt")
+    except (ValueError, KeyError, TypeError):
+        return None
+    # expiresAt is in milliseconds. Treat a missing value as "no expiry known"
+    # rather than as expired: a usable token beats no token.
+    if expires_at is not None and expires_at / 1000 <= time.time():
+        return None
+    return token or None
 
 
 def load_local_env(path=ENV_FILE):
@@ -59,20 +108,35 @@ def load_local_env(path=ENV_FILE):
     Already-exported variables win: the file is a fallback, so a one-off
     `export KEY=... ` on the command line still overrides it. Returns the list
     of names actually set, for logging - never the values.
+
+    One exception to "the file wins over nothing": ANTHROPIC_API_KEY. When the
+    value that would take effect is absent or is an OAuth token (which rotates
+    behind our back), the live keychain token is preferred - see
+    anthropic_key_from_keychain. An explicitly exported ANTHROPIC_API_KEY still
+    wins over both, and a console API key in `.env` is left untouched.
     """
-    if not path.exists():
-        return []
     loaded = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip("'\"")
-        if key and key not in os.environ:
-            os.environ[key] = value
-            loaded.append(key)
+    preexported = "ANTHROPIC_API_KEY" in os.environ
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'\"")
+            if key and key not in os.environ:
+                os.environ[key] = value
+                loaded.append(key)
+
+    if not preexported:
+        current = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not current or current.startswith(OAUTH_KEY_PREFIX):
+            live = anthropic_key_from_keychain()
+            if live and live != current:
+                os.environ["ANTHROPIC_API_KEY"] = live
+                if "ANTHROPIC_API_KEY" not in loaded:
+                    loaded.append("ANTHROPIC_API_KEY")
     return loaded
 
 

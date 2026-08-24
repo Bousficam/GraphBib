@@ -140,12 +140,13 @@ paper is being ingested twice.
 | Check | Severity |
 |---|---|
 | `doi_title_mismatch` - Crossref returns a different paper | high |
-| `doi_not_found` - 404 at Crossref | high |
+| `doi_not_found` - resolves nowhere, 404 at Crossref and at doi.org | high |
 | `doi_malformed` - not a `10.xxxx/...` DOI | high |
 | `doi_duplicate` - another source page already carries it | high |
 | `doi_missing` - no `doi:` where one is expected | medium (low for thesis / book / note) |
 | `doi_author_mismatch`, `doi_year_mismatch` | medium |
 | `doi_journal_mismatch`, `slug_family_mismatch` | low |
+| `doi_not_in_crossref` - DataCite DOI (dataset, preprint, software) | low |
 | `crossref_unreachable` - offline | low, never blocks |
 
 The failure it exists for: `pdf2md/enrich_frontmatter.py` reads a DOI
@@ -157,6 +158,11 @@ wrong. Resolving on title, not on HTTP status, is the whole point.
 When `doi:` is missing, a Crossref bibliographic search on title + first
 author proposes a candidate. A candidate is a proposal, never an answer:
 confirm it against the article before writing it into the frontmatter.
+
+A Crossref 404 is double-checked against the doi.org proxy before it is
+called an error: a dataset DOI (OpenNeuro, Zenodo, figshare) is
+registered with DataCite and legitimately absent from Crossref. It
+resolves, so it is reported at `low` and never fails an ingest.
 
 Shares `tools/.cache/crossref.json` with `parse_references.py` and
 `fetch_oa.py`, so re-runs are free.

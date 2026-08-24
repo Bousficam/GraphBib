@@ -319,7 +319,7 @@ it resolve" but "does Crossref return **this** paper".
 | Check | Severity | Meaning |
 |---|---|---|
 | `doi_title_mismatch` | high | Crossref returns a different paper (title similarity < 0.75) |
-| `doi_not_found` | high | the DOI does not resolve (404) |
+| `doi_not_found` | high | the DOI resolves nowhere - 404 at Crossref AND at doi.org |
 | `doi_malformed` | high | not a `10.xxxx/...` DOI |
 | `doi_duplicate` | high | another source page already carries this DOI - the paper is already in the wiki |
 | `doi_missing` | medium | no `doi:` on a page type that should have one (low for a thesis / book / note) |
@@ -327,6 +327,7 @@ it resolve" but "does Crossref return **this** paper".
 | `doi_year_mismatch` | medium | year differs by more than one (one year of slack for online-first) |
 | `doi_journal_mismatch` | low | container title differs |
 | `slug_family_mismatch` | low | the slug does not start with the Crossref first author |
+| `doi_not_in_crossref` | low | registered with DataCite (dataset, preprint, software) - valid, just not cross-checkable here |
 | `crossref_unreachable` | low | offline - re-run later, never a blocker |
 
 How to resolve:
@@ -347,6 +348,9 @@ How to resolve:
   frontmatter typo or an author order the converter scrambled; fix the
   page, not the DOI. A year off by one on an online-first article is
   tolerated already, so a reported mismatch is a real one.
+- **`doi_not_in_crossref`** → nothing to fix. An OpenNeuro / Zenodo /
+  figshare DOI is registered with DataCite, not Crossref; it resolves,
+  so it is correct. Check the metadata against the landing page instead.
 - **`crossref_unreachable`** → say so in the report and move on. Offline
   never blocks an ingest.
 

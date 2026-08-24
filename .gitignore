@@ -6,13 +6,13 @@ __pycache__/
 venv/
 .cache/
 
-# llm-wiki-agent runtime data — user content, not committed
+# llm-wiki-agent runtime data - user content, not committed
 raw/*
 wiki/*
 pdf2md/Split/*
 .claude/settings.local.json
 
-# Extraction projects — per-user analytical artifacts.
+# Extraction projects - per-user analytical artifacts.
 # If you want to commit a project's spec (contexte/instructions/template)
 # while excluding output/articles, unignore selectively in a sub-.gitignore.
 project-review/*
@@ -30,3 +30,6 @@ graph/
 
 # Local credentials - loaded by tools/_lib.py, never committed
 .env
+# ...and every variant (.env.local, .env.bak-*, .env.save): these hold
+# credentials and a bare `.env` line does not match them.
+.env*
