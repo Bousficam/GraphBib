@@ -85,6 +85,26 @@ def is_stale_marker_ref(old_ref: str, rec: dict) -> bool:
     return int(m.group(1)) == rec["pdf_page"] - 1
 
 
+def is_out_of_range(old_ref: str, first_printed) -> bool:
+    """Is this number impossible as a printed page of this article?
+
+    The stale-index rule above catches sections that wrote marker's
+    0-based index. Others wrote the index plus one - still the PDF page,
+    still not the printed page. Both are caught at once whenever the
+    article does not start at printed page 1: any number below its first
+    printed page cannot be a page of it. `winkler-2015` runs pages
+    253-268, so its `(p. 3)` is impossible whichever convention produced
+    it.
+
+    Silent when the article paginates from 1 (article-number journals),
+    where a PDF page and a printed page legitimately coincide.
+    """
+    if not first_printed or first_printed <= 1:
+        return False
+    m = re.search(r"(\d+)", old_ref)
+    return bool(m) and int(m.group(1)) < first_printed
+
+
 def candidates() -> list:
     """Slugs that have both a wiki source page and an extracted images dir."""
     imgs = {d.name[: -len("_images")] for d in (REPO_ROOT / "raw").rglob("*_images") if d.is_dir()}
@@ -114,7 +134,7 @@ def insert_section(text: str, section: str) -> str:
     return text.rstrip() + "\n\n" + section.rstrip() + "\n"
 
 
-def repair_pages(text: str, by_file: dict) -> tuple:
+def repair_pages(text: str, by_file: dict, first_printed=None) -> tuple:
     """Rewrite the page reference of each figure heading. Returns (text, changes).
 
     A heading is bound to a figure by the image link on the line(s)
@@ -140,7 +160,9 @@ def repair_pages(text: str, by_file: dict) -> tuple:
         if new_ref == old_ref:
             continue
         better = rec_rank(rec) > ref_rank(old_ref)
-        if not (better or is_stale_marker_ref(old_ref, rec)):
+        if not (better
+                or is_stale_marker_ref(old_ref, rec)
+                or is_out_of_range(old_ref, first_printed)):
             continue
         lines[i] = f"{m.group(1)} {new_ref}"
         changes.append((old_ref, new_ref, rec["file"]))
@@ -166,7 +188,7 @@ def process(slug: str, mode: str, apply: bool) -> dict:
             out["detail"] = "already has ## Figures"
             return out
         by_file = {f["file"]: f for f in data["figures"]}
-        new_text, changes = repair_pages(text, by_file)
+        new_text, changes = repair_pages(text, by_file, data.get("printed_page_offset"))
         if not changes:
             out["action"] = "ok"
             out["detail"] = "page references already correct or not improvable"
