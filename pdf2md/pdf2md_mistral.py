@@ -18,12 +18,27 @@ Usage
     # (default: idempotent - already-converted .md files are skipped)
     python pdf2md/pdf2md_mistral.py SRC DST --force   # re-run anyway
 
+    # Retry pass over what marker failed on, instead of the whole tree:
+    python pdf2md/pdf2md_mistral.py SRC DST --from-marker-report
+
 API key
 =======
 
 The free experimental plan is enough for retry-on-marker-failure usage.
-Get one at https://console.mistral.ai. Set MISTRAL_API_KEY in your env
-or the script will prompt for it (input hidden).
+Get one at https://console.mistral.ai.
+
+The key is looked up in this order, first hit wins:
+
+    1. $MISTRAL_API_KEY in the environment
+    2. MISTRAL_API_KEY= in the repo's gitignored `.env`
+    3. the macOS keychain (`security find-generic-password -s MISTRAL_API_KEY`)
+    4. a hidden prompt, ONLY when stdin is a terminal
+
+With no key and no terminal to ask on - which is every run launched by
+the agent - the script exits with code 3 and says so on stderr. That
+code means "ask the user for a key", NOT "this PDF cannot be
+converted": callers must not fall back to another backend on it. See
+`docs/workflows/conversion.md`.
 
 Cost
 ====
@@ -57,6 +72,7 @@ import getpass
 import json
 import logging
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -72,23 +88,93 @@ DEFAULT_SLEEP = 0.5   # 2 req/s - polite for the experimental plan
 DEFAULT_TIMEOUT = 180  # 3 min per PDF
 
 
+# Exit code reserved for "no key was found anywhere". Distinct from a
+# conversion failure so a caller can tell the two apart: a missing key is
+# answered by asking the user, never by falling back to another backend.
+EXIT_NO_KEY = 3
+
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+KEYCHAIN_SERVICE = "MISTRAL_API_KEY"
+
+
+def key_from_env_file(path=None):
+    """MISTRAL_API_KEY from the repo's gitignored `.env`, or None.
+
+    Parsed here rather than imported from tools/_lib so that pdf2md stays
+    runnable on its own. A key sitting in `.env` used to be invisible to
+    this script, which then reported "no key" while the key was right
+    there - the failure this exists to prevent.
+    """
+    try:
+        text = (path or ENV_FILE).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        if name.strip() == "MISTRAL_API_KEY":
+            return value.strip().strip("'\"") or None
+    return None
+
+
+def key_from_keychain(service=KEYCHAIN_SERVICE):
+    """The key from the macOS keychain, or None. Never raises."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        out = subprocess.run(
+            ["security", "find-generic-password", "-s", service, "-w"],
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out or None
+
+
 def get_api_key():
-    """Resolve MISTRAL_API_KEY from env, or prompt the user with a hidden input."""
-    key = os.getenv("MISTRAL_API_KEY")
-    if key:
-        return key
+    """Resolve the Mistral key, or exit EXIT_NO_KEY telling the caller to ask.
+
+    Order: environment, repo `.env`, macOS keychain, hidden prompt. The
+    prompt is only offered when stdin is a terminal; an agent-launched
+    run has no terminal, so it exits with a message the agent is meant
+    to act on by asking the user for a key - not by switching backend.
+    """
+    for source, key in (
+        ("environment", os.getenv("MISTRAL_API_KEY")),
+        (f"{ENV_FILE.name} file", key_from_env_file()),
+        ("macOS keychain", key_from_keychain()),
+    ):
+        if key and key.strip():
+            if source != "environment":
+                # `log` is set up inside main(); this runs before that.
+                print(f"MISTRAL_API_KEY read from the {source}.", file=sys.stderr)
+            return key.strip()
+
     print("", file=sys.stderr)
-    print("MISTRAL_API_KEY is not set in your environment.", file=sys.stderr)
-    print("→ Get a free experimental key at https://console.mistral.ai",
+    print("MISTRAL_API_KEY not found in the environment, in .env, "
+          "or in the macOS keychain.", file=sys.stderr)
+    print("-> Get a free experimental key at https://console.mistral.ai",
           file=sys.stderr)
-    print("→ Or export it: export MISTRAL_API_KEY=…", file=sys.stderr)
+    print("-> Then either: export MISTRAL_API_KEY=...", file=sys.stderr)
+    print("             or: add MISTRAL_API_KEY=... to .env (gitignored)",
+          file=sys.stderr)
     print("", file=sys.stderr)
+
+    if not sys.stdin.isatty():
+        print("No terminal to prompt on. ASK THE USER for a key and retry - "
+              "do NOT fall back to another backend, Mistral is the default "
+              "converter (docs/workflows/conversion.md).", file=sys.stderr)
+        sys.exit(EXIT_NO_KEY)
+
     try:
         key = getpass.getpass("Paste your MISTRAL_API_KEY (input hidden): ").strip()
-    except EOFError:
-        sys.exit("No API key provided. Aborting.")
+    except (EOFError, KeyboardInterrupt):
+        key = ""
     if not key:
-        sys.exit("No API key provided. Aborting.")
+        print("No API key provided.", file=sys.stderr)
+        sys.exit(EXIT_NO_KEY)
     return key
 
 
@@ -166,10 +252,37 @@ def mistral_ocr(pdf_path, api_key, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT,
     return "\n\n".join(parts), images, None
 
 
+def scan_targets(src, dst, force=False):
+    """Every PDF under SRC, mirrored into DST. Returns the same shape as
+    `collect_targets`.
+
+    This is what "Mistral is the default converter" means in practice.
+    The script used to have no way to express it: without --files it
+    required a marker_report.json and refused to start, so a
+    Mistral-first run was impossible and the pipeline silently became
+    marker-first - the slow backend - whatever the docs said.
+
+    Already-converted files are skipped unless `force`, so a re-run
+    costs nothing.
+    """
+    targets = []
+    for pdf in sorted(src.rglob("*.pdf")):
+        if pdf.name.startswith("."):
+            continue
+        rel = pdf.relative_to(src)
+        md = (dst / rel).with_suffix(".md")
+        if not force and already_mistral(md):
+            continue
+        targets.append({"pdf": pdf, "rel_md": md, "reason": "scan"})
+    return targets
+
+
 def collect_targets(report_path, src, dst, only_files=None):
-    """Read marker_report.json (and optionally fallback_report.json) to
-    determine which PDFs need Mistral. Returns list of dicts with
-    {pdf, rel_md, reason}.
+    """The PDFs marker failed on, from marker_report.json. Returns dicts
+    of {pdf, rel_md, reason}.
+
+    This is the RETRY pass (`--from-marker-report`), not the default:
+    see `scan_targets`.
     """
     targets = []
 
@@ -225,6 +338,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("src", help="Source directory (root of the PDF library)")
     ap.add_argument("dst", help="Destination directory for converted .md")
+    ap.add_argument("--from-marker-report", action="store_true",
+                    help="Retry pass: convert only what marker errored on or "
+                         "produced suspicious output for, per DST/marker_report.json. "
+                         "Without this flag every PDF under SRC is converted, which "
+                         "is the default Mistral-first pipeline.")
     ap.add_argument("--files", nargs="+",
                     help="Specific PDFs (relative to SRC) to process; "
                          "skips reading marker_report.json")
@@ -262,8 +380,13 @@ def main():
     )
     log = logging.getLogger("mistral")
 
-    marker_report = dst / "marker_report.json"
-    targets = collect_targets(marker_report, src, dst, only_files=args.files)
+    if args.files:
+        targets = collect_targets(dst / "marker_report.json", src, dst,
+                                  only_files=args.files)
+    elif args.from_marker_report:
+        targets = collect_targets(dst / "marker_report.json", src, dst)
+    else:
+        targets = scan_targets(src, dst, force=args.force)
     if not targets:
         log.info("No targets to process.")
         return

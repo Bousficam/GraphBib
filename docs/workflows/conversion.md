@@ -8,14 +8,54 @@ This workflow turns a directory of source documents (PDFs, EPUBs)
 into ingestion-ready Markdown. It is **separate from ingestion** - 
 it produces the input that the Ingest Workflow consumes.
 
+## The backend is a session-level decision
+
+At the top of a session the `session_start_convert.py` hook asks:
+
+    Mistral as the default PDF converter? [Yes / No]
+
+The answer is persisted in `.claude/settings.local.json` as
+`WIKI_CONVERT_BACKEND` (`mistral` or `ask`) so sub-agents inherit it and
+the question is asked once. With `mistral` - the default - every
+conversion starts with `pdf2md_mistral.py`, and another backend is
+reached only for PDFs Mistral actually failed on.
+
+## A missing API key is not a conversion failure
+
+`pdf2md_mistral.py` resolves the key from, in order: `$MISTRAL_API_KEY`,
+`MISTRAL_API_KEY=` in the gitignored `.env`, the macOS keychain, then a
+hidden prompt when stdin is a terminal. An agent-launched run has no
+terminal, so with no key it exits with **code 3**.
+
+**Exit code 3 means "ask the user for a key", not "this PDF cannot be
+converted."** On it:
+
+1. Ask the user for a Mistral key (free experimental at
+   `console.mistral.ai`).
+2. Offer to write it to `.env` as `MISTRAL_API_KEY=...` so the next
+   session finds it. `.env*` is gitignored; never commit a key, never
+   echo it back in the transcript.
+3. Re-run the Mistral phase.
+
+Never switch to marker or pymupdf4llm because a key is missing. That
+converts the corpus with the 40-min-per-paper backend without anyone
+deciding it, and the failure is silent: the corpus just ends up
+different. Falling back is for PDFs Mistral tried and could not do.
+
 ## Phases (PDFs)
 
 1. **Mistral OCR - the default converter**
-   (`pdf2md/pdf2md_mistral.py SRC DST [--files a.pdf b.pdf]`) - Mistral
-   Document AI. Needs `MISTRAL_API_KEY` (free experimental at
-   `console.mistral.ai`; script prompts if missing). Writes
-   `mistral_report.json`. **Run this first** unless the user asks
-   otherwise.
+   (`pdf2md/pdf2md_mistral.py SRC DST`) - Mistral Document AI. Needs a
+   key resolved as described above. Writes `mistral_report.json`.
+   **Run this first** unless the user asks otherwise.
+
+   With no flag it walks SRC for every PDF, mirroring the arborescence
+   into DST and skipping what it already converted. `--files a.pdf
+   b.pdf` restricts it to named files; `--from-marker-report` makes it
+   the retry pass over what marker failed on, which is a different job
+   and no longer the default. (It used to be the ONLY thing the script
+   could do - without a marker report it refused to start, so the
+   documented Mistral-first pipeline could not actually run.)
 
    *Why it is the default:* on a laptop CPU, marker runs roughly 40 min
    per paper (measured: 5 h 26 for two 17-page articles), Mistral about
@@ -112,6 +152,11 @@ DOI-bearing references.
 2. Run Phase 1 (Mistral) for PDFs, surface `mistral_report.json`. Say
    in the recap which backend was used and what its known failure mode
    is, so the user can judge the ingest that follows.
+
+   If it exits with code 3, the key is missing: ask the user for one,
+   offer to save it to `.env`, and re-run Phase 1. Do not advance to
+   Phase 2 or 3 on that code - see *A missing API key is not a
+   conversion failure* above.
 3. Phase 2 (marker) is **opt-in**. Offer it, do not assume it:
    *"Mistral converted N PDFs in Ms. Marker is the faithful backend for
    formulas and the only one that extracts figures, but costs about

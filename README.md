@@ -335,6 +335,8 @@ implementation uses **Mistral Document AI**:
 ```bash
 export MISTRAL_API_KEY=...                  # console.mistral.ai
 python pdf2md/pdf2md_mistral.py "/path/to/PDFs" raw/<vault>/papers
+# every PDF under the source tree; add --from-marker-report for the
+# retry pass over what marker failed on
 ```
 
 Reads `marker_report.json` and only sends the entries Marker errored

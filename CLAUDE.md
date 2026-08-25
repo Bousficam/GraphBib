@@ -172,6 +172,20 @@ session by merging `{"env": {"WIKI_VAULT": "<choice>"}}` into
 block). This avoids re-asking on every tool call and is inherited by
 sub-agents.
 
+**Conversion backend at session start.** The `SessionStart` hook
+`.claude/hooks/session_start_convert.py` asks once whether Mistral stays
+the default PDF converter, and the answer is persisted as
+`WIKI_CONVERT_BACKEND` in `.claude/settings.local.json` (`mistral` or
+`ask`), the same way `$WIKI_VAULT` is. Mistral runs ~5 s per paper
+against ~40 min for marker, so it goes first and the other backends are
+reached only for PDFs it actually failed on.
+
+A **missing API key never changes the backend**: `pdf2md_mistral.py`
+exits with code 3 when it finds no key in the environment, in `.env` or
+in the macOS keychain, and that code means *ask the user for a key and
+retry*, not *this PDF cannot be converted*. See
+`docs/workflows/conversion.md`.
+
 The `project-review/<vault>/<name>/` orchestrator has moved to the
 sibling repo `../TallyBib/` and is independent of this wiki - it is
 NOT created or read by `/wiki-init`. Sharing a vault name between
