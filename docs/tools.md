@@ -211,6 +211,48 @@ resolves, so it is reported at `low` and never fails an ingest.
 Shares `tools/.cache/crossref.json` with `parse_references.py` and
 `fetch_oa.py`, so re-runs are free.
 
+## Reference filing (`file_reference.py`)
+
+Step 21 of the ingest, opt-in via `$WIKI_REF_FILING`. Renames a source's
+master PDF to its slug and files it into the reference library as
+`<library>/<theme>/<slug>.pdf`, then repoints `source_pdf:`.
+
+```bash
+python tools/file_reference.py --source <slug>              # dry run
+python tools/file_reference.py --source <slug> --apply
+python tools/file_reference.py --all                        # sizing
+```
+
+The theme is the one the ingest already decided - the page's folder
+under `sources/`, then its `intervention_family`, `domain` and tags -
+matched against shelves the library **already has**, shallowest first
+(a root `Methodo/` is the general shelf; `BCI/Methodo/` is a niche that
+would misfile a statistics paper). Matching tolerates the vocabulary
+drift between a wiki and a personal library: `methodology` finds
+`Methodo/`. With no match the PDF goes to the library root rather than
+inventing a folder; `--allow-new-folders` opts into the opposite.
+
+`WIKI_REF_MODE`: `copy` (default), `move`, `rename`.
+
+Two rules keep the library from growing copies of the same paper.
+A master **already inside the library** is moved within it, never
+copied. And when the paper is **already shelved elsewhere under this
+slug**, it is that copy which moves to the right shelf - the master is
+not duplicated. A file correctly filed while a second copy still sits
+somewhere else is reported as `duplicate` and never deleted: removing a
+file from someone's library is their call.
+
+Duplicates are found by file name, which is cheap; one still carrying a
+human name ("Mensen 2013 TFCE.pdf") is invisible without hashing the
+whole library on every ingest. A name already taken by a *different*
+file is a `conflict` and is never overwritten. Applied operations are
+journalled to `.maintenance/reference_filing.jsonl` with both paths and
+the digest.
+
+The library is not a second `raw/`. `raw/<vault>/papers/` keeps the
+converted markdown and the extracted images, which every claim was
+verified against and which `source_file` points at.
+
 ## Audit trail (git as history)
 
 The wiki is a git repo - `git log` and `git blame` already provide a

@@ -513,6 +513,7 @@ unless explicitly noted.
 | `tools/verify_doi.py` | Post-ingest lint: the DOI is THIS paper's, checked against Crossref |
 | `tools/figure_pairs.py` | Pair extracted images with captions + pages, both converter conventions |
 | `tools/backfill_figures.py` | Add or repair `## Figures` on sources ingested before the figures workflow |
+| `tools/file_reference.py` | Rename the master PDF to its slug and file it in the reference library |
 
 ### Output / publication
 

@@ -100,7 +100,7 @@ U+2013) rather than a literal dash character.
 |---|---|
 | **Domain context (READ FIRST)** | `context.md` (root) + `docs/context/` |
 | Citation + Depth rules | `docs/rules/{citation,depth-completeness}.md` |
-| Ingest workflow (20 steps) | `docs/workflows/ingest.md` |
+| Ingest workflow (21 steps) | `docs/workflows/ingest.md` |
 | Long thesis ingestion | `docs/workflows/long-document-ingestion.md` |
 | Source organization | `docs/workflows/source-organization.md` |
 | Conversion pipeline (PDF → MD) | `docs/workflows/conversion.md` |
@@ -128,7 +128,7 @@ Thirteen specialists in `.claude/agents/`. Delegate via `Agent` with
 **Wiki side** - knowledge-graph building / maintenance:
 - `suggest-reading` - find what to read next (snowball + OpenAlex).
 - `fetch-reading` - download OA PDFs for a DOI list (Unpaywall).
-- `ingester` - ingest one source, all 20 steps (entity pages OFF by
+- `ingester` - ingest one source, all 21 steps (entity pages OFF by
   default; bibliography and abbreviation lists never read; no snowball;
   ends on two lints - `verify_ingest` for claims, `verify_doi` for the
   DOI).
@@ -185,6 +185,15 @@ exits with code 3 when it finds no key in the environment, in `.env` or
 in the macOS keychain, and that code means *ask the user for a key and
 retry*, not *this PDF cannot be converted*. See
 `docs/workflows/conversion.md`.
+
+**Reference filing at session start.** A third `SessionStart` hook,
+`.claude/hooks/session_start_reference.py`, asks once whether the master
+PDF is renamed to its slug and filed into a reference library at the end
+of each ingest, and where. The answer persists as `WIKI_REF_FILING` /
+`WIKI_REF_DIR` / `WIKI_REF_MODE`. It runs as step 21, after the DOI is
+confirmed, and **does not replace `raw/`**: the converted markdown and
+the extracted images stay there, immutable, and remain what
+`source_file` points at.
 
 The `project-review/<vault>/<name>/` orchestrator has moved to the
 sibling repo `../TallyBib/` and is independent of this wiki - it is

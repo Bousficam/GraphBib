@@ -2,7 +2,7 @@
 
 Triggered by: *"ingest <file>"* or `/wiki-ingest`. Most ingestions are
 delegated to the `ingester` sub-agent (`Agent(subagent_type=ingester, …)`),
-which enforces this 20-step procedure non-negotiably.
+which enforces this 21-step procedure non-negotiably.
 
 ## Supported formats
 
@@ -381,6 +381,52 @@ How to resolve:
 Finish when `high` is 0. Then print the change summary:
 *N concepts updated, M methods touched, K recommendations refined,
 L claims corrected by the lint, DOI verified against Crossref*.
+
+### 21 - File the master PDF in the reference library (opt-in)
+
+Runs only when `$WIKI_REF_FILING` is `on`. The SessionStart hook
+`.claude/hooks/session_start_reference.py` asks once whether it should
+be, and where, and the answer persists in `.claude/settings.local.json`
+as `WIKI_REF_FILING` / `WIKI_REF_DIR` / `WIKI_REF_MODE`.
+
+```bash
+python tools/file_reference.py --source <slug>            # dry run
+python tools/file_reference.py --source <slug> --apply
+```
+
+The master is renamed to the slug and filed as
+`<library>/<theme>/<slug>.pdf`, and `source_pdf:` is repointed. The
+theme is the one this ingest already decided - the page's folder under
+`sources/`, then its `intervention_family` / `domain` / tags - matched
+against the shelves the library **already has**. With no match the PDF
+goes to the library root: that taxonomy belongs to the user, and a tool
+that adds a folder every time the wiki uses an unfamiliar word would
+fragment it. `--allow-new-folders` opts into the opposite.
+
+`WIKI_REF_MODE` is `copy` (default, the original is left alone), `move`,
+or `rename` (renamed where it is, never relocated).
+
+Two rules keep the library from growing copies of the same paper.
+A master **already inside the library** is moved within it, never
+copied. And when the paper is **already shelved elsewhere under this
+slug**, it is that copy which moves to the right shelf - the master is
+not duplicated. A file correctly filed while a second copy still sits
+somewhere else is reported as `duplicate` and never deleted: removing a
+file from someone's library is their call.
+
+Every applied operation is journalled to
+`.maintenance/reference_filing.jsonl` with both paths and the digest.
+
+**This is why it is last.** The slug is only trustworthy once step 20
+has confirmed with Crossref that the DOI is this paper's. A PDF filed
+under a wrong slug is worse than one not filed at all: the wrong name
+now exists in two places.
+
+**The library does not replace `raw/`.** `raw/<vault>/papers/` keeps the
+converted markdown and the extracted images - the corpus every claim on
+the page was checked against, immutable. The library keeps the PDFs a
+human opens. `source_file` points at the first, `source_pdf` at the
+second; never repoint `source_file` at the library.
 
 ## For theses specifically
 
